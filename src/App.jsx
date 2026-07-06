@@ -101,17 +101,11 @@ const initialPosts = [
 ];
 
 const navItems = [
-  ["动态广场", House],
-  ["关注", UsersThree],
-  ["推荐", Star],
-  ["校园话题", Hash],
-  ["活动广场", CalendarBlank],
+  ["首页", House],
+  ["发现", Compass],
+  ["好友", UsersThree],
   ["消息", ChatCircle],
-  ["好友", UserPlus],
-  ["群聊", ChatsCircle],
-  ["收藏", BookmarkSimple],
-  ["我的主页", UserCircle],
-  ["设置", GearSix],
+  ["活动", CalendarBlank],
 ];
 
 const topics = [
@@ -128,14 +122,11 @@ const friends = [
 ];
 
 const pageCopy = {
-  动态广场: ["发现校园里的新鲜事", "来自全站用户的公开动态"],
-  关注: ["关注的人最近在做什么", "只看好友和关注对象的更新"],
-  推荐: ["为你推荐", "基于热度、兴趣和好友关系的内容"],
-  校园话题: ["校园话题", "按主题浏览讨论、打卡和经验分享"],
-  活动广场: ["活动广场", "发现讲座、社团招新和校园活动"],
+  首页: ["今天的校园动态", "关注重要内容，减少信息噪音"],
+  发现: ["发现", "话题、推荐和校园热点"],
+  好友: ["好友", "好友申请、分组和社交圈"],
   消息: ["消息中心", "查看私信、群聊和互动提醒"],
-  好友: ["好友管理", "管理好友申请、分组和社交圈"],
-  群聊: ["群聊", "查看学习小组、社团群和活动群"],
+  活动: ["活动", "讲座、社团招新和校园活动"],
   收藏: ["我的收藏", "保存稍后再看的动态和话题"],
   我的主页: ["我的主页", "预览个人资料、动态和社交数据"],
   设置: ["设置", "管理隐私、安全和通知偏好"],
@@ -155,10 +146,18 @@ const groupChats = [
 
 export function App() {
   const [posts, setPosts] = useState(initialPosts);
-  const [activeNav, setActiveNav] = useState("动态广场");
+  const [activeNav, setActiveNav] = useState("首页");
   const [draft, setDraft] = useState("");
   const [visibility, setVisibility] = useState("公开");
   const [messageOpen, setMessageOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  const [expandedPanels, setExpandedPanels] = useState({
+    profile: false,
+    friends: true,
+    topics: true,
+    privacy: false,
+  });
   const [followed, setFollowed] = useState(new Set(["珞珈少年"]));
   const [privacy, setPrivacy] = useState({
     phone: true,
@@ -217,7 +216,7 @@ export function App() {
     });
   }
 
-  const page = pageCopy[activeNav] ?? pageCopy["动态广场"];
+  const page = pageCopy[activeNav] ?? pageCopy["首页"];
   const followedPosts = posts.filter((post) => post.badge === "好友" || post.author === currentUser.name);
   const recommendedPosts = [...posts].sort((a, b) => b.likes + b.comments - (a.likes + a.comments));
   const savedPosts = posts.filter((post) => post.liked).slice(0, 2);
@@ -225,6 +224,16 @@ export function App() {
   function handleNav(label) {
     setActiveNav(label);
     if (label === "消息") setMessageOpen(true);
+    setUserMenuOpen(false);
+  }
+
+  function togglePanel(key) {
+    setExpandedPanels((value) => ({ ...value, [key]: !value[key] }));
+  }
+
+  function goPersonalPage(label) {
+    setActiveNav(label);
+    setUserMenuOpen(false);
   }
 
   function renderComposer() {
@@ -462,12 +471,10 @@ export function App() {
   }
 
   function renderMainContent() {
-    if (activeNav === "动态广场") return <>{renderComposer()}{renderFeed(posts)}</>;
-    if (activeNav === "关注") return renderFeed(followedPosts, { emptyTitle: "还没有关注动态", emptyText: "关注好友后，这里会只展示他们的动态。" });
-    if (activeNav === "推荐") return renderFeed(recommendedPosts);
-    if (activeNav === "校园话题") return renderTopicPage();
-    if (activeNav === "活动广场") return renderActivityPage();
-    if (activeNav === "消息" || activeNav === "群聊") return renderMessagesPage();
+    if (activeNav === "首页") return <>{renderComposer()}{renderFeed(posts)}</>;
+    if (activeNav === "发现") return <>{renderTopicPage()}{renderFeed(recommendedPosts)}</>;
+    if (activeNav === "活动") return renderActivityPage();
+    if (activeNav === "消息") return renderMessagesPage();
     if (activeNav === "好友") return renderFriendsPage();
     if (activeNav === "收藏") return renderFeed(savedPosts, { emptyTitle: "还没有收藏内容", emptyText: "点击动态下方的收藏后，会出现在这里。" });
     if (activeNav === "我的主页") return <>{renderProfilePage()}{renderFeed(posts.filter((post) => post.author === currentUser.name), { emptyTitle: "还没有发布动态", emptyText: "从发布框开始分享你的第一条校园动态。" })}</>;
@@ -476,7 +483,7 @@ export function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${rightPanelOpen ? "" : "panel-collapsed"}`}>
       <aside className="sidebar">
         <div className="brand">
           <div className="brand-mark">
@@ -502,7 +509,10 @@ export function App() {
           ))}
         </nav>
 
-        <button className="primary-action" onClick={() => document.getElementById("composer")?.focus()}>
+        <button className="primary-action" onClick={() => {
+          setActiveNav("首页");
+          window.setTimeout(() => document.getElementById("composer")?.focus(), 0);
+        }}>
           <PaperPlaneTilt size={20} weight="fill" />
           发布动态
         </button>
@@ -528,35 +538,67 @@ export function App() {
             <Bell size={21} />
             <span />
           </button>
-          <img className="avatar small" src={currentUser.avatar} alt="当前用户头像" />
+          <div className="user-menu-wrap">
+            <button className="avatar-button" onClick={() => setUserMenuOpen((value) => !value)} aria-label="打开个人菜单">
+              <img className="avatar small" src={currentUser.avatar} alt="当前用户头像" />
+            </button>
+            {userMenuOpen && (
+              <div className="user-menu">
+                <button onClick={() => goPersonalPage("我的主页")}><UserCircle size={18} />我的主页</button>
+                <button onClick={() => goPersonalPage("收藏")}><BookmarkSimple size={18} />我的收藏</button>
+                <button onClick={() => goPersonalPage("设置")}><GearSix size={18} />设置</button>
+              </div>
+            )}
+          </div>
         </header>
 
         {renderMainContent()}
       </main>
 
-      <aside className="right-panel">
+      <button className="panel-float-toggle" onClick={() => setRightPanelOpen((value) => !value)}>
+        {rightPanelOpen ? "收起信息栏" : "展开信息栏"}
+      </button>
+
+      {rightPanelOpen && <aside className="right-panel">
+        <div className="right-panel-head">
+          <div>
+            <p>侧边信息</p>
+            <h2>可按需查看</h2>
+          </div>
+          <button onClick={() => setRightPanelOpen(false)}>收起</button>
+        </div>
         <section className="profile-card">
-          <h2>我的主页</h2>
-          <div className="profile-row">
-            <img className="avatar large" src={currentUser.avatar} alt="当前用户头像" />
-            <div>
-              <strong>{currentUser.name}</strong>
-              <span>{currentUser.meta}</span>
-            </div>
-          </div>
-          <div className="profile-stats">
-            <span><strong>{stats.posts}</strong>动态</span>
-            <span><strong>{stats.follows}</strong>关注</span>
-            <span><strong>{stats.fans}</strong>粉丝</span>
-          </div>
+          <button className="collapse-title" onClick={() => togglePanel("profile")}>
+            <h2>我的状态</h2>
+            <span>{expandedPanels.profile ? "收起" : "展开"}</span>
+          </button>
+          {expandedPanels.profile && (
+            <>
+              <div className="profile-row">
+                <img className="avatar large" src={currentUser.avatar} alt="当前用户头像" />
+                <div>
+                  <strong>{currentUser.name}</strong>
+                  <span>{currentUser.meta}</span>
+                </div>
+              </div>
+              <div className="profile-stats">
+                <span><strong>{stats.posts}</strong>动态</span>
+                <span><strong>{stats.follows}</strong>关注</span>
+                <span><strong>{stats.fans}</strong>粉丝</span>
+              </div>
+            </>
+          )}
         </section>
 
         <section className="panel-card">
           <div className="panel-title">
-            <h2>推荐好友</h2>
+            <button className="collapse-title" onClick={() => togglePanel("friends")}>
+              <h2>推荐好友</h2>
+              <span>{expandedPanels.friends ? "收起" : "展开"}</span>
+            </button>
             <button>换一批</button>
           </div>
-          {friends.map(([name, meta, avatar]) => (
+          {expandedPanels.friends && friends.map(([name, meta, avatar]) => (
             <div className="friend-row" key={name}>
               <img className="avatar" src={avatar} alt={`${name}头像`} />
               <div>
@@ -573,10 +615,13 @@ export function App() {
 
         <section className="panel-card">
           <div className="panel-title">
-            <h2>校园发现</h2>
-            <button>查看更多</button>
+            <button className="collapse-title" onClick={() => togglePanel("topics")}>
+              <h2>校园发现</h2>
+              <span>{expandedPanels.topics ? "收起" : "展开"}</span>
+            </button>
+            <button onClick={() => setActiveNav("发现")}>更多</button>
           </div>
-          {topics.map(([title, count, image]) => (
+          {expandedPanels.topics && topics.map(([title, count, image]) => (
             <div className="topic-row" key={title}>
               <div>
                 <strong># {title}</strong>
@@ -589,35 +634,42 @@ export function App() {
 
         <section className="panel-card privacy-card">
           <div className="panel-title">
-            <h2>隐私快捷设置</h2>
-            <button>进入设置</button>
+            <button className="collapse-title" onClick={() => togglePanel("privacy")}>
+              <h2>隐私快捷设置</h2>
+              <span>{expandedPanels.privacy ? "收起" : "展开"}</span>
+            </button>
+            <button onClick={() => goPersonalPage("设置")}>设置</button>
           </div>
-          <div className="privacy-row">
-            <span>谁可以看我的动态</span>
-            <strong>公开</strong>
-          </div>
-          <div className="privacy-row">
-            <span>谁可以给我发私信</span>
-            <strong>好友</strong>
-          </div>
-          <label className="toggle-row">
-            <span>允许通过手机号找到我</span>
-            <input
-              type="checkbox"
-              checked={privacy.phone}
-              onChange={(event) => setPrivacy((value) => ({ ...value, phone: event.target.checked }))}
-            />
-          </label>
-          <label className="toggle-row">
-            <span>不展示我的在线状态</span>
-            <input
-              type="checkbox"
-              checked={privacy.online}
-              onChange={(event) => setPrivacy((value) => ({ ...value, online: event.target.checked }))}
-            />
-          </label>
+          {expandedPanels.privacy && (
+            <>
+              <div className="privacy-row">
+                <span>谁可以看我的动态</span>
+                <strong>公开</strong>
+              </div>
+              <div className="privacy-row">
+                <span>谁可以给我发私信</span>
+                <strong>好友</strong>
+              </div>
+              <label className="toggle-row">
+                <span>允许通过手机号找到我</span>
+                <input
+                  type="checkbox"
+                  checked={privacy.phone}
+                  onChange={(event) => setPrivacy((value) => ({ ...value, phone: event.target.checked }))}
+                />
+              </label>
+              <label className="toggle-row">
+                <span>不展示我的在线状态</span>
+                <input
+                  type="checkbox"
+                  checked={privacy.online}
+                  onChange={(event) => setPrivacy((value) => ({ ...value, online: event.target.checked }))}
+                />
+              </label>
+            </>
+          )}
         </section>
-      </aside>
+      </aside>}
 
       {messageOpen && (
         <div className="drawer-backdrop" onClick={() => setMessageOpen(false)}>
