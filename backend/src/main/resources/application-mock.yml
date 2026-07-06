@@ -1,0 +1,9 @@
+spring:
+  config:
+    activate:
+      on-profile: mock
+
+whu-circle:
+  auth:
+    verification-code: "123456"
+    token-expires-in: 7200

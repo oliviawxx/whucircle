@@ -1,0 +1,11 @@
+spring:
+  config:
+    activate:
+      on-profile: mysql
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+# C 同学接入数据库时再加入 spring-boot-starter-data-jpa、mysql-connector-j 和迁移脚本。

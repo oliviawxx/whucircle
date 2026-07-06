@@ -1,0 +1,21 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: whu-circle-backend
+  profiles:
+    active: mock
+  jackson:
+    default-property-inclusion: non_null
+    time-zone: Asia/Shanghai
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: method
+
+logging:
+  level:
+    com.whucircle: INFO

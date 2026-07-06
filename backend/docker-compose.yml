@@ -1,0 +1,23 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: whu-circle-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root-password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-whu_circle}
+      MYSQL_USER: ${MYSQL_USER:-whu_circle}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-dev-password}
+      TZ: Asia/Shanghai
+    ports:
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - whu_circle_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-root-password}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  whu_circle_mysql_data:
