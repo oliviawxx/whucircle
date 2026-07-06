@@ -16,6 +16,7 @@ import {
   MagnifyingGlass,
   MapPin,
   PaperPlaneTilt,
+  Palette,
   Plus,
   Repeat,
   ShieldCheck,
@@ -144,6 +145,13 @@ const groupChats = [
   ["考研自习室互助", "126人", "新增 3 个座位共享信息"],
 ];
 
+const themeOptions = [
+  ["classic", "经典蓝", "#2867d9"],
+  ["sakura", "樱花粉", "#d85c8c"],
+  ["lake", "东湖绿", "#2f8f7b"],
+  ["violet", "夜樱紫", "#6d5bd0"],
+];
+
 export function App() {
   const [posts, setPosts] = useState(initialPosts);
   const [activeNav, setActiveNav] = useState("首页");
@@ -151,6 +159,8 @@ export function App() {
   const [visibility, setVisibility] = useState("公开");
   const [messageOpen, setMessageOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [themeMenuOpen, setThemeMenuOpen] = useState(false);
+  const [activeTheme, setActiveTheme] = useState("classic");
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [expandedPanels, setExpandedPanels] = useState({
     profile: false,
@@ -225,6 +235,7 @@ export function App() {
     setActiveNav(label);
     if (label === "消息") setMessageOpen(true);
     setUserMenuOpen(false);
+    setThemeMenuOpen(false);
   }
 
   function togglePanel(key) {
@@ -234,6 +245,11 @@ export function App() {
   function goPersonalPage(label) {
     setActiveNav(label);
     setUserMenuOpen(false);
+  }
+
+  function chooseTheme(theme) {
+    setActiveTheme(theme);
+    setThemeMenuOpen(false);
   }
 
   function renderComposer() {
@@ -483,7 +499,7 @@ export function App() {
   }
 
   return (
-    <div className={`app-shell ${rightPanelOpen ? "" : "panel-collapsed"}`}>
+    <div className={`app-shell theme-${activeTheme} ${rightPanelOpen ? "" : "panel-collapsed"}`}>
       <aside className="sidebar">
         <div className="brand">
           <div className="brand-mark">
@@ -538,6 +554,25 @@ export function App() {
             <Bell size={21} />
             <span />
           </button>
+          <div className="theme-menu-wrap">
+            <button className="icon-button" onClick={() => setThemeMenuOpen((value) => !value)} aria-label="切换主题颜色">
+              <Palette size={21} />
+            </button>
+            {themeMenuOpen && (
+              <div className="theme-menu">
+                {themeOptions.map(([key, label, color]) => (
+                  <button
+                    key={key}
+                    className={activeTheme === key ? "selected" : ""}
+                    onClick={() => chooseTheme(key)}
+                  >
+                    <span className="theme-swatch" style={{ background: color }} />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="user-menu-wrap">
             <button className="avatar-button" onClick={() => setUserMenuOpen((value) => !value)} aria-label="打开个人菜单">
               <img className="avatar small" src={currentUser.avatar} alt="当前用户头像" />
