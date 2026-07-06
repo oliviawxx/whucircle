@@ -201,6 +201,13 @@ button {
   line-height: 1.2;
 }
 
+.topbar > div:first-child > span {
+  display: block;
+  margin-top: 5px;
+  color: #758197;
+  font-size: 13px;
+}
+
 .search {
   display: flex;
   align-items: center;
@@ -269,7 +276,8 @@ button {
 .composer,
 .post,
 .profile-card,
-.panel-card {
+.panel-card,
+.section-card {
   background: #fff;
   border: 1px solid #dde5ef;
   border-radius: 8px;
@@ -346,6 +354,236 @@ button {
 .feed {
   display: grid;
   gap: 16px;
+}
+
+.section-card {
+  padding: 20px;
+}
+
+.section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.section-head p,
+.topic-card p {
+  margin: 0 0 5px;
+  color: #2867d9;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.section-head h2,
+.topic-card h2,
+.empty-state h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.section-head button,
+.activity-row button,
+.friend-tile button {
+  min-height: 36px;
+  padding: 0 14px;
+  color: #2867d9;
+  font-weight: 700;
+  background: #eef4ff;
+  border: 1px solid #c9daf9;
+  border-radius: 8px;
+}
+
+.module-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.topic-card {
+  display: grid;
+  grid-template-columns: 118px 1fr;
+  gap: 16px;
+  align-items: center;
+}
+
+.topic-card img {
+  width: 118px;
+  height: 92px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.topic-card span,
+.activity-row span,
+.friend-tile span,
+.message-preview span,
+.profile-detail p {
+  color: #758197;
+  font-size: 13px;
+}
+
+.activity-list,
+.message-list {
+  display: grid;
+  gap: 12px;
+}
+
+.activity-row,
+.message-preview {
+  display: grid;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid #edf1f7;
+}
+
+.activity-row {
+  grid-template-columns: 34px 1fr auto;
+}
+
+.message-preview {
+  grid-template-columns: 34px 1fr auto;
+}
+
+.activity-row:last-child,
+.message-preview:last-child {
+  border-bottom: 0;
+}
+
+.activity-row svg,
+.message-preview svg {
+  color: #2867d9;
+}
+
+.activity-row h3,
+.message-preview strong {
+  display: block;
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.activity-row p {
+  margin: 6px 0 0;
+  color: #4d5a70;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.message-preview time {
+  color: #8a95a6;
+  font-size: 12px;
+}
+
+.friend-board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.friend-tile {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 18px 12px;
+  text-align: center;
+  background: #f8fafc;
+  border: 1px solid #e2e8f1;
+  border-radius: 8px;
+}
+
+.friend-tile strong {
+  font-size: 15px;
+}
+
+.profile-page-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.profile-cover {
+  height: 130px;
+  background:
+    linear-gradient(135deg, rgba(40, 103, 217, 0.86), rgba(72, 155, 126, 0.76)),
+    url("https://images.unsplash.com/photo-1522383225653-ed111181a951?auto=format&fit=crop&w=1200&q=80") center/cover;
+}
+
+.profile-detail {
+  display: grid;
+  grid-template-columns: 72px 1fr auto;
+  gap: 16px;
+  align-items: end;
+  padding: 0 20px 18px;
+  margin-top: -28px;
+}
+
+.profile-detail .avatar {
+  border: 4px solid #fff;
+}
+
+.profile-detail h2 {
+  margin: 0 0 5px;
+}
+
+.profile-detail button {
+  min-height: 38px;
+  padding: 0 14px;
+  color: #2867d9;
+  font-weight: 700;
+  background: #fff;
+  border: 1px solid #c9daf9;
+  border-radius: 8px;
+}
+
+.profile-stats.wide {
+  grid-template-columns: repeat(4, 1fr);
+  padding: 0 20px 20px;
+  margin-top: 0;
+}
+
+.settings-page {
+  display: grid;
+  gap: 14px;
+}
+
+.setting-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 48px;
+  padding: 0 14px;
+  color: #253145;
+  background: #f8fafc;
+  border: 1px solid #e2e8f1;
+  border-radius: 8px;
+}
+
+.setting-line input {
+  width: 42px;
+  height: 22px;
+  accent-color: #2867d9;
+}
+
+.empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  min-height: 260px;
+  align-content: center;
+  text-align: center;
+  color: #758197;
+}
+
+.empty-state svg {
+  color: #2867d9;
+}
+
+.empty-state p {
+  max-width: 320px;
+  margin: 0;
+  line-height: 1.6;
 }
 
 .post {
@@ -773,5 +1011,20 @@ button {
 
   .image-grid.count-4 {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .module-grid,
+  .friend-board {
+    grid-template-columns: 1fr;
+  }
+
+  .topic-card,
+  .profile-detail {
+    grid-template-columns: 1fr;
+  }
+
+  .topic-card img {
+    width: 100%;
+    height: 150px;
   }
 }

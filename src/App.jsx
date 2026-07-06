@@ -127,6 +127,32 @@ const friends = [
   ["东湖的晚风", "外国语言文学学院 · 2024级", "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=160&q=80"],
 ];
 
+const pageCopy = {
+  动态广场: ["发现校园里的新鲜事", "来自全站用户的公开动态"],
+  关注: ["关注的人最近在做什么", "只看好友和关注对象的更新"],
+  推荐: ["为你推荐", "基于热度、兴趣和好友关系的内容"],
+  校园话题: ["校园话题", "按主题浏览讨论、打卡和经验分享"],
+  活动广场: ["活动广场", "发现讲座、社团招新和校园活动"],
+  消息: ["消息中心", "查看私信、群聊和互动提醒"],
+  好友: ["好友管理", "管理好友申请、分组和社交圈"],
+  群聊: ["群聊", "查看学习小组、社团群和活动群"],
+  收藏: ["我的收藏", "保存稍后再看的动态和话题"],
+  我的主页: ["我的主页", "预览个人资料、动态和社交数据"],
+  设置: ["设置", "管理隐私、安全和通知偏好"],
+};
+
+const activityCards = [
+  ["摄影Club招新", "本周五 19:00 · 信息学部操场", "招募摄影、剪辑和运营同学，现场有作品交流。"],
+  ["东湖夜跑小队", "周三 20:30 · 湖滨宿舍门口", "轻松 5 公里路线，新手友好，可直接报名。"],
+  ["保研经验分享会", "周六 14:00 · 文理学部教五", "高年级同学分享材料准备、联系导师和面试经验。"],
+];
+
+const groupChats = [
+  ["毕业影像小组", "12人", "今晚 8 点线上讨论脚本"],
+  ["珞珈山跑步群", "48人", "明早 7 点操场集合？"],
+  ["考研自习室互助", "126人", "新增 3 个座位共享信息"],
+];
+
 export function App() {
   const [posts, setPosts] = useState(initialPosts);
   const [activeNav, setActiveNav] = useState("动态广场");
@@ -191,94 +217,59 @@ export function App() {
     });
   }
 
-  return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="brand">
-          <div className="brand-mark">
-            <Student weight="duotone" size={30} />
-          </div>
-          <div>
-            <strong>WHU Circle</strong>
-            <span>武大校园圈</span>
-          </div>
-        </div>
+  const page = pageCopy[activeNav] ?? pageCopy["动态广场"];
+  const followedPosts = posts.filter((post) => post.badge === "好友" || post.author === currentUser.name);
+  const recommendedPosts = [...posts].sort((a, b) => b.likes + b.comments - (a.likes + a.comments));
+  const savedPosts = posts.filter((post) => post.liked).slice(0, 2);
 
-        <nav className="nav-list">
-          {navItems.map(([label, Icon]) => (
-            <button
-              key={label}
-              className={`nav-item ${activeNav === label ? "active" : ""}`}
-              onClick={() => {
-                setActiveNav(label);
-                if (label === "消息") setMessageOpen(true);
-              }}
-            >
-              <Icon size={21} />
-              <span>{label}</span>
-              {label === "消息" && <em>3</em>}
-            </button>
-          ))}
-        </nav>
+  function handleNav(label) {
+    setActiveNav(label);
+    if (label === "消息") setMessageOpen(true);
+  }
 
-        <button className="primary-action" onClick={() => document.getElementById("composer")?.focus()}>
-          <PaperPlaneTilt size={20} weight="fill" />
-          发布动态
-        </button>
-
-        <footer className="side-footer">
-          <span>© 2026 WHU Circle</span>
-          <span>关于我们 · 帮助中心</span>
-        </footer>
-      </aside>
-
-      <main className="content">
-        <header className="topbar">
-          <div>
-            <p>{activeNav}</p>
-            <h1>发现校园里的新鲜事</h1>
-          </div>
-          <div className="search">
-            <MagnifyingGlass size={18} />
-            <input placeholder="搜索用户、动态、话题" />
-          </div>
-          <button className="icon-button" aria-label="通知">
-            <Bell size={21} />
-            <span />
-          </button>
-          <img className="avatar small" src={currentUser.avatar} alt="当前用户头像" />
-        </header>
-
-        <section className="composer">
-          <img className="avatar" src={currentUser.avatar} alt="当前用户头像" />
-          <div className="composer-main">
-            <textarea
-              id="composer"
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              placeholder="有什么新鲜事想分享给大家？"
-            />
-            <div className="composer-actions">
-              <div className="media-actions">
-                <button><Image size={19} />图片</button>
-                <button><VideoCamera size={19} />视频</button>
-                <button><Smiley size={19} />表情</button>
-                <button><MapPin size={19} />位置</button>
-              </div>
-              <div className="publish-actions">
-                <button className="visibility" onClick={() => setVisibility(visibility === "公开" ? "好友可见" : "公开")}>
-                  <Compass size={18} />
-                  {visibility}
-                  <CaretDown size={14} />
-                </button>
-                <button className="publish" onClick={addPost}>发布</button>
-              </div>
+  function renderComposer() {
+    return (
+      <section className="composer">
+        <img className="avatar" src={currentUser.avatar} alt="当前用户头像" />
+        <div className="composer-main">
+          <textarea
+            id="composer"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder="有什么新鲜事想分享给大家？"
+          />
+          <div className="composer-actions">
+            <div className="media-actions">
+              <button><Image size={19} />图片</button>
+              <button><VideoCamera size={19} />视频</button>
+              <button><Smiley size={19} />表情</button>
+              <button><MapPin size={19} />位置</button>
+            </div>
+            <div className="publish-actions">
+              <button className="visibility" onClick={() => setVisibility(visibility === "公开" ? "好友可见" : "公开")}>
+                <Compass size={18} />
+                {visibility}
+                <CaretDown size={14} />
+              </button>
+              <button className="publish" onClick={addPost}>发布</button>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
+    );
+  }
 
-        <section className="feed">
-          {posts.map((post) => (
+  function renderFeed(feedPosts = posts, options = {}) {
+    return (
+      <section className="feed">
+        {feedPosts.length === 0 ? (
+          <section className="section-card empty-state">
+            <UsersThree size={34} />
+            <h2>{options.emptyTitle ?? "这里还没有内容"}</h2>
+            <p>{options.emptyText ?? "先关注几位同学，或者发布第一条动态。"}</p>
+          </section>
+        ) : (
+          feedPosts.map((post) => (
             <article className="post" key={post.id}>
               <div className="post-head">
                 <img className="avatar" src={post.avatar} alt={`${post.author}头像`} />
@@ -328,8 +319,219 @@ export function App() {
                 </div>
               </div>
             </article>
+          ))
+        )}
+      </section>
+    );
+  }
+
+  function renderTopicPage() {
+    return (
+      <section className="module-grid">
+        {topics.map(([title, count, image]) => (
+          <article className="section-card topic-card" key={title}>
+            <img src={image} alt={title} />
+            <div>
+              <p>校园话题</p>
+              <h2># {title}</h2>
+              <span>{count} · 今日新增讨论 26 条</span>
+            </div>
+          </article>
+        ))}
+      </section>
+    );
+  }
+
+  function renderActivityPage() {
+    return (
+      <section className="section-card">
+        <div className="section-head">
+          <div>
+            <p>本周推荐</p>
+            <h2>活动广场</h2>
+          </div>
+          <button>发布活动</button>
+        </div>
+        <div className="activity-list">
+          {activityCards.map(([title, time, desc]) => (
+            <article className="activity-row" key={title}>
+              <CalendarBlank size={24} />
+              <div>
+                <h3>{title}</h3>
+                <span>{time}</span>
+                <p>{desc}</p>
+              </div>
+              <button>查看</button>
+            </article>
           ))}
-        </section>
+        </div>
+      </section>
+    );
+  }
+
+  function renderFriendsPage() {
+    return (
+      <section className="section-card">
+        <div className="section-head">
+          <div>
+            <p>社交圈</p>
+            <h2>好友与分组</h2>
+          </div>
+          <button>处理申请 4</button>
+        </div>
+        <div className="friend-board">
+          {friends.map(([name, meta, avatar]) => (
+            <article className="friend-tile" key={name}>
+              <img className="avatar large" src={avatar} alt={`${name}头像`} />
+              <strong>{name}</strong>
+              <span>{meta}</span>
+              <button onClick={() => toggleFollow(name)}>{followed.has(name) ? "已在好友圈" : "加入好友圈"}</button>
+            </article>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  function renderMessagesPage() {
+    return (
+      <section className="section-card">
+        <div className="section-head">
+          <div>
+            <p>收件箱</p>
+            <h2>{activeNav === "群聊" ? "群聊列表" : "私信消息"}</h2>
+          </div>
+          <button onClick={() => setMessageOpen(true)}>打开抽屉</button>
+        </div>
+        <div className="message-list">
+          {groupChats.map(([name, count, text]) => (
+            <article className="message-preview" key={name}>
+              <ChatsCircle size={25} />
+              <div>
+                <strong>{name}</strong>
+                <span>{count} · {text}</span>
+              </div>
+              <time>刚刚</time>
+            </article>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  function renderProfilePage() {
+    return (
+      <section className="section-card profile-page-card">
+        <div className="profile-cover" />
+        <div className="profile-detail">
+          <img className="avatar large" src={currentUser.avatar} alt="当前用户头像" />
+          <div>
+            <h2>{currentUser.name}</h2>
+            <p>{currentUser.meta} · 关注校园生活、摄影和公共议题</p>
+          </div>
+          <button>编辑资料</button>
+        </div>
+        <div className="profile-stats wide">
+          <span><strong>{stats.posts}</strong>动态</span>
+          <span><strong>{stats.follows}</strong>关注</span>
+          <span><strong>{stats.fans}</strong>粉丝</span>
+          <span><strong>{stats.likes}</strong>获赞</span>
+        </div>
+      </section>
+    );
+  }
+
+  function renderSettingsPage() {
+    return (
+      <section className="section-card settings-page">
+        <div className="section-head">
+          <div>
+            <p>账户设置</p>
+            <h2>隐私与安全控制</h2>
+          </div>
+          <ShieldCheck size={28} />
+        </div>
+        {["动态默认可见范围：公开", "允许好友给我发私信", "陌生人不可查看在线状态", "登录需要校内邮箱验证"].map((item) => (
+          <label className="setting-line" key={item}>
+            <span>{item}</span>
+            <input type="checkbox" defaultChecked />
+          </label>
+        ))}
+      </section>
+    );
+  }
+
+  function renderMainContent() {
+    if (activeNav === "动态广场") return <>{renderComposer()}{renderFeed(posts)}</>;
+    if (activeNav === "关注") return renderFeed(followedPosts, { emptyTitle: "还没有关注动态", emptyText: "关注好友后，这里会只展示他们的动态。" });
+    if (activeNav === "推荐") return renderFeed(recommendedPosts);
+    if (activeNav === "校园话题") return renderTopicPage();
+    if (activeNav === "活动广场") return renderActivityPage();
+    if (activeNav === "消息" || activeNav === "群聊") return renderMessagesPage();
+    if (activeNav === "好友") return renderFriendsPage();
+    if (activeNav === "收藏") return renderFeed(savedPosts, { emptyTitle: "还没有收藏内容", emptyText: "点击动态下方的收藏后，会出现在这里。" });
+    if (activeNav === "我的主页") return <>{renderProfilePage()}{renderFeed(posts.filter((post) => post.author === currentUser.name), { emptyTitle: "还没有发布动态", emptyText: "从发布框开始分享你的第一条校园动态。" })}</>;
+    if (activeNav === "设置") return renderSettingsPage();
+    return renderFeed(posts);
+  }
+
+  return (
+    <div className="app-shell">
+      <aside className="sidebar">
+        <div className="brand">
+          <div className="brand-mark">
+            <Student weight="duotone" size={30} />
+          </div>
+          <div>
+            <strong>WHU Circle</strong>
+            <span>武大校园圈</span>
+          </div>
+        </div>
+
+        <nav className="nav-list">
+          {navItems.map(([label, Icon]) => (
+            <button
+              key={label}
+              className={`nav-item ${activeNav === label ? "active" : ""}`}
+              onClick={() => handleNav(label)}
+            >
+              <Icon size={21} />
+              <span>{label}</span>
+              {label === "消息" && <em>3</em>}
+            </button>
+          ))}
+        </nav>
+
+        <button className="primary-action" onClick={() => document.getElementById("composer")?.focus()}>
+          <PaperPlaneTilt size={20} weight="fill" />
+          发布动态
+        </button>
+
+        <footer className="side-footer">
+          <span>© 2026 WHU Circle</span>
+          <span>关于我们 · 帮助中心</span>
+        </footer>
+      </aside>
+
+      <main className="content">
+        <header className="topbar">
+          <div>
+            <p>{activeNav}</p>
+            <h1>{page[0]}</h1>
+            <span>{page[1]}</span>
+          </div>
+          <div className="search">
+            <MagnifyingGlass size={18} />
+            <input placeholder="搜索用户、动态、话题" />
+          </div>
+          <button className="icon-button" aria-label="通知">
+            <Bell size={21} />
+            <span />
+          </button>
+          <img className="avatar small" src={currentUser.avatar} alt="当前用户头像" />
+        </header>
+
+        {renderMainContent()}
       </main>
 
       <aside className="right-panel">
