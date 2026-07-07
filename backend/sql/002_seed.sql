@@ -1,9 +1,10 @@
+SET NAMES utf8mb4;
 USE whu_circle;
 
 INSERT INTO users (id, email, password_hash, nickname, avatar_url, college, grade, bio) VALUES
 (1, 'student@whu.edu.cn', '{BCrypt}', '小张', '', '新闻与传播学院', '2024级', '记录校园生活和课程项目。'),
-(2, 'wind@whu.edu.cn', '{BCrypt}', '珞珈山下的风', '', '计算机学院', '2023级', '喜欢散步和摄影。'),
-(3, 'lake@whu.edu.cn', '{BCrypt}', '东湖边的猫', '', '外国语言文学学院', '2024级', '寻找学习搭子。'),
+(2, 'wind@whu.edu.cn', '{BCrypt}', '珞珈山下的风', '', '计算机学院', '2023级', '喜欢散步、摄影和做小工具。'),
+(3, 'cat@whu.edu.cn', '{BCrypt}', '东湖边的猫', '', '外国语言文学学院', '2024级', '寻找学习搭子和校园灵感。'),
 (4, 'orange@whu.edu.cn', '{BCrypt}', '一只小橘子', '', '测绘学院', '2022级', '周末出行记录。'),
 (5, 'noodle@whu.edu.cn', '{BCrypt}', '热干面观察员', '', '经济与管理学院', '2023级', '认真吃饭，认真记录。'),
 (6, 'lin@whu.edu.cn', '{BCrypt}', '林深时见鹿', '', '文学院', '2024级', '写一点校园碎片。')
@@ -14,11 +15,17 @@ ON DUPLICATE KEY UPDATE
     grade = VALUES(grade),
     bio = VALUES(bio);
 
+INSERT IGNORE INTO privacy_settings (user_id)
+SELECT id FROM users;
+
 INSERT IGNORE INTO user_follows (follower_id, followed_id) VALUES
 (1,2),(2,1),(1,3),(1,5),(5,1),(1,6),(6,1);
 
-INSERT IGNORE INTO privacy_settings (user_id)
-SELECT id FROM users;
+DELETE FROM comments WHERE note_id BETWEEN 101 AND 110;
+DELETE FROM note_likes WHERE note_id BETWEEN 101 AND 110;
+DELETE FROM note_saves WHERE note_id BETWEEN 101 AND 110;
+DELETE FROM note_tags WHERE note_id BETWEEN 101 AND 110;
+DELETE FROM note_images WHERE note_id BETWEEN 101 AND 110;
 
 INSERT INTO notes (id, author_id, title, content, visibility, like_count, comment_count) VALUES
 (101, 2, '傍晚从樱顶走到湖边，光线刚刚好', '把今天的散步路线存一下：从樱顶下来，沿着老图书馆旁边的小路走到湖边，风很舒服。', 'PUBLIC', 128, 2),
@@ -38,7 +45,6 @@ ON DUPLICATE KEY UPDATE
     like_count = VALUES(like_count),
     comment_count = VALUES(comment_count);
 
-DELETE FROM note_tags WHERE note_id IN (101,102,103,104,105,106,107,108,109,110);
 INSERT INTO note_tags (note_id, tag) VALUES
 (101, '校园生活'), (101, '摄影'),
 (102, '学习'), (102, '互助'),
@@ -51,7 +57,6 @@ INSERT INTO note_tags (note_id, tag) VALUES
 (109, '学习'), (109, '自习'),
 (110, '社团'), (110, '设计');
 
-DELETE FROM note_images WHERE note_id IN (101,102,103,104,105,106,107,108,109,110);
 INSERT INTO note_images (note_id, image_url, sort_order) VALUES
 (101, 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80', 0),
 (103, 'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=900&q=80', 0),
@@ -81,6 +86,11 @@ INSERT INTO comments (id, note_id, author_id, content) VALUES
 (1012, 110, 3, '标题区域可以留更大。')
 ON DUPLICATE KEY UPDATE content = VALUES(content);
 
+DELETE FROM channel_replies WHERE post_id BETWEEN 301 AND 310;
+DELETE FROM channel_post_likes WHERE post_id BETWEEN 301 AND 310;
+DELETE FROM channel_posts WHERE id BETWEEN 301 AND 310;
+DELETE FROM channel_members WHERE channel_id BETWEEN 11 AND 13;
+
 INSERT INTO channels (id, name, join_type, password_hash, administrator_id, announcement, member_count) VALUES
 (11, '期末互助频道', 'PUBLIC', NULL, 2, '资料和复习安排请先看置顶帖。', 3),
 (12, '校园摄影社', 'PUBLIC', NULL, 3, '本周主题：校园里的蓝色时刻。', 3),
@@ -89,6 +99,7 @@ ON DUPLICATE KEY UPDATE
     name = VALUES(name),
     join_type = VALUES(join_type),
     password_hash = VALUES(password_hash),
+    administrator_id = VALUES(administrator_id),
     announcement = VALUES(announcement),
     member_count = VALUES(member_count);
 
@@ -119,6 +130,13 @@ INSERT INTO channel_replies (id, post_id, author_id, content) VALUES
 (3005, 306, 1, '可以把集合时间写进频道公告。'),
 (3006, 307, 1, '请问还有配套资料吗？')
 ON DUPLICATE KEY UPDATE content = VALUES(content);
+
+INSERT IGNORE INTO channel_post_likes (post_id, user_id) VALUES
+(301,1),(301,3),(304,1),(305,2),(306,1),(307,1);
+
+DELETE FROM message_read_status WHERE message_id BETWEEN 501 AND 510;
+DELETE FROM messages WHERE id BETWEEN 501 AND 510;
+DELETE FROM conversation_members WHERE conversation_id BETWEEN 21 AND 24;
 
 INSERT INTO conversations (id, type, name, last_message) VALUES
 (21, 'GROUP', '期末互助小组', '聊天这里先做 HTTP 接口。'),
