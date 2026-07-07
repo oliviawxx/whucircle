@@ -1,13 +1,47 @@
-import { CheckCircle, Flag, Hash, LockKey, Megaphone, PushPin } from "@phosphor-icons/react";
+import { CheckCircle, Flag, Hash, LockKey, Megaphone, Plus, PushPin } from "@phosphor-icons/react";
 import { IconButton } from "../components/common/IconButton.jsx";
 
-export function ChannelsPage({ channels, selectedChannel, onSelectChannel, onJoin, onOpenPost, onReport }) {
+export function ChannelsPage({ channels, selectedChannel, onSelectChannel, onJoin, onOpenPost, onReport, onCreateChannel }) {
+  if (!selectedChannel) {
+    return (
+      <section className="channel-layout">
+        <aside className="channel-list">
+          <div className="panel-head channel-list-head">
+            <div><h2>频道</h2><span>公开 / 密码</span></div>
+            {onCreateChannel && (
+              <button className="ghost-button small" onClick={onCreateChannel}>
+                <Plus size={16} />创建
+              </button>
+            )}
+          </div>
+          {channels.map((channel) => (
+            <button className="channel-item" key={channel.id} onClick={() => onSelectChannel(channel.id)}>
+              {channel.type === "密码" ? <LockKey size={18} /> : <Hash size={18} />}
+              <span>{channel.name}</span>
+              {!channel.joined && <em>{channel.type}</em>}
+            </button>
+          ))}
+        </aside>
+        <section className="channel-board">
+          <div className="empty-state">请选择一个频道查看详情。</div>
+        </section>
+      </section>
+    );
+  }
+
   const previewPosts = selectedChannel.joined ? selectedChannel.posts : selectedChannel.posts.slice(0, 5);
 
   return (
     <section className="channel-layout">
       <aside className="channel-list">
-        <div className="panel-head"><h2>频道</h2><span>公开 / 密码</span></div>
+        <div className="panel-head channel-list-head">
+          <div><h2>频道</h2><span>公开 / 密码</span></div>
+          {onCreateChannel && (
+            <button className="ghost-button small" onClick={onCreateChannel}>
+              <Plus size={16} />创建
+            </button>
+          )}
+        </div>
         {channels.map((channel) => (
           <button className={selectedChannel.id === channel.id ? "channel-item active" : "channel-item"} key={channel.id} onClick={() => onSelectChannel(channel.id)}>
             {channel.type === "密码" ? <LockKey size={18} /> : <Hash size={18} />}

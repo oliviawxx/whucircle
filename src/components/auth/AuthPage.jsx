@@ -16,6 +16,7 @@ export function AuthPage({
   onSendCode,
   onEnter,
   onKeyDown,
+  onDemoEntry,
 }) {
   return (
     <main className={`auth-page theme-${activeTheme}`}>
@@ -64,7 +65,7 @@ export function AuthPage({
           <button className="auth-submit" onClick={onEnter} disabled={authLoading}>
             {authLoading ? "请稍候…" : mode === "登录" ? "登录" : "注册并进入"}
           </button>
-          <button className="demo-entry" onClick={onEnter} disabled={authLoading}>直接进入展示版</button>
+          <button className="demo-entry" onClick={onDemoEntry} disabled={authLoading}>直接进入展示版</button>
         </div>
       </section>
     </main>

@@ -1,9 +1,8 @@
-import { Flag, Image, PaperPlaneTilt, Prohibit } from "@phosphor-icons/react";
+import { Flag, Image, Prohibit } from "@phosphor-icons/react";
 import { ModalHead } from "../common/ModalHead.jsx";
 
 export function AppModals({
   draft,
-  detailNote,
   joinChannel,
   channelPostDetail,
   profileUser,
@@ -11,7 +10,6 @@ export function AppModals({
   onDraftChange,
   onCreateNote,
   onCloseDraft,
-  onCloseDetail,
   onCloseJoin,
   onClosePost,
   onCloseProfile,
@@ -40,28 +38,6 @@ export function AppModals({
               </div>
             </div>
             <button className="submit-note" onClick={onCreateNote}>发布</button>
-          </section>
-        </div>
-      )}
-
-      {detailNote && (
-        <div className="modal-backdrop" onClick={onCloseDetail}>
-          <section className="detail-modal" onClick={(event) => event.stopPropagation()}>
-            <ModalHead title={detailNote.title} subtitle={`${detailNote.author} · ${detailNote.meta}`} onClose={onCloseDetail} />
-            {detailNote.images[0] && <img className="detail-image" src={detailNote.images[0]} alt="笔记图片" />}
-            <p className="detail-body">{detailNote.body}</p>
-            <div className="comment-panel">
-              <h3>评论</h3>
-              {detailNote.comments.length === 0 ? (
-                <span className="muted">还没有评论。</span>
-              ) : detailNote.comments.map((comment) => (
-                <p key={`${comment.user}-${comment.text}`}><strong>{comment.user}</strong>{comment.text}</p>
-              ))}
-              <div className="comment-input"><input placeholder="写评论..." /><button title="发送"><PaperPlaneTilt size={17} weight="fill" /></button></div>
-            </div>
-            <div className="modal-actions">
-              <button className="report-icon-button" aria-label="举报" title="举报" onClick={() => onReport({ type: "笔记", title: detailNote.title })}><Flag size={18} /></button>
-            </div>
           </section>
         </div>
       )}

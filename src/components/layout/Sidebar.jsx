@@ -22,6 +22,7 @@ export function Sidebar({
   activeNav,
   currentUser,
   menuOpen,
+  chatUnreadCount = 0,
   onNavigate,
   onOpenDraft,
   onToggleMenu,
@@ -42,7 +43,7 @@ export function Sidebar({
           <button className={activeNav === label ? "nav-item active" : "nav-item"} key={label} onClick={() => onNavigate(label)}>
             <Icon size={21} />
             <span>{label}</span>
-            {label === "聊天" && <em>4</em>}
+            {label === "聊天" && chatUnreadCount > 0 && <em>{chatUnreadCount}</em>}
           </button>
         ))}
       </nav>
