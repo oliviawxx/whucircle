@@ -773,8 +773,35 @@ button {
   margin-bottom: 14px;
 }
 
+.channel-list-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .panel-head h2 {
   font-size: 17px;
+}
+
+.ghost-button.small {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 12px;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--accent-soft);
+  border: 1px solid #dbe9ff;
+  border-radius: 999px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.ghost-button.small:hover {
+  background: #e8f0ff;
+  border-color: #c9dcff;
 }
 
 .relation-row {
@@ -825,9 +852,10 @@ button {
   justify-content: space-between;
   gap: 16px;
   padding: 18px;
-  background: var(--soft-card);
-  border: 1px solid #e5ebf3;
-  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.06), rgba(255, 255, 255, 0.96));
+  border: 1px solid #e4ebf6;
+  border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 .channel-cover button,
@@ -862,6 +890,12 @@ button {
   background: #f8fafc;
   border: 1px solid #edf1f6;
   border-radius: 8px;
+}
+
+.channel-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
 }
 
 .join-reminder {
@@ -899,6 +933,29 @@ button {
   grid-column: 1 / -1;
   color: var(--muted);
   font-size: 13px;
+}
+
+.post-body-preview {
+  grid-column: 1 / -1;
+  color: #3f4d63;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.post-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  grid-column: 1 / -1;
+}
+
+.post-tags em {
+  padding: 2px 8px;
+  color: var(--accent);
+  font-size: 12px;
+  font-style: normal;
+  background: var(--accent-soft);
+  border-radius: 999px;
 }
 
 .rank-row {
@@ -1214,6 +1271,11 @@ button {
   background: #f8fafc;
   border: 1px solid var(--line);
   border-radius: 8px;
+}
+
+.small-modal textarea.title-input {
+  min-height: 100px;
+  resize: vertical;
 }
 
 .draft-modal textarea {

@@ -17,6 +17,7 @@ import {
   MagnifyingGlass,
   Megaphone,
   PaperPlaneTilt,
+  Plus,
   Prohibit,
   PushPin,
   ShieldCheck,
@@ -277,6 +278,17 @@ export function App() {
   const [profileUser, setProfileUser] = useState(null);
   const [joinChannel, setJoinChannel] = useState(null);
   const [joinPassword, setJoinPassword] = useState("");
+  const [createChannelOpen, setCreateChannelOpen] = useState(false);
+  const [newChannelName, setNewChannelName] = useState("");
+  const [newChannelType, setNewChannelType] = useState("公开");
+  const [newChannelPassword, setNewChannelPassword] = useState("");
+  const [newChannelAnnouncement, setNewChannelAnnouncement] = useState("");
+  const [channelPostDraftOpen, setChannelPostDraftOpen] = useState(false);
+  const [channelPostDraftTitle, setChannelPostDraftTitle] = useState("");
+  const [channelPostDraftBody, setChannelPostDraftBody] = useState("");
+  const [channelPostDraftTags, setChannelPostDraftTags] = useState([]);
+  const [channelPostDraftPinned, setChannelPostDraftPinned] = useState(false);
+  const [channelPostDraftImage, setChannelPostDraftImage] = useState(false);
   const [channelPostDetail, setChannelPostDetail] = useState(null);
   const [reportTarget, setReportTarget] = useState(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -398,6 +410,66 @@ export function App() {
     setSelectedChannelId(joinChannel.id);
     setJoinChannel(null);
     setJoinPassword("");
+  }
+
+  function submitCreateChannel() {
+    const name = newChannelName.trim();
+    if (!name) return;
+    if (newChannelType === "密码" && !newChannelPassword.trim()) return;
+
+    const createdChannel = {
+      id: `channel-${Date.now()}`,
+      name,
+      type: newChannelType,
+      password: newChannelType === "密码" ? newChannelPassword.trim() : undefined,
+      joined: true,
+      admin: currentUser.name,
+      announcement: newChannelAnnouncement.trim() || "欢迎来到新频道，先发布一句公告，告诉大家这里在讨论什么。",
+      members: 1,
+      posts: [],
+    };
+
+    setChannels((items) => [createdChannel, ...items]);
+    setSelectedChannelId(createdChannel.id);
+    setCreateChannelOpen(false);
+    setNewChannelName("");
+    setNewChannelType("公开");
+    setNewChannelPassword("");
+    setNewChannelAnnouncement("");
+  }
+
+  function submitCreateChannelPost() {
+    const title = channelPostDraftTitle.trim();
+    const body = channelPostDraftBody.trim();
+    if (!title && !body) return;
+
+    const newPost = {
+      id: `post-${Date.now()}`,
+      title: title || "新发布的讨论帖",
+      pinned: channelPostDraftPinned,
+      likes: 0,
+      replies: 0,
+      body,
+      tags: channelPostDraftTags,
+      image: channelPostDraftImage,
+    };
+
+    setChannels((items) =>
+      items.map((channel) =>
+        channel.id === selectedChannelId
+          ? {
+              ...channel,
+              posts: [newPost, ...channel.posts],
+            }
+          : channel,
+      ),
+    );
+    setChannelPostDraftOpen(false);
+    setChannelPostDraftTitle("");
+    setChannelPostDraftBody("");
+    setChannelPostDraftTags([]);
+    setChannelPostDraftPinned(false);
+    setChannelPostDraftImage(false);
   }
 
   function blockUser(name) {
@@ -528,9 +600,15 @@ export function App() {
     return (
       <section className="channel-layout">
         <aside className="channel-list">
-          <div className="panel-head">
-            <h2>频道</h2>
-            <span>公开 / 密码</span>
+          <div className="panel-head channel-list-head">
+            <div>
+              <h2>频道</h2>
+              <span>公开 / 密码</span>
+            </div>
+            <button className="ghost-button small" onClick={() => setCreateChannelOpen(true)}>
+              <Plus size={16} />
+              创建
+            </button>
           </div>
           {channels.map((channel) => (
             <button
@@ -565,13 +643,27 @@ export function App() {
             <Megaphone size={18} />
             <span>{selectedChannel.announcement}</span>
           </div>
+          {selectedChannel.joined && (
+            <div className="channel-actions">
+              <button className="submit-note" onClick={() => setChannelPostDraftOpen(true)}>
+                <PaperPlaneTilt size={18} weight="fill" />
+                发帖
+              </button>
+            </div>
+          )}
           <div className="channel-posts">
             {previewPosts.map((post) => (
               <article className="channel-post" key={post.id}>
                 <button className="post-title-button" onClick={() => setChannelPostDetail({ channel: selectedChannel, post })}>
                   {post.pinned && <PushPin size={16} weight="fill" />}
                   <strong>{post.title}</strong>
+                  {post.body && <span className="post-body-preview">{post.body}</span>}
                   <span>{post.replies} 回复 · {post.likes} 赞</span>
+                  {post.tags?.length > 0 && (
+                    <div className="post-tags">
+                      {post.tags.map((tag) => <em key={tag}>#{tag}</em>)}
+                    </div>
+                  )}
                 </button>
                 {renderIconButton({
                   title: "举报频道帖子",
@@ -974,6 +1066,74 @@ export function App() {
               <input className="title-input" value={joinPassword} onChange={(event) => setJoinPassword(event.target.value)} placeholder="输入频道密码：whu2026" />
             )}
             <button className="submit-note" onClick={submitJoinChannel}>加入</button>
+          </section>
+        </div>
+      )}
+
+      {createChannelOpen && (
+        <div className="modal-backdrop" onClick={() => setCreateChannelOpen(false)}>
+          <section className="small-modal" onClick={(event) => event.stopPropagation()}>
+            <ModalHead title="创建新频道" subtitle="为校园话题建立一个专属空间" onClose={() => setCreateChannelOpen(false)} />
+            <label className="auth-field">
+              <span>频道名称</span>
+              <input className="title-input" value={newChannelName} onChange={(event) => setNewChannelName(event.target.value)} placeholder="例如：武大摄影交流" />
+            </label>
+            <div className="segmented compact">
+              {['公开', '密码'].map((option) => (
+                <button className={newChannelType === option ? 'active' : ''} key={option} onClick={() => setNewChannelType(option)}>
+                  {option}
+                </button>
+              ))}
+            </div>
+            {newChannelType === '密码' && (
+              <label className="auth-field">
+                <span>频道密码</span>
+                <input className="title-input" value={newChannelPassword} onChange={(event) => setNewChannelPassword(event.target.value)} placeholder="设置加入密码" />
+              </label>
+            )}
+            <label className="auth-field">
+              <span>频道公告</span>
+              <textarea className="title-input" value={newChannelAnnouncement} onChange={(event) => setNewChannelAnnouncement(event.target.value)} placeholder="写一句欢迎语或规则说明" />
+            </label>
+            <button className="submit-note" onClick={submitCreateChannel}>创建频道</button>
+          </section>
+        </div>
+      )}
+
+      {channelPostDraftOpen && (
+        <div className="modal-backdrop" onClick={() => setChannelPostDraftOpen(false)}>
+          <section className="small-modal" onClick={(event) => event.stopPropagation()}>
+            <ModalHead title="发布频道帖子" subtitle={selectedChannel?.name} onClose={() => setChannelPostDraftOpen(false)} />
+            <label className="auth-field">
+              <span>标题</span>
+              <input className="title-input" value={channelPostDraftTitle} onChange={(event) => setChannelPostDraftTitle(event.target.value)} placeholder="写一个吸引人的标题" />
+            </label>
+            <label className="auth-field">
+              <span>内容</span>
+              <textarea className="title-input" value={channelPostDraftBody} onChange={(event) => setChannelPostDraftBody(event.target.value)} placeholder="分享你想讨论的内容..." />
+            </label>
+            <div className="draft-tools">
+              <button onClick={() => setChannelPostDraftImage((value) => !value)}>
+                <Image size={18} />
+                {channelPostDraftImage ? "已附图" : "附图"}
+              </button>
+              <div className="segmented compact">
+                {['学习', '活动', '求助', '闲聊'].map((tag) => (
+                  <button className={channelPostDraftTags.includes(tag) ? 'active' : ''} key={tag} onClick={() => {
+                    setChannelPostDraftTags((items) => items.includes(tag) ? items.filter((item) => item !== tag) : [...items, tag]);
+                  }}>
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <label className="segmented compact">
+              <button className={channelPostDraftPinned ? 'active' : ''} onClick={() => setChannelPostDraftPinned((value) => !value)}>
+                <PushPin size={16} />
+                置顶此帖
+              </button>
+            </label>
+            <button className="submit-note" onClick={submitCreateChannelPost}>发布</button>
           </section>
         </div>
       )}
