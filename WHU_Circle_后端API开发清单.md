@@ -1,13 +1,13 @@
 # WHU Circle 后端 API 开发与联调文档
 
-> 文档版本：2026-07-06
+> 文档版本：2026-07-07
 > 对应前端：当前初步展示版
 > 后端：Spring Boot 3.5.16、Java 17、springdoc-openapi 2.8.17
 > 当前数据源：`mock` 内存数据
 
 ## 1. 今晚交付结果
 
-后端代码位于 `backend/`，已经可以独立启动，不依赖数据库。Swagger 当前包含 31 条路径、38 个 HTTP 操作，覆盖：
+后端代码位于 `backend/`，已经可以独立启动，不依赖数据库。Swagger 当前包含 32 条路径、40 个 HTTP 操作，覆盖：
 
 - 校内邮箱注册、登录、当前用户和退出。
 - 公开主页、社交圈、我的笔记、收藏搜索、详情、评论、点赞和收藏。
@@ -144,9 +144,9 @@ backend/src/main/java/com/whucircle/
 | 界面 | 方法与路径 | 功能及实现思路 | 主要代码位置 |
 |---|---|---|---|
 | 启动检查 | `GET /health` | 不鉴权，返回服务和 Profile 状态 | `HealthController` |
-| 注册 | `POST /auth/email-code` | 校验 `@whu.edu.cn`，mock 保存固定验证码并返回 300 秒 | `AuthController`、`AuthService.sendCode` |
-| 注册 | `POST /auth/register` | 校验邮箱、验证码和重复账号，创建用户并签发 Token | `AuthController`、`AuthService.register`、`UserRepository.save` |
-| 登录 | `POST /auth/login` | 按邮箱查用户并校验密码，签发访问 Token | `AuthController`、`AuthService.login`、`TokenService` |
+| 注册 | `POST /auth/email-code` | 校验校内邮箱和发送频率，mock 返回固定码，SMTP 模式发送邮件 | `AuthController`、`AuthService.sendCode`、`VerificationCodeService` |
+| 注册 | `POST /auth/register` | 校验一次性验证码，BCrypt 加密密码后创建用户并签发 Token | `AuthController`、`AuthService.register`、`UserRepository.save` |
+| 登录 | `POST /auth/login` | 按校内邮箱查用户并校验 BCrypt 密码，签发访问 Token | `AuthController`、`AuthService.login`、`TokenService` |
 | 全局 | `GET /auth/me` | 从 Bearer Token 解析用户 ID，再返回用户摘要 | `AuthenticationInterceptor`、`AuthService.me` |
 | 个人菜单 | `POST /auth/logout` | 从内存 Token 表删除当前 Token | `AuthController.logout`、`TokenService.revoke` |
 
@@ -161,6 +161,8 @@ POST /auth/login
 POST /auth/register
 {"email":"new@whu.edu.cn","code":"123456","password":"example123","nickname":"新用户"}
 ```
+
+验证码 5 分钟有效、60 秒后可重发、最多连续输错 5 次，注册成功后立即失效。`mockCode` 只在 mock 模式返回，SMTP 模式不会把验证码返回给前端。
 
 ### 5.2 主页、社交圈与收藏
 
@@ -198,6 +200,8 @@ GET /api/v1/notes?scope=PUBLIC&keyword=图书馆&tag=学习&page=1&size=20
 
 | 界面 | 方法与路径 | 功能及实现思路 | 主要代码位置 |
 |---|---|---|---|
+| 编辑资料 | `GET /users/me/profile` | 返回邮箱、昵称、头像、学院、年级和简介 | `UserController.currentProfile`、`UserService.currentProfile` |
+| 编辑资料 | `PUT /users/me/profile` | 更新可编辑字段；邮箱和密码不能通过该接口修改 | `UserController.updateCurrentProfile`、`UserService.updateCurrentProfile` |
 | 社交圈 | `GET /relations` | 返回其他用户及当前关系状态 | `UserController.relations`、`UserRepository.relation` |
 | 对方主页 | `GET /users/{userId}` | 拉黑任一方向时拒绝查看，否则返回资料和关系 | `UserService.profile` |
 | 对方主页 | `POST /users/{userId}/follow` | 新增单向关注；若对方已关注我，关系立即变为 `FRIEND` | `UserService.follow`、`InMemoryUserRepository.relation` |
@@ -205,6 +209,18 @@ GET /api/v1/notes?scope=PUBLIC&keyword=图书馆&tag=学习&page=1&size=20
 | 对方主页 | `POST /users/{userId}/block` | 加入黑名单并取消我对对方的关注 | `UserService.block` |
 | 设置 | `GET /blocks` | 返回当前用户拉黑的用户列表 | `UserService.blockedUsers` |
 | 设置 | `DELETE /users/{userId}/block` | 解除拉黑，不自动恢复关注 | `UserService.unblock` |
+
+编辑资料请求：
+
+```json
+{
+  "nickname": "小张同学",
+  "avatarUrl": "https://example.com/avatar.jpg",
+  "college": "新闻与传播学院",
+  "grade": "2024级",
+  "bio": "正在开发 WHU Circle"
+}
+```
 
 ### 5.4 频道
 
@@ -322,21 +338,37 @@ reports
 7. C 并行设计表，先完成用户和笔记 Repository。
 8. 每完成一组，三人只讨论该组接口的字段差异，确认后再改文档和代码。
 
-## 9. 当前限制
+## 9. QQ SMTP 验证码配置
+
+QQ 邮箱承担的是 SMTP 发信，不是把 QQ 邮件转发到校内邮箱。后端发件账号可以是 QQ 邮箱，注册用户和验证码收件人必须是允许的校内邮箱域名。
+
+```powershell
+$env:MAIL_USERNAME="你的QQ号@qq.com"
+$env:MAIL_AUTH_CODE="QQ邮箱生成的SMTP授权码"
+$env:MAIL_FROM=$env:MAIL_USERNAME
+cd backend
+mvn spring-boot:run "-Dspring-boot.run.profiles=mock,smtp"
+```
+
+配置位于 `application-smtp.yml`：`smtp.qq.com`、SSL 端口 `465`，并设置了 5 秒连接、读取和写入超时。授权码只能保存在本机环境变量或服务器密钥管理中，不能写进 YAML、Java 代码或 GitHub。
+
+## 10. 当前限制
 
 - mock 数据在后端重启后恢复初始状态。
-- mock 密码是明文，仅用于演示；数据库版必须使用 BCrypt 等单向哈希。
-- 验证码没有真实发送，接口会返回固定验证码；生产环境不能返回验证码。
+- mock 用户密码也使用 BCrypt 哈希，但内存数据会在重启后恢复。
+- mock 模式返回固定验证码；SMTP 模式真实发送且不在接口响应中返回验证码。
 - Token 当前保存在内存且不含过期检查；后续可换 JWT 或服务端会话。
 - 图片上传返回固定外链，尚未保存文件或接对象存储。
 - 聊天是 HTTP 拉取，没有 WebSocket 实时推送。
 - `mysql` Profile 目前只有连接占位，C 同学完成依赖和实现后才能启动。
 
-## 10. 官方资料
+## 11. 官方资料
 
 - [Spring Boot 3.5.16 发布说明](https://spring.io/blog/2026/06/25/spring-boot-3-5-16-available-now)
 - [Spring Boot Profiles](https://docs.spring.io/spring-boot/reference/features/profiles.html)
 - [Spring Boot SQL Databases](https://docs.spring.io/spring-boot/reference/data/sql.html)
 - [springdoc-openapi 2.8.17](https://springdoc.org/)
+- [Spring Boot 3.5 邮件发送](https://docs.spring.io/spring-boot/3.5/reference/io/email.html)
+- [腾讯云文档中的 QQ 邮箱 SMTP 配置说明](https://main.qcloudimg.com/raw/document/product/pdf/1270_46586_cn.pdf)
 - [MySQL 8.4 Reference Manual](https://dev.mysql.com/doc/refman/8.4/en/)
 - [MySQL 官方 Docker 镜像](https://hub.docker.com/_/mysql)

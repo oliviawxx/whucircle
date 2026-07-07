@@ -28,7 +28,7 @@ public class AuthController {
 
     @PostMapping("/email-code")
     public ApiResponse<EmailCodeResponse> emailCode(@Valid @RequestBody EmailCodeRequest request) {
-        return ApiResponse.success(authService.sendCode(request.email()));
+        return ApiResponse.success(authService.sendCode(request.email(), request.scene()));
     }
 
     @PostMapping("/register")

@@ -10,6 +10,15 @@ spring:
     default-property-inclusion: non_null
     time-zone: Asia/Shanghai
 
+whu-circle:
+  auth:
+    allowed-email-domains: whu.edu.cn
+    code-expires-in: 300
+    code-resend-after: 60
+    max-code-attempts: 5
+  mail:
+    mode: mock
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html

@@ -42,6 +42,37 @@ mvn test
 
 当前集成测试覆盖登录、鉴权、笔记可见性、社交圈、频道预览限制和频道密码错误。
 
+## 登录、注册与个人资料接口
+
+```text
+POST /api/v1/auth/email-code       发送注册验证码
+POST /api/v1/auth/register         校内邮箱注册
+POST /api/v1/auth/login            校内邮箱和密码登录
+GET  /api/v1/auth/me               获取当前登录用户摘要
+GET  /api/v1/users/me/profile      获取可编辑个人资料
+PUT  /api/v1/users/me/profile      更新个人资料
+```
+
+允许注册和登录的邮箱域名由 `whu-circle.auth.allowed-email-domains` 配置，当前为 `whu.edu.cn`。密码使用 BCrypt 哈希保存。
+
+## 使用 QQ 邮箱发送验证码
+
+QQ 邮箱在这里是 SMTP 发件账号，不是注册邮箱，也不是邮件转发。收件人仍然必须使用武汉大学校内邮箱。
+
+1. 登录 QQ 邮箱，在账号与安全设置中开启 SMTP 服务并生成授权码。
+2. 复制 `.env.example` 中的变量名称，在本机设置真实值。
+3. `MAIL_AUTH_CODE` 填授权码，不填 QQ 登录密码。
+4. 同时启用 `mock` 数据和 `smtp` 邮件 Profile：
+
+```powershell
+$env:MAIL_USERNAME="你的QQ号@qq.com"
+$env:MAIL_AUTH_CODE="QQ邮箱生成的授权码"
+$env:MAIL_FROM=$env:MAIL_USERNAME
+mvn spring-boot:run "-Dspring-boot.run.profiles=mock,smtp"
+```
+
+默认 `mock` 模式不发送邮件，固定验证码为 `123456`。不要把 `.env`、QQ 邮箱授权码或服务器密码提交到 GitHub。
+
 ## 目录职责
 
 ```text

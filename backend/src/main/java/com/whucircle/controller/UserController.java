@@ -4,6 +4,8 @@ import com.whucircle.common.ApiResponse;
 import com.whucircle.dto.UserDtos.RelationResult;
 import com.whucircle.dto.UserDtos.RelationView;
 import com.whucircle.dto.UserDtos.UserProfile;
+import com.whucircle.dto.UserDtos.CurrentUserProfile;
+import com.whucircle.dto.UserDtos.UpdateProfileRequest;
 import com.whucircle.security.CurrentUser;
 import com.whucircle.service.UserService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -11,10 +13,13 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import jakarta.validation.Valid;
 
 @Tag(name = "用户关系")
 @RestController
@@ -24,6 +29,14 @@ public class UserController {
 
     public UserController(UserService userService) { this.userService = userService; }
 
+    @GetMapping("/users/me/profile")
+    public ApiResponse<CurrentUserProfile> currentProfile() {
+        return ApiResponse.success(userService.currentProfile(CurrentUser.id()));
+    }
+    @PutMapping("/users/me/profile")
+    public ApiResponse<CurrentUserProfile> updateCurrentProfile(@Valid @RequestBody UpdateProfileRequest request) {
+        return ApiResponse.success(userService.updateCurrentProfile(CurrentUser.id(), request));
+    }
     @GetMapping("/relations")
     public ApiResponse<List<RelationView>> relations() { return ApiResponse.success(userService.relations(CurrentUser.id())); }
     @GetMapping("/users/{userId}")

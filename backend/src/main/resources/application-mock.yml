@@ -7,3 +7,5 @@ whu-circle:
   auth:
     verification-code: "123456"
     token-expires-in: 7200
+  mail:
+    mode: mock

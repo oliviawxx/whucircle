@@ -4,6 +4,7 @@ import com.whucircle.domain.Enums.RelationStatus;
 import com.whucircle.domain.User;
 import com.whucircle.repository.UserRepository;
 import org.springframework.context.annotation.Profile;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
@@ -23,23 +24,23 @@ public class InMemoryUserRepository implements UserRepository {
     private final Map<Long, Set<Long>> blocks = new ConcurrentHashMap<>();
     private final AtomicLong ids = new AtomicLong(10);
 
-    public InMemoryUserRepository() {
-        saveSeed(new User(1L, "student@whu.edu.cn", "example123", "小张",
+    public InMemoryUserRepository(PasswordEncoder passwordEncoder) {
+        saveSeed(new User(1L, "student@whu.edu.cn", passwordEncoder.encode("example123"), "小张",
                 "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=160&q=80",
-                "新闻与传播学院", "2024级"));
-        saveSeed(new User(2L, "wind@whu.edu.cn", "example123", "珞珈山下的风",
+                "新闻与传播学院", "2024级", "记录校园生活和课程项目。"));
+        saveSeed(new User(2L, "wind@whu.edu.cn", passwordEncoder.encode("example123"), "珞珈山下的风",
                 "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=160&q=80",
-                "计算机学院", "2023级"));
-        saveSeed(new User(3L, "cat@whu.edu.cn", "example123", "东湖边的猫",
+                "计算机学院", "2023级", "喜欢散步和摄影。"));
+        saveSeed(new User(3L, "cat@whu.edu.cn", passwordEncoder.encode("example123"), "东湖边的猫",
                 "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=160&q=80",
-                "外国语言文学学院", "2024级"));
-        saveSeed(new User(4L, "orange@whu.edu.cn", "example123", "一只小橘子",
+                "外国语言文学学院", "2024级", "寻找学习搭子。"));
+        saveSeed(new User(4L, "orange@whu.edu.cn", passwordEncoder.encode("example123"), "一只小橘子",
                 "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=160&q=80",
-                "测绘学院", "2022级"));
-        saveSeed(new User(5L, "noodle@whu.edu.cn", "example123", "热干面观察员",
+                "测绘学院", "2022级", "周末出行记录。"));
+        saveSeed(new User(5L, "noodle@whu.edu.cn", passwordEncoder.encode("example123"), "热干面观察员",
                 "https://images.unsplash.com/photo-1527980965255-d3b416303d12?auto=format&fit=crop&w=160&q=80",
-                "经济与管理学院", "2023级"));
-        saveSeed(new User(6L, "lin@whu.edu.cn", "example123", "林深时见鹿", "", "文学院", "2024级"));
+                "经济与管理学院", "2023级", "认真吃饭，认真记录。"));
+        saveSeed(new User(6L, "lin@whu.edu.cn", passwordEncoder.encode("example123"), "林深时见鹿", "", "文学院", "2024级", ""));
 
         follow(1L, 2L);
         follow(2L, 1L);
@@ -61,7 +62,7 @@ public class InMemoryUserRepository implements UserRepository {
     }
     @Override public User save(User user) {
         User saved = user.id() == null
-                ? new User(ids.getAndIncrement(), user.email(), user.password(), user.nickname(), user.avatarUrl(), user.college(), user.grade())
+                ? new User(ids.getAndIncrement(), user.email(), user.passwordHash(), user.nickname(), user.avatarUrl(), user.college(), user.grade(), user.bio())
                 : user;
         users.put(saved.id(), saved);
         return saved;
