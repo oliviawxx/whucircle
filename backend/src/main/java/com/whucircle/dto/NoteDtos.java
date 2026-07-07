@@ -13,7 +13,7 @@ public final class NoteDtos {
 
     public record AuthorView(Long id, String nickname, String avatarUrl, String college) {}
     public record NoteView(Long id, AuthorView author, String title, String content, Visibility visibility,
-                           List<String> imageUrls, List<String> tags, int likeCount, int commentCount,
+                           List<String> imageUrls, List<String> tags, int likeCount, int saveCount, int commentCount,
                            boolean liked, boolean saved, OffsetDateTime createdAt) {}
     public record CreateNoteRequest(@NotBlank @Size(max = 80) String title,
                                     @NotBlank @Size(max = 3000) String content,

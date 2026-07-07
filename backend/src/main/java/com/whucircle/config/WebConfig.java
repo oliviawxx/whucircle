@@ -20,6 +20,7 @@ public class WebConfig implements WebMvcConfigurer {
                 .addPathPatterns("/api/v1/**")
                 .excludePathPatterns(
                         "/api/v1/auth/email-code",
+                        "/api/v1/auth/send-code",
                         "/api/v1/auth/register",
                         "/api/v1/auth/login",
                         "/api/v1/auth/reset-password",

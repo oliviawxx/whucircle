@@ -32,6 +32,11 @@ public class AuthController {
         return ApiResponse.success(authService.sendCode(request.email(), request.scene()));
     }
 
+    @PostMapping("/send-code")
+    public ApiResponse<EmailCodeResponse> sendCode(@Valid @RequestBody EmailCodeRequest request) {
+        return emailCode(request);
+    }
+
     @PostMapping("/register")
     public ApiResponse<LoginResponse> register(@Valid @RequestBody RegisterRequest request) {
         return ApiResponse.success(authService.register(request.email(), request.code(), request.password(), request.nickname()));

@@ -154,8 +154,8 @@ public class NoteService {
     private NoteView toView(Note note, Long currentUserId) {
         User author = users.findById(note.authorId()).orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "作者不存在"));
         return new NoteView(note.id(), new AuthorView(author.id(), author.nickname(), author.avatarUrl(), author.college()),
-                note.title(), note.content(), note.visibility(), note.imageUrls(), note.tags(), note.likeCount(), note.commentCount(),
-                note.likedBy().contains(currentUserId), note.savedBy().contains(currentUserId), note.createdAt());
+                note.title(), note.content(), note.visibility(), note.imageUrls(), note.tags(), note.likeCount(), note.savedBy().size(),
+                note.commentCount(), note.likedBy().contains(currentUserId), note.savedBy().contains(currentUserId), note.createdAt());
     }
 
     private CommentView toCommentView(Comment comment) {

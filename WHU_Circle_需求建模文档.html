@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>WHU Circle 需求建模文档</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:'default',securityLevel:'loose',fontFamily:'sans-serif'})</script>
+<style>
+@page { margin: 1.8cm 1.8cm; size: A4; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Noto Serif SC', 'SimSun', 'STSong', serif; color: #1a1a1a; line-height: 1.7; font-size: 12pt; }
+h1 { font-size: 20pt; text-align: center; margin: 0 0 0.4cm; padding-bottom: 0.25cm; border-bottom: 2.5px solid #2c3e50; letter-spacing: 3px; }
+h2 { font-size: 15pt; color: #2c3e50; margin: 0.4cm 0 0.2cm; padding-left: 8px; border-left: 4px solid #2c3e50; }
+h3 { font-size: 13pt; color: #34495e; margin: 0.3cm 0 0.15cm; }
+h4 { font-size: 12pt; color: #555; margin: 0.2cm 0 0.1cm; }
+p { margin-bottom: 0.12cm; text-indent: 0; }
+ul, ol { padding-left: 1cm; margin-bottom: 0.2cm; }
+li { margin-bottom: 0.06cm; }
+table { width: 100%; border-collapse: collapse; margin: 0.15cm 0 0.25cm; font-size: 10.5pt; }
+th, td { border: 1px solid #bbb; padding: 4px 7px; text-align: left; }
+th { background: #ecf0f1; font-weight: 600; color: #2c3e50; }
+.mermaid { text-align: center; margin: 0.2cm 0; page-break-inside: avoid; }
+blockquote { border-left: 3px solid #bdc3c7; padding: 5px 10px; margin: 0.15cm 0; background: #f9f9f9; font-size: 11pt; color: #555; }
+code { background: #f0f0f0; padding: 1px 3px; border-radius: 2px; font-family: 'JetBrains Mono', 'Consolas', monospace; font-size: 10pt; }
+strong { color: #2c3e50; }
+</style>
+</head>
+<body>
+
+<h1>WHU Circle 需求建模文档</h1>
+
+<!-- ============ 一 ============ -->
+<h2>一、用户需求说明</h2>
+
+<h3>1.1 项目概述</h3>
+
+<p>WHU Circle 是面向武汉大学学生的轻量级社交媒体原型系统，采用前后端分离的单页 Web 应用架构。系统以动态分享、兴趣频道、私信沟通、个人主页和隐私控制为核心，支持校内邮箱注册、图文笔记发布、关注与社交圈、频道讨论、即时通讯等校园社交场景。</p>
+
+<div class="mermaid">
+flowchart TB
+    subgraph 用户层
+        U["学生用户<br/>（浏览器访问）"]
+        A["平台管理员"]
+    end
+    subgraph 前端["前端 React SPA"]
+        FE["Vite 开发服务器<br/>端口 5173"]
+    end
+    subgraph 后端["后端 Spring Boot API"]
+        BE["REST 接口<br/>端口 8080"]
+    end
+    subgraph 数据与基础设施
+        DB[("MySQL 8.4")]
+        SMTP["QQ邮箱 SMTP"]
+    end
+    U --> FE
+    A --> FE
+    FE -->|HTTP Axios| BE
+    BE -->|JDBC| DB
+    BE -->|邮件| SMTP
+</div>
+
+<p>项目已实现后端 39 条 API 路径、50 个 HTTP 操作，覆盖认证、笔记、社交、频道、聊天、通知、举报等模块。前端完成 7 个核心页面：首页广场、社交圈、频道页、聊天页、个人主页、收藏页、设置页。</p>
+
+<h3>1.2 用户角色</h3>
+
+<p>系统定义三类用户角色，分别对应不同权限范围：</p>
+
+<table>
+<tr><th>角色</th><th>权限说明</th><th>来源依据</th></tr>
+<tr><td><strong>普通学生</strong></td><td>注册登录、发布/删除笔记、评论点赞收藏、关注取关拉黑、加入/创建频道、私信群聊、隐私设置、举报</td><td>Controller 层鉴权逻辑</td></tr>
+<tr><td><strong>频道管理员</strong></td><td>继承学生所有权限；额外：修改公告、置顶/取消置顶帖子、管理频道成员</td><td>ChannelService.updateAnnouncement / setPinned</td></tr>
+<tr><td><strong>平台管理员</strong></td><td>审核举报（RESOLVED/REJECTED），不可越权查看私密内容</td><td>ReportController + ReportService</td></tr>
+</table>
+
+<div class="mermaid">
+flowchart LR
+    U["普通学生"] -->|创建频道| CA["频道管理员"]
+    CA -.->|继承学生全部权限| U
+    SA["平台管理员"] -.->|独立角色<br/>举报审核| U
+</div>
+
+<h3>1.3 功能模块总览</h3>
+
+<div class="mermaid">
+mindmap
+  root((WHU Circle))
+    用户认证
+      校内邮箱注册
+      验证码校验
+      登录/退出
+      Token 鉴权
+    笔记系统
+      发布（图文+标签）
+      可见性（公开/好友/私密）
+      首页广场浏览
+      点赞/评论/收藏
+    社交关系
+      关注/取关
+      互关好友
+      黑名单双向屏蔽
+      社交圈动态流
+    频道系统
+      创建（公开/密码）
+      加入频道
+      内部发帖/回复
+      置顶/修改公告
+    即时通讯
+      私聊（权限校验）
+      群聊
+      已读标记
+      未读角标
+    系统管理
+      个人资料编辑
+      通知中心
+      隐私设置
+      内容举报
+</div>
+
+<h3>1.4 用户故事</h3>
+
+<div class="mermaid">
+mindmap
+  root((用户故事))
+    认证
+      US01 用校内邮箱注册
+      US02 登录与退出
+    笔记
+      US03 发布图文笔记
+      US04 浏览首页广场
+      US05 点赞评论收藏
+      US06 删除自己的笔记
+    社交
+      US07 关注感兴趣的用户
+      US08 互关后成为好友
+      US09 拉黑骚扰用户
+    频道
+      US10 创建频道
+      US11 加入频道并发帖
+      US12 管理员置顶和改公告
+    聊天
+      US13 与好友私聊
+      US14 创建群聊讨论
+    系统
+      US15 收到互动通知
+      US16 设置隐私权限
+      US17 举报不良内容
+</div>
+
+<h3>1.5 核心业务需求</h3>
+
+<p><strong>用户认证</strong>：仅 <code>@whu.edu.cn</code> 邮箱可注册。验证码 5 分钟有效、60 秒重发冷却、最多连续输入 5 次错误。密码使用 BCrypt 哈希存储。登录后服务端签发 Bearer Token，客户端在请求头携带。除 <code>/auth/*</code> 和 <code>/health</code> 外，所有 API 均需 Token 鉴权，无效 Token 返回 40100。</p>
+
+<p><strong>笔记系统</strong>：用户可发布笔记，包含标题（≤100 字）、正文（必填）、图片、标签。可见性分 PUBLIC（公开）、FRIENDS（好友可见）、PRIVATE（仅自己）。首页广场展示公开笔记，支持关键词搜索和标签筛选，分页返回（每页 20 条）。笔记详情按可见性校验：好友可见需互关关系（FRIEND），私密仅作者本人。点赞和评论支持切换状态与计数更新。评论 ≤1000 字，被拉黑用户不可评论。仅作者可删除笔记和评论。收藏笔记可在"我的收藏"中查看。</p>
+
+<p><strong>社交关系</strong>：关注为单向操作。若对方已关注自己，关系自动升级为 FRIEND（互关好友）。取关后好友关系自动降级。社交圈（<code>/feed/social</code>）仅展示已关注用户的笔记，好友可见内容需互关才显示。拉黑时自动取关，双向屏蔽主页访问。关系状态枚举：NONE → FOLLOWING → FOLLOWER → FRIEND → BLOCKED。</p>
+
+<p><strong>频道系统</strong>：支持 PUBLIC（公开加入）和 PASSWORD（密码验证）两种加入方式。创建者自动成为管理员和首位成员。仅成员可发帖、回复（≤1000 字）和点赞。未加入频道时仅预览最近 5 条帖子。仅管理员可修改频道公告和置顶/取消置顶帖子。</p>
+
+<p><strong>即时通讯</strong>：支持 PRIVATE 私聊和 GROUP 群聊。创建私聊会话时需校验黑名单关系和对方私信权限（EVERYONE / FRIENDS_ONLY / NONE）。消息 ≤2000 字，当前采用 HTTP 请求模式（非 WebSocket）。支持消息已读标记。会话列表按最后消息时间倒序，显示未读消息数。</p>
+
+<p><strong>通知与安全</strong>：笔记被点赞、评论、收藏以及频道帖子被回复时，自动为内容作者生成未读通知。支持通知分页列表、单条已读、全部已读、未读数角标。隐私设置三项：默认笔记可见性、默认频道加入方式、私信权限。举报目标类型：NOTE（笔记）、CHANNEL_POST（频道帖子）、MESSAGE（消息）、USER（用户）。举报状态流转：PENDING → RESOLVED / REJECTED。</p>
+
+<h3>1.6 业务流程图</h3>
+
+<div class="mermaid">
+flowchart TD
+    subgraph 注册登录
+        A1["输入校内邮箱"] --> A2{"格式有效?"}
+        A2 -->|否| A3["提示邮箱格式错误"] --> A1
+        A2 -->|是| A4["发送验证码"]
+        A4 --> A5["输入验证码+密码+昵称"]
+        A5 --> A6{"校验通过?"}
+        A6 -->|错误 &lt;5次| A5
+        A6 -->|错误 ≥5次| A7["验证码失效，重新获取"] --> A4
+        A6 -->|通过| A8["BCrypt 加密，创建用户"]
+        A8 --> A9["签发 Token，进入首页"]
+    end
+</div>
+
+<div class="mermaid">
+flowchart TD
+    subgraph 发布笔记
+        B1["点击发布"] --> B2["填写标题/正文/标签"]
+        B2 --> B3["上传图片（可选）"]
+        B3 --> B4["选择可见性（PUBLIC/FRIENDS/PRIVATE）"]
+        B4 --> B5["提交"]
+        B5 --> B6{"内容校验"}
+        B6 -->|标题为空或超长| B7["提示"] --> B2
+        B6 -->|图片/标签超限| B8["提示"] --> B3
+        B6 -->|通过| B9["保存到数据库"]
+        B9 --> B10["刷新广场"]
+    end
+</div>
+
+<div class="mermaid">
+flowchart TD
+    subgraph 社交关系
+        C1["浏览他人主页"] --> C2["点击关注"]
+        C2 --> C3{"对方已关注我?"}
+        C3 -->|否| C4["建立单向 FOLLOWING"]
+        C3 -->|是| C5["双向变为 FRIEND"]
+        C4 --> C6["社交圈可见对方公开笔记"]
+        C5 --> C7["社交圈可见对方好友笔记"]
+        C2 --> C8{"或点击拉黑"}
+        C8 --> C9["自动取关，双向屏蔽"]
+    end
+</div>
+
+<div class="mermaid">
+flowchart TD
+    subgraph 频道加入
+        D1["浏览频道列表"] --> D2["选择目标频道"]
+        D2 --> D3{"加入方式"}
+        D3 -->|PUBLIC| D4["直接加入"]
+        D3 -->|PASSWORD| D5["输入密码"]
+        D5 --> D6{"密码正确?"}
+        D6 -->|否| D7["提示错误"] --> D5
+        D6 -->|是| D4
+        D4 --> D8["进入频道主页"]
+        D8 --> D9["发帖 / 回复 / 点赞"]
+    end
+</div>
+
+<div class="mermaid">
+flowchart TD
+    subgraph 举报处理
+        E1["用户提交举报（选择目标+原因）"] --> E2["系统保存 PENDING"]
+        E2 --> E3["管理员查看举报列表"]
+        E3 --> E4{"审核决定"}
+        E4 -->|处理| E5["RESOLVED"]
+        E4 -->|驳回| E6["REJECTED"]
+    end
+</div>
+
+<!-- ============ 二 ============ -->
+<h2>二、需求分析建模</h2>
+
+<h3>2.1 用例图</h3>
+
+<div class="mermaid">
+flowchart LR
+    Guest["未登录访客"]
+    User["普通学生"]
+    CA["频道管理员"]
+    Admin["平台管理员"]
+
+    subgraph S["WHU Circle 系统"]
+        UC1["注册账号"]
+        UC2["登录/退出"]
+        UC3["发布笔记"]
+        UC4["浏览广场"]
+        UC5["点赞/评论/收藏"]
+        UC6["关注/取关/拉黑"]
+        UC7["查看社交圈"]
+        UC8["创建频道"]
+        UC9["加入频道"]
+        UC10["频道发帖/回复"]
+        UC11["频道管理（公告/置顶）"]
+        UC12["私信/群聊"]
+        UC13["隐私设置"]
+        UC14["查看通知"]
+        UC15["举报内容"]
+        UC16["审核举报"]
+    end
+
+    Guest --> UC1
+    Guest --> UC2
+    User --> UC3 & UC4 & UC5 & UC6 & UC7
+    User --> UC8 & UC9 & UC10 & UC12
+    User --> UC13 & UC14 & UC15
+    CA --> UC11
+    Admin --> UC16
+</div>
+
+<h3>2.2 用例规约</h3>
+
+<table>
+<tr><th>用例</th><th>参与者</th><th>前置条件</th><th>后置条件</th><th>基本流程</th><th>异常/备选</th></tr>
+<tr>
+<td><strong>UC01 注册</strong></td>
+<td>未注册学生</td>
+<td>拥有 whu.edu.cn 邮箱</td>
+<td>用户创建成功，自动登录</td>
+<td>1. 输邮箱 2. 获验证码 3. 输验证码+密码 4. 校验 5. 签发 Token</td>
+<td>邮箱已注册→409；验证码错≤5次可重试，≥5次失效</td>
+</tr>
+<tr>
+<td><strong>UC03 发布笔记</strong></td>
+<td>已登录学生</td>
+<td>Token 有效</td>
+<td>笔记保存，出现在相关页面</td>
+<td>1. 填标题/正文 2. 选可见性 3. 传图片 4. 提交 5. 校验 6. 保存</td>
+<td>图片超限/标题为空→提示；未登录→跳转</td>
+</tr>
+<tr>
+<td><strong>UC06 关注</strong></td>
+<td>已登录学生</td>
+<td>进入他人主页</td>
+<td>关系状态更新</td>
+<td>1. 浏览主页 2. 点关注 3. 建立 FOLLOWING；若互关→FRIEND</td>
+<td>拉黑→自动取关并屏蔽</td>
+</tr>
+<tr>
+<td><strong>UC09 加入频道</strong></td>
+<td>已登录学生</td>
+<td>Token 有效</td>
+<td>成为频道成员</td>
+<td>1. 选频道 2. 公开直接加入/密码校验后加入 3. 进入频道</td>
+<td>密码错误→提示重新输入</td>
+</tr>
+<tr>
+<td><strong>UC12 私信</strong></td>
+<td>已登录学生</td>
+<td>Token 有效，未被对方拉黑</td>
+<td>消息保存，对方收到未读</td>
+<td>1. 创建/选会话 2. 输消息 3. 校验权限 4. 保存消息</td>
+<td>被拉黑→403；私信权限 NONE→拒绝</td>
+</tr>
+</table>
+
+<h3>2.3 时序图</h3>
+
+<div class="mermaid">
+sequenceDiagram
+    actor U as 学生用户
+    participant FE as 前端
+    participant BE as 后端 API
+    participant DB as 数据库
+    participant SMTP as QQ邮箱
+
+    U->>FE: 输入校内邮箱
+    FE->>BE: POST /auth/email-code
+    BE->>SMTP: 发送验证码邮件
+    SMTP-->>BE: 发送成功
+    U->>FE: 输入验证码+密码+昵称
+    FE->>BE: POST /auth/register
+    BE->>DB: 校验验证码，创建用户
+    BE->>BE: BCrypt 加密，签发 Token
+    BE-->>FE: 返回 Token
+    FE-->>U: 自动登录进入首页
+</div>
+
+<div class="mermaid">
+sequenceDiagram
+    actor U as 学生用户
+    participant FE as 前端
+    participant BE as 后端
+    participant DB as MySQL
+
+    U->>FE: 填写笔记内容
+    FE->>BE: POST /notes
+    BE->>BE: 校验标题/正文/图片/标签
+    BE->>DB: 写入 notes + note_images + note_tags
+    DB-->>BE: 保存成功
+    BE-->>FE: 返回笔记详情
+    FE-->>U: 刷新广场
+    Note over U,DB: 可见性：PUBLIC→广场可见<br/>FRIENDS→社交圈可见<br/>PRIVATE→仅作者主页
+</div>
+
+<div class="mermaid">
+sequenceDiagram
+    actor A as 用户A
+    participant FE as 前端
+    participant BE as 后端
+    participant DB as MySQL
+    actor B as 用户B
+
+    A->>FE: 浏览 B 主页，点击关注
+    FE->>BE: POST /users/{B}/follow
+    BE->>DB: 查询 B 是否已关注 A
+    DB-->>BE: B 已关注 A
+    BE->>DB: 写入 user_follows
+    DB-->>BE: 双方关系→FRIEND
+    BE-->>FE: 返回 FRIEND
+    FE-->>A: 主页显示"好友"标识
+    Note over A,B: A 现在可看到 B 的 FRIENDS 可见笔记
+</div>
+
+<div class="mermaid">
+sequenceDiagram
+    actor U as 学生用户
+    participant FE as 前端
+    participant BE as 后端
+    participant DB as MySQL
+
+    U->>FE: 选择频道，提交加入
+    FE->>BE: POST /channels/{id}/join
+    BE->>DB: 校验密码，写入 channel_members
+    DB-->>BE: 加入成功
+    BE-->>FE: 返回频道详情
+    U->>FE: 输入帖子内容
+    FE->>BE: POST /channels/{id}/posts
+    BE->>DB: 校验成员身份
+    DB-->>BE: 校验通过
+    BE->>DB: 保存 channel_posts
+    DB-->>BE: 成功
+    BE-->>FE: 返回帖子信息
+    FE-->>U: 频道主页刷新
+</div>
+
+<h3>2.4 数据流图</h3>
+
+<div class="mermaid">
+flowchart TD
+    subgraph 外部实体
+        U["👤 学生用户"]
+        A["🛡️ 平台管理员"]
+        M["📧 QQ SMTP"]
+    end
+    subgraph 系统["WHU Circle"]
+        P1["1. 认证模块<br/>注册/登录/Token"]
+        P2["2. 笔记模块<br/>CRUD/互动"]
+        P3["3. 社交模块<br/>关注/拉黑"]
+        P4["4. 频道模块<br/>创建/发帖"]
+        P5["5. 聊天模块<br/>私聊/群聊"]
+        P6["6. 通知模块<br/>生成/查询"]
+        P7["7. 管理模块<br/>举报/审核"]
+        DS[("数据存储")]
+    end
+
+    U -->|注册/登录| P1
+    U -->|发布/浏览/互动| P2
+    U -->|关注/拉黑| P3
+    U -->|创建/加入/发帖| P4
+    U -->|发送/读取消息| P5
+    U -->|查看通知| P6
+    A -->|审核举报| P7
+    P1 --> DS
+    P2 --> DS
+    P3 --> DS
+    P4 --> DS
+    P5 --> DS
+    P6 --> DS
+    P7 --> DS
+    P2 -.->|触发通知| P6
+    P3 -.->|影响可见性| P2
+    P1 -.->|发送验证码| M
+</div>
+
+<h3>2.5 类图</h3>
+
+<div class="mermaid">
+classDiagram
+    class User {
+        +Long id
+        +String email
+        +String passwordHash
+        +String nickname
+        +String avatarUrl
+        +String college
+        +String grade
+        +String bio
+    }
+    class Note {
+        +Long id
+        +Long authorId
+        +String title
+        +String content
+        +Visibility visibility
+        +int likeCount
+        +int commentCount
+    }
+    class Comment {
+        +Long id
+        +Long noteId
+        +Long authorId
+        +String content
+    }
+    class Channel {
+        +Long id
+        +String name
+        +JoinType joinType
+        +String passwordHash
+        +Long administratorId
+        +String announcement
+    }
+    class ChannelPost {
+        +Long id
+        +Long channelId
+        +Long authorId
+        +String title
+        +String content
+        +boolean pinned
+        +int replyCount
+    }
+    class ChannelReply {
+        +Long id
+        +Long postId
+        +Long authorId
+        +String content
+    }
+    class Conversation {
+        +Long id
+        +ConversationType type
+        +String name
+        +String lastMessage
+    }
+    class ChatMessage {
+        +Long id
+        +Long conversationId
+        +Long senderId
+        +String content
+    }
+    class Notification {
+        +Long id
+        +Long userId
+        +String type
+        +String title
+        +String content
+        +boolean isRead
+    }
+    class PrivacySettings {
+        +Visibility defaultNoteVisibility
+        +JoinType defaultChannelJoinType
+        +DirectMessagePermission dmPermission
+    }
+    User "1" --> "*" Note : 发布
+    User "1" --> "*" Comment : 评论
+    Note "1" --> "*" Comment : 包含
+    User "1" --> "*" Channel : 管理
+    Channel "1" --> "*" ChannelPost : 包含
+    ChannelPost "1" --> "*" ChannelReply : 回复
+    User "1" --> "*" Conversation : 参与
+    Conversation "1" --> "*" ChatMessage : 消息
+    User "1" --> "*" Notification : 接收
+    User "1" --> "1" PrivacySettings : 配置
+</div>
+
+<h3>2.6 ER 图</h3>
+
+<div class="mermaid">
+erDiagram
+    users ||--o{ notes : 发布
+    notes ||--o{ comments : 包含
+    notes ||--o{ note_images : 含图片
+    notes ||--o{ note_tags : 标签
+    users ||--o{ note_likes : 点赞
+    users ||--o{ note_saves : 收藏
+    users ||--o{ user_follows : 关注
+    users ||--o{ user_blocks : 拉黑
+    users ||--|| privacy_settings : 设置
+    users ||--o{ email_verification_codes : 验证码
+    users ||--o{ channels : 管理
+    channels ||--o{ channel_members : 拥有成员
+    channels ||--o{ channel_posts : 包含帖子
+    channel_posts ||--o{ channel_replies : 回复
+    channel_posts ||--o{ channel_post_likes : 点赞
+    conversations ||--o{ conversation_members : 成员
+    conversations ||--o{ messages : 消息
+    messages ||--o{ message_read_status : 已读
+    users ||--o{ notifications : 接收
+    users ||--o{ reports : 举报
+</div>
+
+<h3>2.7 数据字典</h3>
+
+<table>
+<tr><th>表名</th><th>关键字段</th><th>主键/约束</th></tr>
+<tr><td>users</td><td>id, email(UNIQUE), password_hash, nickname, avatar_url, college, grade, bio</td><td>PK: id</td></tr>
+<tr><td>email_verification_codes</td><td>id, email, scene, code_hash, expires_at, attempts, consumed_at</td><td>PK: id; INDEX(email,scene)</td></tr>
+<tr><td>notes</td><td>id, author_id(FK), title(100), content(TEXT), visibility, like_count, comment_count</td><td>PK: id; INDEX(author_id,created_at)</td></tr>
+<tr><td>note_images</td><td>id, note_id(FK), image_url(500), sort_order</td><td>PK: id; INDEX(note_id,sort_order)</td></tr>
+<tr><td>note_tags</td><td>note_id(FK), tag(30)</td><td>PK: (note_id,tag); INDEX(tag)</td></tr>
+<tr><td>comments</td><td>id, note_id(FK), author_id(FK), content(1000)</td><td>PK: id; INDEX(note_id,created_at)</td></tr>
+<tr><td>note_likes</td><td>note_id(FK), user_id(FK)</td><td>PK: (note_id,user_id)</td></tr>
+<tr><td>note_saves</td><td>note_id(FK), user_id(FK)</td><td>PK: (note_id,user_id)</td></tr>
+<tr><td>user_follows</td><td>follower_id(FK), followed_id(FK), CHECK(前者≠后者)</td><td>PK: (follower,followed)</td></tr>
+<tr><td>user_blocks</td><td>blocker_id(FK), blocked_id(FK), CHECK(前者≠后者)</td><td>PK: (blocker,blocked)</td></tr>
+<tr><td>privacy_settings</td><td>user_id(PK+FK), default_note_visibility, default_channel_join_type, direct_message_permission</td><td>PK: user_id</td></tr>
+<tr><td>channels</td><td>id, name(50), join_type(PUBLIC/PASSWORD), password_hash, administrator_id(FK), announcement(500), member_count</td><td>PK: id; INDEX(name)</td></tr>
+<tr><td>channel_members</td><td>channel_id(FK), user_id(FK), role(ADMIN/MEMBER)</td><td>PK: (channel_id,user_id)</td></tr>
+<tr><td>channel_posts</td><td>id, channel_id(FK), author_id(FK), title(100), content(TEXT), pinned, like_count, reply_count</td><td>PK: id; INDEX(channel_id,pinned,created_at)</td></tr>
+<tr><td>channel_replies</td><td>id, post_id(FK), author_id(FK), content(1000)</td><td>PK: id; INDEX(post_id,created_at)</td></tr>
+<tr><td>channel_post_likes</td><td>post_id(FK), user_id(FK)</td><td>PK: (post_id,user_id)</td></tr>
+<tr><td>conversations</td><td>id, type(PRIVATE/GROUP), name(50), last_message(2000), last_message_at</td><td>PK: id; INDEX(last_message_at)</td></tr>
+<tr><td>conversation_members</td><td>conversation_id(FK), user_id(FK)</td><td>PK: (conversation_id,user_id)</td></tr>
+<tr><td>messages</td><td>id, conversation_id(FK), sender_id(FK), content(2000), sent_at</td><td>PK: id; INDEX(conversation_id,sent_at)</td></tr>
+<tr><td>message_read_status</td><td>message_id(FK), user_id(FK), read_at</td><td>PK: (message_id,user_id)</td></tr>
+<tr><td>notifications</td><td>id, user_id(FK), type(40), title(100), content(500), target_id, is_read</td><td>PK: id; INDEX(user_id,is_read,created_at)</td></tr>
+<tr><td>reports</td><td>id, reporter_id(FK), target_type, target_id, reason, status(PENDING/RESOLVED/REJECTED)</td><td>PK: id; INDEX(status,created_at)</td></tr>
+</table>
+
+<p><strong>枚举值：</strong></p>
+<table>
+<tr><th>枚举</th><th>取值</th><th>使用场景</th></tr>
+<tr><td>Visibility</td><td><code>PUBLIC</code> / <code>FRIENDS</code> / <code>PRIVATE</code></td><td>notes.visibility、privacy_settings</td></tr>
+<tr><td>JoinType</td><td><code>PUBLIC</code> / <code>PASSWORD</code></td><td>channels.join_type、privacy_settings</td></tr>
+<tr><td>ConversationType</td><td><code>PRIVATE</code> / <code>GROUP</code></td><td>conversations.type</td></tr>
+<tr><td>DirectMessagePermission</td><td><code>EVERYONE</code> / <code>FRIENDS_ONLY</code> / <code>NONE</code></td><td>privacy_settings.dm_permission</td></tr>
+<tr><td>RelationStatus</td><td>NONE / FOLLOWING / FOLLOWER / FRIEND / BLOCKED</td><td>运行时计算（非持久字段）</td></tr>
+<tr><td>ReportTargetType</td><td><code>NOTE</code> / <code>CHANNEL_POST</code> / <code>MESSAGE</code> / <code>USER</code></td><td>reports.target_type</td></tr>
+<tr><td>ReportStatus</td><td><code>PENDING</code> / <code>RESOLVED</code> / <code>REJECTED</code></td><td>reports.status</td></tr>
+</table>
+
+<h3>2.8 状态图</h3>
+
+<div class="mermaid">
+stateDiagram-v2
+    [*] --> NONE: 初始状态
+    NONE --> FOLLOWING: A 关注 B
+    FOLLOWING --> FRIEND: B 也关注 A（互关）
+    FRIEND --> FOLLOWING: B 取关 A
+    FOLLOWING --> NONE: A 取关 B
+    FOLLOWING --> BLOCKED: A 拉黑 B
+    FRIEND --> BLOCKED: 任一方拉黑
+    BLOCKED --> NONE: 解除拉黑
+</div>
+
+<div class="mermaid">
+stateDiagram-v2
+    [*] --> PENDING: 用户提交举报
+    PENDING --> RESOLVED: 管理员确认为有效
+    PENDING --> REJECTED: 管理员驳回
+    RESOLVED --> [*]
+    REJECTED --> [*]
+</div>
+
+<div class="mermaid">
+stateDiagram-v2
+    [*] --> DRAFT: 用户开始编辑
+    DRAFT --> PUBLISHED: 提交并通过校验
+    PUBLISHED --> DELETED: 作者删除
+    DELETED --> [*]
+</div>
+
+<h2>三、非功能性需求说明</h2>
+
+<h3>3.1 开发环境</h3>
+
+<table>
+<tr><th>层级</th><th>技术栈</th><th>版本</th></tr>
+<tr><td>前端框架</td><td>React</td><td>19.2.0</td></tr>
+<tr><td>构建工具</td><td>Vite</td><td>6.4.2</td></tr>
+<tr><td>UI 图标</td><td>@phosphor-icons/react</td><td>2.1.10</td></tr>
+<tr><td>后端框架</td><td>Spring Boot</td><td>3.5.16</td></tr>
+<tr><td>Java 版本</td><td>JDK</td><td>17+</td></tr>
+<tr><td>构建工具</td><td>Maven</td><td>3.9.x</td></tr>
+<tr><td>API 文档</td><td>springdoc-openapi</td><td>2.8.17</td></tr>
+<tr><td>数据库</td><td>MySQL</td><td>8.4（Docker）</td></tr>
+<tr><td>版本控制</td><td>Git + GitHub</td><td></td></tr>
+</table>
+
+<h3>3.2 运行环境</h3>
+
+<table>
+<tr><th>服务</th><th>地址</th><th>启动命令</th></tr>
+<tr><td>前端开发服务器</td><td><code>http://127.0.0.1:5173</code></td><td><code>npm run dev</code></td></tr>
+<tr><td>后端 API</td><td><code>http://127.0.0.1:8080/api/v1</code></td><td><code>mvn spring-boot:run</code></td></tr>
+<tr><td>Swagger UI</td><td><code>http://127.0.0.1:8080/swagger-ui/index.html</code></td><td>后端启动后即可访问</td></tr>
+<tr><td>MySQL</td><td><code>localhost:3306</code></td><td><code>docker compose up -d</code></td></tr>
+</table>
+
+<h3>3.3 系统依赖</h3>
+
+<table>
+<tr><th>依赖</th><th>用途</th><th>备注</th></tr>
+<tr><td>MySQL 8.4</td><td>业务数据持久化</td><td>Docker 镜像 mysql:8.4，utf8mb4 字符集</td></tr>
+<tr><td>QQ 邮箱 SMTP</td><td>验证码发送</td><td>smtp.qq.com:465 SSL，授权码存环境变量</td></tr>
+<tr><td>Spring JDBC</td><td>数据库访问</td><td>双 Profile：mock/mysql</td></tr>
+<tr><td>Spring Security Crypto</td><td>BCrypt 密码哈希</td><td></td></tr>
+<tr><td colspan="3">当前版本不依赖：Redis、Nginx、消息队列、对象存储</td></tr>
+</table>
+
+<h3>3.4 安全性</h3>
+
+<table>
+<tr><th>安全要求</th><th>实现方式</th></tr>
+<tr><td>密码存储</td><td>BCrypt 哈希，不可逆</td></tr>
+<tr><td>接口鉴权</td><td>除 /auth/* 和 /health 外全量 Bearer Token 拦截</td></tr>
+<tr><td>越权防护</td><td>用户仅可操作自己的笔记/评论；频道管理员仅限己频道</td></tr>
+<tr><td>输入校验</td><td>前端+后端双重校验（长度、格式、枚举白名单）</td></tr>
+<tr><td>SQL 注入</td><td>MyBatis 参数化查询</td></tr>
+<tr><td>验证码安全</td><td>5 分钟过期、60s 冷却、5 次错误上限、哈希存储</td></tr>
+<tr><td>敏感信息</td><td>数据库密码和 SMTP 授权码仅存环境变量，不提交 GitHub</td></tr>
+</table>
+
+<p><strong>错误码体系</strong>：</p>
+<table>
+<tr><th>code</th><th>HTTP</th><th>含义</th></tr>
+<tr><td>40000</td><td>400</td><td>参数或邮箱格式错误</td></tr>
+<tr><td>40001</td><td>400</td><td>邮箱或密码错误</td></tr>
+<tr><td>40002</td><td>400</td><td>验证码错误或过期</td></tr>
+<tr><td>40100</td><td>401</td><td>未登录或 Token 无效</td></tr>
+<tr><td>40300</td><td>403</td><td>无权限或被拉黑</td></tr>
+<tr><td>40301</td><td>403</td><td>非好友，不可查看好友可见笔记</td></tr>
+<tr><td>40302</td><td>403</td><td>未加入频道，不可互动</td></tr>
+<tr><td>40303</td><td>403</td><td>频道密码错误</td></tr>
+<tr><td>40400</td><td>404</td><td>资源不存在</td></tr>
+<tr><td>40900</td><td>409</td><td>状态冲突（如邮箱已注册）</td></tr>
+<tr><td>50000</td><td>500</td><td>服务端未处理异常</td></tr>
+</table>
+
+<h3>3.5 性能与可用性</h3>
+
+<table>
+<tr><th>类别</th><th>指标</th></tr>
+<tr><td>性能</td><td>首页首屏 < 2s（本地环境）；列表分页 20 条/页，最大 100 条</td></tr>
+<tr><td>浏览器</td><td>兼容 Chrome / Edge 最新版</td></tr>
+<tr><td>响应格式</td><td>统一 { code, message, data }；字段小驼峰；时间 ISO 8601</td></tr>
+<tr><td>数据格式</td><td>请求/响应 JSON；ID 用数字</td></tr>
+<tr><td>可维护性</td><td>后端 Controller→Service→Repository 分层；前端 src/api/ 按功能拆分</td></tr>
+<tr><td>开发模式</td><td>双 Profile：mock（内存演示）/ mysql（持久化），通过 --spring.profiles.active 切换</td></tr>
+</table>
+
+<h2>四、拓展实现目标</h2>
+
+<ul>
+<li><strong>活动组织与事件日历</strong>：支持活动发布、报名、提醒和日历视图</li>
+<li><strong>平台管理员后台</strong>：举报审核、违规处理、基础数据统计</li>
+<li><strong>推荐与发现优化</strong>：基于标签和互动行为的内容排序</li>
+<li><strong>WebSocket 实时聊天</strong>：将当前 HTTP 聊天升级为实时消息推送</li>
+<li><strong>文件存储服务</strong>：图片外链替换为服务器存储或对象存储</li>
+<li><strong>统一搜索</strong>：支持用户、笔记、频道、频道帖子的全局搜索</li>
+<li><strong>移动端适配</strong>：优化手机浏览器下的布局和操作体验</li>
+<li><strong>站内智能助手</strong>：接入 Agent，支持自然语言查询校园信息</li>
+</ul>
+
+</body>
+</html>

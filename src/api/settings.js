@@ -7,6 +7,10 @@ export function getPrivacy() {
 export function updatePrivacy({ noteVisibility, channelPermission, messagePermission }) {
   return request("/settings/privacy", {
     method: "PUT",
-    body: JSON.stringify({ noteVisibility, channelPermission, messagePermission }),
+    body: JSON.stringify({
+      defaultNoteVisibility: noteVisibility,
+      defaultChannelJoinType: channelPermission,
+      directMessagePermission: messagePermission,
+    }),
   });
 }

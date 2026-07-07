@@ -42,16 +42,28 @@ import {
   likeNote,
   saveNote,
   getTags,
+  getSocialFeed,
 } from "./api/notes.js";
 import {
   getChannels,
+  getPosts,
+  getPostDetail,
   joinChannel as apiJoinChannel,
   createChannel as apiCreateChannel,
   createPost as apiCreatePost,
 } from "./api/channels.js";
-import { getConversations, sendMessage as apiSendMessage } from "./api/chat.js";
-import { getNotifications as apiGetNotifications } from "./api/notifications.js";
-import { getMyProfile, updateProfile, getRelations } from "./api/users.js";
+import {
+  getConversations,
+  getMessages,
+  markRead as apiMarkChatRead,
+  sendMessage as apiSendMessage,
+} from "./api/chat.js";
+import {
+  getNotifications as apiGetNotifications,
+  markAllNotificationsRead as apiMarkAllNotificationsRead,
+} from "./api/notifications.js";
+import { getMyProfile, updateProfile, getRelations, report as apiReport } from "./api/users.js";
+import { getPrivacy, updatePrivacy as apiUpdatePrivacy } from "./api/settings.js";
 import { AuthPage } from "./components/auth/AuthPage.jsx";
 import { ModalHead } from "./components/common/ModalHead.jsx";
 import { Sidebar } from "./components/layout/Sidebar.jsx";
@@ -84,6 +96,42 @@ const DEMO_USER = { ...DEMO_USER_RAW, id: null };
 
 const VIS_MAP = { PUBLIC: "公开", FRIENDS: "好友可见", PRIVATE: "私密" };
 const VIS_REV = { "公开": "PUBLIC", "好友可见": "FRIENDS", "私密": "PRIVATE" };
+const CHANNEL_PERMISSION_MAP = { PUBLIC: "公开", PASSWORD: "密码" };
+const MESSAGE_PERMISSION_MAP = {
+  EVERYONE: "允许所有人",
+  FRIENDS_ONLY: "仅好友",
+  NONE: "不接收陌生人私信",
+};
+
+function toVisibility(value) {
+  if (value === "好友可见") return "FRIENDS";
+  if (value === "私密") return "PRIVATE";
+  return "PUBLIC";
+}
+
+function toChannelPermission(value) {
+  return value === "密码" ? "PASSWORD" : "PUBLIC";
+}
+
+function toMessagePermission(value) {
+  if (value === "允许所有人") return "EVERYONE";
+  if (value === "不接收陌生人私信") return "NONE";
+  return "FRIENDS_ONLY";
+}
+
+function toReportTarget(type) {
+  if (type === "频道帖子") return "CHANNEL_POST";
+  if (type === "聊天消息") return "MESSAGE";
+  if (type === "用户") return "USER";
+  return "NOTE";
+}
+
+function toReportReason(reason) {
+  if (reason === "广告") return "ADVERTISEMENT";
+  if (reason === "骚扰") return "HARASSMENT";
+  if (reason === "不实信息") return "FALSE_INFORMATION";
+  return "OTHER";
+}
 
 export function App() {
   // ── 认证状态 ──
@@ -97,9 +145,13 @@ export function App() {
   const [codeSent, setCodeSent] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [authNotice, setAuthNotice] = useState("");
 
   // ── 数据状态 ──
   const [notes, setNotes] = useState(initialNotes);
+  const [socialFeedNotes, setSocialFeedNotes] = useState(
+    getSocialNotes(initialNotes),
+  );
   const [channels, setChannels] = useState(initialChannels);
   const [chats, setChats] = useState(initialChats);
   const [tagsList, setTagsList] = useState(tags);
@@ -180,7 +232,7 @@ export function App() {
     [notes, searchTerm, activeTag],
   );
 
-  const socialNotes = useMemo(() => getSocialNotes(notes), [notes]);
+  const socialNotes = useMemo(() => socialFeedNotes, [socialFeedNotes]);
 
   const savedNotes = useMemo(
     () =>
@@ -272,6 +324,22 @@ export function App() {
     }));
   }
 
+  function mapChannelPost(apiPost) {
+    return {
+      id: String(apiPost.id),
+      title: apiPost.title,
+      pinned: apiPost.pinned || false,
+      likes: apiPost.likeCount || 0,
+      replies: apiPost.replyCount || 0,
+      body: apiPost.content || "",
+      author: apiPost.authorName || "用户",
+      liked: apiPost.liked || false,
+      time: apiPost.createdAt ? timeAgo(apiPost.createdAt) : "",
+      tags: [],
+      image: false,
+    };
+  }
+
   function mapChats(apiChats, myId) {
     return (apiChats || []).map((c) => ({
       id: String(c.id),
@@ -279,8 +347,30 @@ export function App() {
       type: c.type === "GROUP" ? "群聊" : "好友",
       unread: c.unreadCount || 0,
       lastTime: c.lastMessageAt ? timeAgo(c.lastMessageAt) : "",
-      messages: [],
+      lastMessage: c.lastMessage || "",
+      messages: c.lastMessage
+        ? [
+            {
+              from: c.name,
+              text: c.lastMessage,
+              time: c.lastMessageAt ? timeAgo(c.lastMessageAt) : "",
+              mine: false,
+              read: c.unreadCount === 0,
+            },
+          ]
+        : [],
     }));
+  }
+
+  function mapChatMessage(apiMessage) {
+    return {
+      id: apiMessage.id,
+      from: apiMessage.mine ? "我" : apiMessage.senderName || "用户",
+      text: apiMessage.content || "",
+      time: apiMessage.sentAt ? timeAgo(apiMessage.sentAt) : "",
+      mine: apiMessage.mine,
+      read: apiMessage.read,
+    };
   }
 
   // ── 认证 Effect ──
@@ -305,29 +395,70 @@ export function App() {
     try {
       const [
         notesData,
+        socialFeedData,
         channelsData,
         chatsData,
         profileDataRes,
         tagsData,
         relationsDataRes,
         notificationsData,
+        privacyData,
       ] = await Promise.all([
         getNotes({ scope: "PUBLIC" }),
+        getSocialFeed(),
         getChannels({ joined: null }),
         getConversations(),
         getMyProfile(),
         getTags(),
         getRelations(),
         apiGetNotifications(),
+        getPrivacy(),
       ]);
       setNotes((notesData?.items || []).map(mapNote));
+      setSocialFeedNotes((socialFeedData?.items || []).map(mapNote));
       if (tagsData?.length) {
         setTagsList(["全部", ...tagsData]);
       }
-      setChannels(
-        mapChannels(channelsData?.items || [], profileDataRes?.id),
+      const mappedChannels = mapChannels(
+        channelsData?.items || [],
+        profileDataRes?.id,
       );
-      setChats(mapChats(chatsData || [], profileDataRes?.id));
+      const channelsWithPosts = await Promise.all(
+        mappedChannels.map(async (channel) => {
+          try {
+            const postsData = await getPosts(Number(channel.id), {
+              page: 1,
+              size: 20,
+            });
+            return {
+              ...channel,
+              posts: (postsData?.items || []).map(mapChannelPost),
+            };
+          } catch {
+            return channel;
+          }
+        }),
+      );
+      setChannels(channelsWithPosts);
+      const mappedChats = mapChats(chatsData || [], profileDataRes?.id);
+      const chatsWithMessages = await Promise.all(
+        mappedChats.map(async (chat) => {
+          try {
+            const messagesData = await getMessages(Number(chat.id), {
+              page: 1,
+              size: 30,
+            });
+            const messages = (messagesData?.items || []).map(mapChatMessage);
+            return {
+              ...chat,
+              messages: messages.length ? messages : chat.messages,
+            };
+          } catch {
+            return chat;
+          }
+        }),
+      );
+      setChats(chatsWithMessages);
       setCurrentUser({
         name: profileDataRes?.nickname || "新用户",
         meta: `${profileDataRes?.grade || ""} · ${profileDataRes?.college || ""}`,
@@ -342,6 +473,17 @@ export function App() {
         setProfileMeta(`${profileDataRes.grade || ""} · ${profileDataRes.college || ""}`);
         setProfileBio(profileDataRes.bio || "");
         setProfileAvatar(profileDataRes.avatarUrl || DEFAULT_AVATAR);
+      }
+      if (privacyData) {
+        const nextPrivacy = {
+          noteVisibility: VIS_MAP[privacyData.defaultNoteVisibility] || "公开",
+          channelPermission:
+            CHANNEL_PERMISSION_MAP[privacyData.defaultChannelJoinType] || "公开",
+          messagePermission:
+            MESSAGE_PERMISSION_MAP[privacyData.directMessagePermission] || "仅好友",
+        };
+        setPrivacy(nextPrivacy);
+        setDraftVisibility(nextPrivacy.noteVisibility);
       }
       // 映射通知数据
       const apiNotifications = notificationsData?.items || notificationsData || [];
@@ -381,10 +523,16 @@ export function App() {
   // ── 认证处理函数 ──
   function handleSendCode() {
     setAuthError("");
+    setAuthNotice("");
     setAuthLoading(true);
     apiSendCode(authEmail, authMode === "找回密码" ? "RESET_PASSWORD" : "REGISTER")
       .then((data) => {
         setCodeSent(true);
+        if (data?.mockCode) {
+          setAuthNotice(`本地测试验证码：${data.mockCode}`);
+        } else {
+          setAuthNotice("验证码已发送，请查看邮箱。");
+        }
       })
       .catch((err) => setAuthError(err.message))
       .finally(() => setAuthLoading(false));
@@ -392,6 +540,7 @@ export function App() {
 
   function handleLogin() {
     setAuthError("");
+    setAuthNotice("");
     setAuthLoading(true);
     apiLogin(authEmail, authPassword)
       .then((data) => {
@@ -404,6 +553,7 @@ export function App() {
 
   function handleRegister() {
     setAuthError("");
+    setAuthNotice("");
     if (authPassword.length < 8) {
       setAuthError("密码至少 8 位");
       return;
@@ -425,6 +575,7 @@ export function App() {
 
   function handleResetPassword() {
     setAuthError("");
+    setAuthNotice("");
     if (authPassword.length < 8) {
       setAuthError("密码至少 8 位");
       return;
@@ -441,7 +592,7 @@ export function App() {
         setAuthPasswordConfirm("");
         setAuthCode("");
         setCodeSent(false);
-        setAuthError("密码已重置，请使用新密码登录");
+        setAuthNotice("密码已重置，请使用新密码登录。");
       })
       .catch((err) => setAuthError(err.message))
       .finally(() => setAuthLoading(false));
@@ -493,7 +644,9 @@ export function App() {
     saveNote(id)
       .then((res) => {
         setNotes((items) =>
-          items.map((n) => (n.id === id ? { ...n, saved: res.active } : n)),
+          items.map((n) =>
+            n.id === id ? { ...n, saved: res.active, saves: res.count } : n,
+          ),
         );
       })
       .catch(() => {});
@@ -639,6 +792,12 @@ export function App() {
   function updatePrivacyField(key, value) {
     setPrivacy((items) => ({ ...items, [key]: value }));
     if (key === "noteVisibility") setDraftVisibility(value);
+    const nextPrivacy = { ...privacy, [key]: value };
+    apiUpdatePrivacy({
+      noteVisibility: toVisibility(nextPrivacy.noteVisibility),
+      channelPermission: toChannelPermission(nextPrivacy.channelPermission),
+      messagePermission: toMessagePermission(nextPrivacy.messagePermission),
+    }).catch(() => {});
   }
 
   function saveProfile() {
@@ -671,28 +830,72 @@ export function App() {
     setChats((items) =>
       items.map((ch) => (ch.id === chatId ? { ...ch, unread: 0 } : ch)),
     );
+    apiMarkChatRead(Number(chatId)).catch(() => {});
   }
 
   function sendChatMessage() {
     const text = chatInput.trim();
     if (!text || !activeChatId) return;
-    const now = new Date();
-    const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-    const message = { from: "我", text, time, mine: true, read: true };
-    setChats((items) =>
-      items.map((ch) =>
-        ch.id === activeChatId
-          ? { ...ch, messages: [...ch.messages, message], lastTime: "刚刚" }
-          : ch,
-      ),
-    );
-    setChatInput("");
-    // 异步发送到后端
-    apiSendMessage(Number(activeChatId), text).catch(() => {});
+    apiSendMessage(Number(activeChatId), text)
+      .then((apiMessage) => {
+        const message = mapChatMessage(apiMessage);
+        setChats((items) =>
+          items.map((ch) =>
+            ch.id === activeChatId
+              ? { ...ch, messages: [...ch.messages, message], lastTime: "刚刚" }
+              : ch,
+          ),
+        );
+        setChatInput("");
+      })
+      .catch(() => {
+        const now = new Date();
+        const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+        const message = { id: Date.now(), from: "我", text, time, mine: true, read: true };
+        setChats((items) =>
+          items.map((ch) =>
+            ch.id === activeChatId
+              ? { ...ch, messages: [...ch.messages, message], lastTime: "刚刚" }
+              : ch,
+          ),
+        );
+        setChatInput("");
+      });
   }
 
   function markAllChatsAsRead() {
     setChats((items) => items.map((ch) => ({ ...ch, unread: 0 })));
+  }
+
+  function openChannelPostDetail(payload) {
+    setChannelPostDetail({ ...payload, replies: [] });
+    getPostDetail(Number(payload.post.id))
+      .then((detail) => {
+        setChannelPostDetail({
+          channel: payload.channel,
+          post: {
+            ...payload.post,
+            title: detail.post?.title || payload.post.title,
+            body: detail.post?.content || payload.post.body,
+            likes: detail.post?.likeCount ?? payload.post.likes,
+            replies: detail.post?.replyCount ?? payload.post.replies,
+          },
+          replies: detail.replies || [],
+        });
+      })
+      .catch(() => {});
+  }
+
+  function submitReport(reason) {
+    if (!reportTarget) return;
+    apiReport({
+      targetType: reportTarget.targetType || toReportTarget(reportTarget.type),
+      targetId: Number(reportTarget.targetId || reportTarget.id || 1),
+      reason: toReportReason(reason),
+      description: reportTarget.title || "",
+    })
+      .catch(() => {})
+      .finally(() => setReportTarget(null));
   }
 
   // ── Draft 对象（供 AppModals 使用） ──
@@ -763,7 +966,7 @@ export function App() {
             selectedChannel={selectedChannel}
             onSelectChannel={setSelectedChannelId}
             onJoin={setJoinChannel}
-            onOpenPost={setChannelPostDetail}
+            onOpenPost={openChannelPostDetail}
             onReport={setReportTarget}
             onCreateChannel={() => setCreateChannelOpen(true)}
           />
@@ -787,6 +990,20 @@ export function App() {
             joinedChannelCount={
               channels.filter((ch) => ch.joined).length
             }
+            channels={channels}
+            savedNotes={savedNotes}
+            likedNotes={notes.filter((n) => n.liked)}
+            recentActivities={[
+              ...notes
+                .filter((n) => n.author === currentUser.name || n.visibility === "私密")
+                .slice(0, 2)
+                .map((n) => `发布了笔记「${n.title}」`),
+              ...savedNotes.slice(0, 2).map((n) => `收藏了「${n.title}」`),
+              ...channels
+                .filter((ch) => ch.joined)
+                .slice(0, 2)
+                .map((ch) => `加入了频道「${ch.name}」`),
+            ]}
             profileData={profileData}
             noteFeedProps={noteFeedProps}
             onEdit={() => setProfileEditOpen(true)}
@@ -831,10 +1048,12 @@ export function App() {
         code={authCode}
         codeSent={codeSent}
         authError={authError}
+        authNotice={authNotice}
         authLoading={authLoading}
         onModeChange={(mode) => {
           setAuthMode(mode);
           setAuthError("");
+          setAuthNotice("");
           setAuthPasswordConfirm("");
           setAuthCode("");
           setCodeSent(false);
@@ -880,9 +1099,13 @@ export function App() {
           open={notificationsOpen}
           onToggle={() => setNotificationsOpen((v) => !v)}
           onMarkAllRead={() =>
-            setNotifications((items) =>
-              items.map((item) => ({ ...item, unread: false })),
-            )
+            apiMarkAllNotificationsRead()
+              .catch(() => {})
+              .finally(() =>
+                setNotifications((items) =>
+                  items.map((item) => ({ ...item, unread: false })),
+                ),
+              )
           }
         />
 
@@ -967,6 +1190,7 @@ export function App() {
                               setReportTarget({
                                 type: "聊天消息",
                                 title: msg.text,
+                                targetId: msg.id,
                               })
                             }
                           >
@@ -1041,6 +1265,7 @@ export function App() {
         onClosePost={() => setChannelPostDetail(null)}
         onCloseProfile={() => setProfileUser(null)}
         onCloseReport={() => setReportTarget(null)}
+        onSubmitReport={submitReport}
         onJoinPasswordChange={setJoinPassword}
         onSubmitJoin={submitJoinChannel}
         onBlockUser={blockUser}
@@ -1101,7 +1326,7 @@ export function App() {
               <button
                 title="举报"
                 onClick={() =>
-                  setReportTarget({ type: "笔记", title: detailNote.title })
+                  setReportTarget({ type: "笔记", title: detailNote.title, targetId: detailNote.id })
                 }
               >
                 <Flag size={18} />

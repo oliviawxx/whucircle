@@ -27,7 +27,7 @@ export function NotesFeed({
                 <strong>{note.author}</strong>
                 <span>{note.meta}</span>
               </div>
-              <IconButton title="举报笔记" onClick={() => onReport({ type: "笔记", title: note.title })}>
+              <IconButton title="举报笔记" onClick={() => onReport({ type: "笔记", title: note.title, targetId: note.id })}>
                 <Flag size={17} />
               </IconButton>
             </div>
@@ -47,7 +47,7 @@ export function NotesFeed({
               </button>
               <button title="评论" onClick={() => onOpenNote(note)}>
                 <ChatCircle size={19} />
-                {note.comments.length}
+                {note.commentCount ?? note.comments.length}
               </button>
               <button className={note.saved ? "active" : ""} title="收藏" onClick={() => onToggleSave(note.id)}>
                 <BookmarkSimple size={19} weight={note.saved ? "fill" : "regular"} />

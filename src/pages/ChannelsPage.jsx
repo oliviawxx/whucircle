@@ -75,7 +75,7 @@ export function ChannelsPage({ channels, selectedChannel, onSelectChannel, onJoi
                 <strong>{post.title}</strong>
                 <span>{post.replies} 回复 · {post.likes} 赞</span>
               </button>
-              <IconButton title="举报频道帖子" onClick={() => onReport({ type: "频道帖子", title: post.title })}>
+              <IconButton title="举报频道帖子" onClick={() => onReport({ type: "频道帖子", title: post.title, targetId: post.id })}>
                 <Flag size={17} />
               </IconButton>
             </article>
