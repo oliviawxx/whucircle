@@ -1,0 +1,65 @@
+import { CheckCircle, Flag, Hash, LockKey, Megaphone, PushPin } from "@phosphor-icons/react";
+import { IconButton } from "../components/common/IconButton.jsx";
+
+export function ChannelsPage({ channels, selectedChannel, onSelectChannel, onJoin, onOpenPost, onReport }) {
+  const previewPosts = selectedChannel.joined ? selectedChannel.posts : selectedChannel.posts.slice(0, 5);
+
+  return (
+    <section className="channel-layout">
+      <aside className="channel-list">
+        <div className="panel-head"><h2>频道</h2><span>公开 / 密码</span></div>
+        {channels.map((channel) => (
+          <button className={selectedChannel.id === channel.id ? "channel-item active" : "channel-item"} key={channel.id} onClick={() => onSelectChannel(channel.id)}>
+            {channel.type === "密码" ? <LockKey size={18} /> : <Hash size={18} />}
+            <span>{channel.name}</span>
+            {!channel.joined && <em>{channel.type}</em>}
+          </button>
+        ))}
+      </aside>
+
+      <section className="channel-board">
+        <div className="channel-cover">
+          <div>
+            <p>{selectedChannel.type === "密码" ? "私密频道" : "公开频道"}</p>
+            <h2>{selectedChannel.name}</h2>
+            <span>{selectedChannel.members} 人 · 管理员：{selectedChannel.admin}</span>
+          </div>
+          {selectedChannel.joined ? (
+            <button className="ghost-button"><CheckCircle size={18} />已加入</button>
+          ) : (
+            <button onClick={() => onJoin(selectedChannel)}>
+              {selectedChannel.type === "密码" ? <LockKey size={18} /> : <Hash size={18} />}加入
+            </button>
+          )}
+        </div>
+        <div className="announcement"><Megaphone size={18} /><span>{selectedChannel.announcement}</span></div>
+        <div className="channel-posts">
+          {previewPosts.map((post) => (
+            <article className="channel-post" key={post.id}>
+              <button className="post-title-button" onClick={() => onOpenPost({ channel: selectedChannel, post })}>
+                {post.pinned && <PushPin size={16} weight="fill" />}
+                <strong>{post.title}</strong>
+                <span>{post.replies} 回复 · {post.likes} 赞</span>
+              </button>
+              <IconButton title="举报频道帖子" onClick={() => onReport({ type: "频道帖子", title: post.title })}>
+                <Flag size={17} />
+              </IconButton>
+            </article>
+          ))}
+        </div>
+        {!selectedChannel.joined && (
+          <div className="join-reminder"><LockKey size={22} /><span>未加入时仅预览前 5 条帖子。加入后可发帖、回复、点赞。</span></div>
+        )}
+      </section>
+
+      <aside className="compact-panel ranking-panel">
+        <div className="panel-head"><h2>频道榜单</h2><span>按成员数展示</span></div>
+        {[...channels].sort((a, b) => b.members - a.members).map((channel, index) => (
+          <button className="rank-row" key={channel.id} onClick={() => onSelectChannel(channel.id)}>
+            <strong>{index + 1}</strong><span>{channel.name}</span><em>{channel.members} 人</em>
+          </button>
+        ))}
+      </aside>
+    </section>
+  );
+}
