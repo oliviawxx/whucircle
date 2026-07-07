@@ -71,6 +71,7 @@ public class InMemoryNoteRepository implements NoteRepository {
     }
     @Override public java.util.Optional<Note> findById(Long id) { return java.util.Optional.ofNullable(notes.get(id)); }
     @Override public Note save(Note note) { notes.put(note.id(), note); return note; }
+    @Override public void deleteNote(Long noteId) { notes.remove(noteId); comments.remove(noteId); }
     @Override public List<Comment> findComments(Long noteId) {
         return new ArrayList<>(comments.getOrDefault(noteId, List.of()));
     }
@@ -78,6 +79,10 @@ public class InMemoryNoteRepository implements NoteRepository {
         comments.computeIfAbsent(comment.noteId(), ignored -> new CopyOnWriteArrayList<>()).add(comment);
         commentIds.updateAndGet(value -> Math.max(value, comment.id() + 1));
         return comment;
+    }
+    @Override public void deleteComment(Long noteId, Long commentId) {
+        List<Comment> list = comments.get(noteId);
+        if (list != null) list.removeIf(comment -> comment.id().equals(commentId));
     }
     @Override public synchronized Note toggleLike(Long noteId, Long userId) {
         Note old = notes.get(noteId);
@@ -96,4 +101,7 @@ public class InMemoryNoteRepository implements NoteRepository {
     }
     @Override public long nextNoteId() { return noteIds.getAndIncrement(); }
     @Override public long nextCommentId() { return commentIds.getAndIncrement(); }
+    @Override public int countByAuthorId(Long authorId) {
+        return (int) notes.values().stream().filter(note -> note.authorId().equals(authorId)).count();
+    }
 }

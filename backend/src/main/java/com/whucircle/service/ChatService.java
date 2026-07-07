@@ -5,9 +5,14 @@ import com.whucircle.common.ErrorCode;
 import com.whucircle.common.PageData;
 import com.whucircle.domain.ChatMessage;
 import com.whucircle.domain.Conversation;
+import com.whucircle.domain.Enums.ConversationType;
+import com.whucircle.domain.Enums.DirectMessagePermission;
+import com.whucircle.domain.Enums.RelationStatus;
 import com.whucircle.dto.ChatDtos.ConversationView;
+import com.whucircle.dto.ChatDtos.CreateConversationRequest;
 import com.whucircle.dto.ChatDtos.MessageView;
 import com.whucircle.repository.ChatRepository;
+import com.whucircle.repository.SettingsRepository;
 import com.whucircle.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
@@ -20,10 +25,12 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ChatService {
     private final ChatRepository chats;
     private final UserRepository users;
+    private final SettingsRepository settings;
 
-    public ChatService(ChatRepository chats, UserRepository users) {
+    public ChatService(ChatRepository chats, UserRepository users, SettingsRepository settings) {
         this.chats = chats;
         this.users = users;
+        this.settings = settings;
     }
 
     public List<ConversationView> conversations(Long currentUserId) {
@@ -42,6 +49,10 @@ public class ChatService {
         if (conversation.memberIds().stream().anyMatch(member -> !member.equals(currentUserId) && users.isBlockedEitherWay(currentUserId, member))) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "会话中存在拉黑关系，不能发送消息");
         }
+        if (conversation.type() == ConversationType.PRIVATE) {
+            conversation.memberIds().stream().filter(member -> !member.equals(currentUserId)).findFirst()
+                    .ifPresent(targetUserId -> requireDirectMessagePermission(currentUserId, targetUserId));
+        }
         Set<Long> readBy = ConcurrentHashMap.newKeySet();
         readBy.add(currentUserId);
         ChatMessage saved = chats.saveMessage(new ChatMessage(chats.nextMessageId(), conversationId, currentUserId, content, OffsetDateTime.now(), readBy));
@@ -51,6 +62,52 @@ public class ChatService {
     public void markRead(Long currentUserId, Long conversationId) {
         requireMember(currentUserId, conversationId);
         chats.markRead(conversationId, currentUserId);
+    }
+
+    public ConversationView createConversation(Long currentUserId, CreateConversationRequest request) {
+        List<Long> participantIds = request.participantIds().stream().distinct()
+                .filter(id -> !id.equals(currentUserId)).toList();
+        if (request.type() == ConversationType.PRIVATE && participantIds.size() != 1) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "私聊必须且只能选择一名其他用户");
+        }
+        if (request.type() == ConversationType.GROUP && participantIds.isEmpty()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "群聊至少需要一名其他成员");
+        }
+        Set<Long> members = ConcurrentHashMap.newKeySet();
+        members.add(currentUserId);
+        members.addAll(participantIds);
+        for (Long memberId : participantIds) {
+            if (users.findById(memberId).isEmpty()) throw new BusinessException(ErrorCode.NOT_FOUND, "用户 " + memberId + " 不存在");
+            if (users.isBlockedEitherWay(currentUserId, memberId)) {
+                throw new BusinessException(ErrorCode.FORBIDDEN, "拉黑关系下不能创建会话");
+            }
+        }
+        if (request.type() == ConversationType.PRIVATE) requireDirectMessagePermission(currentUserId, participantIds.get(0));
+        long conversationId = chats.nextConversationId();
+        String name = request.name();
+        if (name == null || name.isBlank()) {
+            if (request.type() == ConversationType.PRIVATE) {
+                Long otherId = participantIds.get(0);
+                name = users.findById(otherId).map(user -> user.nickname()).orElse("未知用户");
+            } else {
+                name = "群聊 " + conversationId;
+            }
+        }
+        Conversation conversation = new Conversation(conversationId, request.type(), name.trim(), members,
+                "", OffsetDateTime.now());
+        return new ConversationView(chats.saveConversation(conversation).id(), conversation.type(), conversation.name(),
+                "", conversation.lastMessageAt(), 0);
+    }
+
+    private void requireDirectMessagePermission(Long senderId, Long recipientId) {
+        DirectMessagePermission permission = settings.findPrivacy(recipientId).directMessagePermission();
+        if (permission == DirectMessagePermission.NONE) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "对方不接收私信");
+        }
+        if (permission == DirectMessagePermission.FRIENDS_ONLY
+                && users.relation(senderId, recipientId) != RelationStatus.FRIEND) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "对方仅接收好友私信");
+        }
     }
 
     private Conversation requireMember(Long userId, Long conversationId) {

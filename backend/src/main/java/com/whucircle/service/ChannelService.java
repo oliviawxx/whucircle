@@ -7,15 +7,18 @@ import com.whucircle.domain.Channel;
 import com.whucircle.domain.ChannelPost;
 import com.whucircle.domain.ChannelReply;
 import com.whucircle.domain.Enums.JoinType;
+import com.whucircle.domain.Notification;
 import com.whucircle.domain.User;
 import com.whucircle.dto.ChannelDtos.AdminView;
 import com.whucircle.dto.ChannelDtos.ChannelView;
+import com.whucircle.dto.ChannelDtos.CreateChannelRequest;
 import com.whucircle.dto.ChannelDtos.JoinResponse;
 import com.whucircle.dto.ChannelDtos.PostDetail;
 import com.whucircle.dto.ChannelDtos.PostView;
 import com.whucircle.dto.ChannelDtos.ReplyView;
 import com.whucircle.dto.NoteDtos.ToggleResponse;
 import com.whucircle.repository.ChannelRepository;
+import com.whucircle.repository.NotificationRepository;
 import com.whucircle.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
@@ -28,10 +31,12 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ChannelService {
     private final ChannelRepository channels;
     private final UserRepository users;
+    private final NotificationRepository notifications;
 
-    public ChannelService(ChannelRepository channels, UserRepository users) {
+    public ChannelService(ChannelRepository channels, UserRepository users, NotificationRepository notifications) {
         this.channels = channels;
         this.users = users;
+        this.notifications = notifications;
     }
 
     public PageData<ChannelView> list(Long currentUserId, Boolean joined, String keyword, int page, int size) {
@@ -52,6 +57,27 @@ public class ChannelService {
         }
         Channel updated = channels.addMember(channelId, currentUserId);
         return new JoinResponse(true, updated.memberCount());
+    }
+
+    public ChannelView create(Long currentUserId, CreateChannelRequest request) {
+        if (request.joinType() == JoinType.PASSWORD && (request.password() == null || request.password().isBlank())) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "密码频道必须设置密码");
+        }
+        Set<Long> memberSet = mutableSet();
+        memberSet.add(currentUserId);
+        Channel channel = new Channel(channels.nextChannelId(), request.name(), request.joinType(),
+                request.password(), 1, currentUserId,
+                request.announcement() == null || request.announcement().isBlank() ? "欢迎来到新频道！" : request.announcement(),
+                memberSet);
+        return toView(channels.save(channel), currentUserId);
+    }
+
+    public ChannelView updateAnnouncement(Long currentUserId, Long channelId, String announcement) {
+        Channel channel = requireChannel(channelId);
+        requireAdministrator(currentUserId, channel);
+        Channel updated = new Channel(channel.id(), channel.name(), channel.joinType(), channel.password(),
+                channel.memberCount(), channel.administratorId(), announcement.trim(), channel.memberIds());
+        return toView(channels.save(updated), currentUserId);
     }
 
     public PageData<PostView> posts(Long currentUserId, Long channelId, int page, int size) {
@@ -81,6 +107,10 @@ public class ChannelService {
         ChannelReply saved = channels.saveReply(new ChannelReply(channels.nextReplyId(), postId, currentUserId, content, OffsetDateTime.now()));
         channels.savePost(new ChannelPost(post.id(), post.channelId(), post.authorId(), post.title(), post.content(), post.pinned(),
                 post.likeCount(), post.replyCount() + 1, post.likedBy(), post.createdAt()));
+        if (!currentUserId.equals(post.authorId())) {
+            notifications.save(new Notification(notifications.nextId(), post.authorId(), "POST_REPLY",
+                    "频道帖子收到回复", content, post.id(), false, OffsetDateTime.now()));
+        }
         return toReplyView(saved);
     }
 
@@ -89,6 +119,14 @@ public class ChannelService {
         requireMember(currentUserId, requireChannel(post.channelId()));
         ChannelPost updated = channels.togglePostLike(postId, currentUserId);
         return new ToggleResponse(updated.likedBy().contains(currentUserId), updated.likeCount());
+    }
+
+    public PostView setPinned(Long currentUserId, Long postId, boolean pinned) {
+        ChannelPost post = requirePost(postId);
+        requireAdministrator(currentUserId, requireChannel(post.channelId()));
+        ChannelPost updated = new ChannelPost(post.id(), post.channelId(), post.authorId(), post.title(), post.content(),
+                pinned, post.likeCount(), post.replyCount(), post.likedBy(), post.createdAt());
+        return toPostView(channels.savePost(updated), currentUserId);
     }
 
     private ChannelView toView(Channel channel, Long currentUserId) {
@@ -112,6 +150,11 @@ public class ChannelService {
     private ChannelPost requirePost(Long id) { return channels.findPostById(id).orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "频道帖子不存在")); }
     private void requireMember(Long userId, Channel channel) {
         if (!channel.memberIds().contains(userId)) throw new BusinessException(ErrorCode.CHANNEL_NOT_JOINED);
+    }
+    private void requireAdministrator(Long userId, Channel channel) {
+        if (!channel.administratorId().equals(userId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "仅频道管理员可以执行该操作");
+        }
     }
     private Set<Long> mutableSet() { return ConcurrentHashMap.newKeySet(); }
 }

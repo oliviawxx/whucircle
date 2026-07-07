@@ -9,3 +9,4 @@ backend/target/
 backend/uploads/
 .idea/
 *.iml
+application-local.yml

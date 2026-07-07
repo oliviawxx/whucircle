@@ -1,5 +1,6 @@
 package com.whucircle;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.whucircle.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,6 +11,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -26,6 +28,8 @@ class ApiIntegrationTest {
     private UserRepository users;
     @Autowired
     private PasswordEncoder passwordEncoder;
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Test
     void healthDoesNotRequireAuthentication() throws Exception {
@@ -154,5 +158,102 @@ class ApiIntegrationTest {
                                 """))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value(40303));
+    }
+
+    @Test
+    void channelCreatorCanManageAnnouncementAndPinnedPosts() throws Exception {
+        String channelBody = mockMvc.perform(post("/api/v1/channels")
+                        .header("Authorization", AUTH)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"API 联调频道","joinType":"PUBLIC","announcement":"初始公告"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.joined").value(true))
+                .andReturn().getResponse().getContentAsString();
+        long channelId = objectMapper.readTree(channelBody).path("data").path("id").asLong();
+
+        mockMvc.perform(put("/api/v1/channels/{id}/announcement", channelId)
+                        .header("Authorization", AUTH)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"announcement\":\"更新后的频道公告\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.announcement").value("更新后的频道公告"));
+
+        String postBody = mockMvc.perform(post("/api/v1/channels/{id}/posts", channelId)
+                        .header("Authorization", AUTH)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"联调帖\",\"content\":\"用于验证置顶接口\"}"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        long postId = objectMapper.readTree(postBody).path("data").path("id").asLong();
+
+        mockMvc.perform(put("/api/v1/channel-posts/{id}/pin", postId)
+                        .header("Authorization", AUTH)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"pinned\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.pinned").value(true));
+    }
+
+    @Test
+    void conversationsCanBeCreatedAndPrivateMessagePermissionIsEnforced() throws Exception {
+        mockMvc.perform(post("/api/v1/conversations")
+                        .header("Authorization", AUTH)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"type\":\"PRIVATE\",\"participantIds\":[6]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.type").value("PRIVATE"));
+
+        mockMvc.perform(post("/api/v1/conversations")
+                        .header("Authorization", AUTH)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"type\":\"PRIVATE\",\"participantIds\":[3]}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(40300));
+    }
+
+    @Test
+    void authorCanDeleteOwnNoteAndComment() throws Exception {
+        String noteBody = mockMvc.perform(post("/api/v1/notes")
+                        .header("Authorization", AUTH)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"待删除笔记","content":"测试删除流程","visibility":"PUBLIC","imageUrls":[],"tags":[]}
+                                """))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        long noteId = objectMapper.readTree(noteBody).path("data").path("id").asLong();
+
+        String commentBody = mockMvc.perform(post("/api/v1/notes/{id}/comments", noteId)
+                        .header("Authorization", AUTH)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\":\"稍后一起删除\"}"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        long commentId = objectMapper.readTree(commentBody).path("data").path("id").asLong();
+
+        mockMvc.perform(delete("/api/v1/notes/{noteId}/comments/{commentId}", noteId, commentId)
+                        .header("Authorization", AUTH))
+                .andExpect(status().isOk());
+        mockMvc.perform(delete("/api/v1/notes/{id}", noteId).header("Authorization", AUTH))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/notes/{id}", noteId).header("Authorization", AUTH))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void notificationsSupportCountAndReadState() throws Exception {
+        mockMvc.perform(get("/api/v1/notifications/count").header("Authorization", AUTH))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.unreadCount").value(2));
+        mockMvc.perform(put("/api/v1/notifications/1/read").header("Authorization", AUTH))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.read").value(true));
+        mockMvc.perform(put("/api/v1/notifications/read-all").header("Authorization", AUTH))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/notifications/count").header("Authorization", AUTH))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.unreadCount").value(0));
     }
 }

@@ -8,6 +8,7 @@ import com.whucircle.domain.Enums.NoteScope;
 import com.whucircle.domain.Enums.RelationStatus;
 import com.whucircle.domain.Enums.Visibility;
 import com.whucircle.domain.Note;
+import com.whucircle.domain.Notification;
 import com.whucircle.domain.User;
 import com.whucircle.dto.NoteDtos.AuthorView;
 import com.whucircle.dto.NoteDtos.CommentView;
@@ -15,6 +16,7 @@ import com.whucircle.dto.NoteDtos.CreateNoteRequest;
 import com.whucircle.dto.NoteDtos.NoteView;
 import com.whucircle.dto.NoteDtos.ToggleResponse;
 import com.whucircle.repository.NoteRepository;
+import com.whucircle.repository.NotificationRepository;
 import com.whucircle.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
@@ -28,10 +30,12 @@ import java.util.stream.Stream;
 public class NoteService {
     private final NoteRepository notes;
     private final UserRepository users;
+    private final NotificationRepository notifications;
 
-    public NoteService(NoteRepository notes, UserRepository users) {
+    public NoteService(NoteRepository notes, UserRepository users, NotificationRepository notifications) {
         this.notes = notes;
         this.users = users;
+        this.notifications = notifications;
     }
 
     public PageData<NoteView> list(Long currentUserId, NoteScope scope, String keyword, String tag, int page, int size) {
@@ -79,23 +83,47 @@ public class NoteService {
         Comment saved = notes.saveComment(new Comment(notes.nextCommentId(), noteId, currentUserId, content, OffsetDateTime.now()));
         notes.save(new Note(note.id(), note.authorId(), note.title(), note.content(), note.visibility(), note.imageUrls(), note.tags(),
                 note.likeCount(), note.commentCount() + 1, note.likedBy(), note.savedBy(), note.createdAt()));
+        notifyAuthor(currentUserId, note, "NOTE_COMMENT", "笔记收到评论", content);
         return toCommentView(saved);
     }
 
     public ToggleResponse toggleLike(Long currentUserId, Long noteId) {
         requireViewPermission(currentUserId, requireNote(noteId));
+        Note note = requireNote(noteId);
         Note updated = notes.toggleLike(noteId, currentUserId);
+        if (updated.likedBy().contains(currentUserId)) {
+            notifyAuthor(currentUserId, note, "NOTE_LIKE", "笔记收到点赞", "有人赞了你的笔记");
+        }
         return new ToggleResponse(updated.likedBy().contains(currentUserId), updated.likeCount());
     }
 
     public ToggleResponse toggleSave(Long currentUserId, Long noteId) {
         requireViewPermission(currentUserId, requireNote(noteId));
+        Note note = requireNote(noteId);
         Note updated = notes.toggleSave(noteId, currentUserId);
+        if (updated.savedBy().contains(currentUserId)) {
+            notifyAuthor(currentUserId, note, "NOTE_SAVE", "笔记被收藏", "有人收藏了你的笔记");
+        }
         return new ToggleResponse(updated.savedBy().contains(currentUserId), updated.savedBy().size());
     }
 
     public List<String> tags() {
         return notes.findAll().stream().flatMap(note -> note.tags().stream()).distinct().sorted().toList();
+    }
+
+    public void delete(Long currentUserId, Long noteId) {
+        Note note = requireNote(noteId);
+        if (!note.authorId().equals(currentUserId)) throw new BusinessException(ErrorCode.FORBIDDEN, "只能删除自己的笔记");
+        notes.deleteNote(noteId);
+    }
+
+    public void deleteComment(Long currentUserId, Long noteId, Long commentId) {
+        requireNote(noteId);
+        List<Comment> list = notes.findComments(noteId);
+        Comment comment = list.stream().filter(c -> c.id().equals(commentId)).findFirst()
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "评论不存在"));
+        if (!comment.authorId().equals(currentUserId)) throw new BusinessException(ErrorCode.FORBIDDEN, "只能删除自己的评论");
+        notes.deleteComment(noteId, commentId);
     }
 
     private boolean isSocialVisible(Long currentUserId, Note note) {
@@ -134,6 +162,12 @@ public class NoteService {
         User author = users.findById(comment.authorId()).orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "评论作者不存在"));
         return new CommentView(comment.id(), new AuthorView(author.id(), author.nickname(), author.avatarUrl(), author.college()),
                 comment.content(), comment.createdAt());
+    }
+
+    private void notifyAuthor(Long actorId, Note note, String type, String title, String content) {
+        if (actorId.equals(note.authorId())) return;
+        notifications.save(new Notification(notifications.nextId(), note.authorId(), type, title, content,
+                note.id(), false, OffsetDateTime.now()));
     }
 
     private Set<Long> mutableSet() { return ConcurrentHashMap.newKeySet(); }

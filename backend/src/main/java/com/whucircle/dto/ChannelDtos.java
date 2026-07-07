@@ -2,6 +2,7 @@ package com.whucircle.dto;
 
 import com.whucircle.domain.Enums.JoinType;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.time.OffsetDateTime;
@@ -19,6 +20,12 @@ public final class ChannelDtos {
                            String content, boolean pinned, int likeCount, int replyCount,
                            boolean liked, OffsetDateTime createdAt) {}
     public record PostDetail(PostView post, List<ReplyView> replies) {}
+    public record CreateChannelRequest(@NotBlank @Size(max = 50) String name,
+                                        @NotNull JoinType joinType,
+                                        @Size(max = 50) String password,
+                                        @Size(max = 500) String announcement) {}
+    public record UpdateAnnouncementRequest(@NotBlank @Size(max = 500) String announcement) {}
+    public record PinPostRequest(@NotNull Boolean pinned) {}
     public record CreatePostRequest(@NotBlank @Size(max = 100) String title,
                                     @NotBlank @Size(max = 5000) String content) {}
     public record ReplyView(Long id, Long authorId, String authorName, String content, OffsetDateTime createdAt) {}

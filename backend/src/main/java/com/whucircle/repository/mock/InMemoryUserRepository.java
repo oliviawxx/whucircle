@@ -104,4 +104,10 @@ public class InMemoryUserRepository implements UserRepository {
         for (Long id : blocks.getOrDefault(currentUserId, Set.of())) findById(id).ifPresent(result::add);
         return result;
     }
+    @Override public int countFollowing(Long userId) {
+        return following.getOrDefault(userId, Set.of()).size();
+    }
+    @Override public int countFollowers(Long userId) {
+        return (int) following.entrySet().stream().filter(entry -> entry.getValue().contains(userId)).count();
+    }
 }

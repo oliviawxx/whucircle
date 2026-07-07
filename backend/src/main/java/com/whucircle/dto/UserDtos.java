@@ -10,7 +10,8 @@ public final class UserDtos {
     public record UserProfile(Long id, String nickname, String avatarUrl, String college, String grade,
                               String bio, RelationStatus relation) {}
     public record CurrentUserProfile(Long id, String email, String nickname, String avatarUrl,
-                                     String college, String grade, String bio) {}
+                                     String college, String grade, String bio,
+                                     int noteCount, int followingCount, int followerCount, int friendCount) {}
     public record UpdateProfileRequest(@NotBlank @Size(min = 2, max = 30) String nickname,
                                        @Size(max = 500) String avatarUrl,
                                        @Size(max = 100) String college,

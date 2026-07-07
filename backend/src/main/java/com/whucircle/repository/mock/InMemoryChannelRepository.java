@@ -24,6 +24,7 @@ public class InMemoryChannelRepository implements ChannelRepository {
     private final Map<Long, Channel> channels = new ConcurrentHashMap<>();
     private final Map<Long, ChannelPost> posts = new ConcurrentHashMap<>();
     private final Map<Long, List<ChannelReply>> replies = new ConcurrentHashMap<>();
+    private final AtomicLong channelIds = new AtomicLong(20);
     private final AtomicLong postIds = new AtomicLong(300);
     private final AtomicLong replyIds = new AtomicLong(3000);
 
@@ -58,6 +59,7 @@ public class InMemoryChannelRepository implements ChannelRepository {
     }
     @Override public List<Channel> findAll() { return channels.values().stream().sorted(Comparator.comparing(Channel::id)).toList(); }
     @Override public java.util.Optional<Channel> findById(Long id) { return java.util.Optional.ofNullable(channels.get(id)); }
+    @Override public Channel save(Channel channel) { channels.put(channel.id(), channel); return channel; }
     @Override public synchronized Channel addMember(Long channelId, Long userId) {
         Channel old = channels.get(channelId);
         if (old == null) return null;
@@ -89,6 +91,7 @@ public class InMemoryChannelRepository implements ChannelRepository {
         replyIds.updateAndGet(value -> Math.max(value, reply.id() + 1));
         return reply;
     }
+    @Override public long nextChannelId() { return channelIds.getAndIncrement(); }
     @Override public long nextPostId() { return postIds.getAndIncrement(); }
     @Override public long nextReplyId() { return replyIds.getAndIncrement(); }
 }

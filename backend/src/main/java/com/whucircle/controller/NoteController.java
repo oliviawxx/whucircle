@@ -12,6 +12,7 @@ import com.whucircle.security.CurrentUser;
 import com.whucircle.service.NoteService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -81,4 +82,16 @@ public class NoteController {
 
     @GetMapping("/tags")
     public ApiResponse<List<String>> tags() { return ApiResponse.success(noteService.tags()); }
+
+    @DeleteMapping("/notes/{noteId}")
+    public ApiResponse<Void> deleteNote(@PathVariable Long noteId) {
+        noteService.delete(CurrentUser.id(), noteId);
+        return ApiResponse.success();
+    }
+
+    @DeleteMapping("/notes/{noteId}/comments/{commentId}")
+    public ApiResponse<Void> deleteComment(@PathVariable Long noteId, @PathVariable Long commentId) {
+        noteService.deleteComment(CurrentUser.id(), noteId, commentId);
+        return ApiResponse.success();
+    }
 }
