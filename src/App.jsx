@@ -28,8 +28,8 @@ import {
 } from "@phosphor-icons/react";
 
 const currentUser = {
-  name: "小张",
-  meta: "2024级 · 新闻与传播学院",
+  name: "Mocha",
+  meta: "2025级 · 计算机学院",
   avatar:
     "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=160&q=80",
 };
@@ -275,6 +275,9 @@ export function App() {
   const [savedSearch, setSavedSearch] = useState("");
   const [activeTag, setActiveTag] = useState("全部");
   const [detailNote, setDetailNote] = useState(null);
+
+  const [commentText, setCommentText] = useState("");
+
   const [profileUser, setProfileUser] = useState(null);
   const [joinChannel, setJoinChannel] = useState(null);
   const [joinPassword, setJoinPassword] = useState("");
@@ -367,6 +370,23 @@ export function App() {
     );
   }
 
+
+  function addComment(noteId, text) {
+    if (!text.trim()) return;
+    setNotes(prev => prev.map(note =>
+      note.id === noteId
+        ? { ...note, comments: [...note.comments, { user: currentUser.name, text: text.trim() }] }
+        : note
+    ));
+    // 同时更新弹窗里的当前帖子，让评论立即显示
+    setDetailNote(prev => prev && {
+      ...prev,
+      comments: [...prev.comments, { user: currentUser.name, text: text.trim() }]
+    });
+    setCommentText("");
+  }
+
+
   function createNote() {
     if (!draftTitle.trim() && !draftText.trim() && imageCount === 0) return;
     setNotes((items) => [
@@ -458,9 +478,9 @@ export function App() {
       items.map((channel) =>
         channel.id === selectedChannelId
           ? {
-              ...channel,
-              posts: [newPost, ...channel.posts],
-            }
+            ...channel,
+            posts: [newPost, ...channel.posts],
+          }
           : channel,
       ),
     );
@@ -1047,8 +1067,15 @@ export function App() {
                 ))
               )}
               <div className="comment-input">
-                <input placeholder="写评论..." />
-                <button title="发送"><PaperPlaneTilt size={17} weight="fill" /></button>
+                <input
+                  placeholder="写评论..."
+                  value={commentText}
+                  onChange={e => setCommentText(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && addComment(detailNote.id, commentText)}
+                />
+                <button title="发送" onClick={() => addComment(detailNote.id, commentText)}>
+                  <PaperPlaneTilt size={17} weight="fill" />
+                </button>
               </div>
             </div>
             <div className="modal-actions">
