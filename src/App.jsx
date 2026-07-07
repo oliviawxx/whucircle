@@ -263,7 +263,7 @@ export function App() {
   const [activeNav, setActiveNav] = useState("主页");
   const [notes, setNotes] = useState(initialNotes);
   const [channels, setChannels] = useState(initialChannels);
-  const [chats] = useState(initialChats);
+  const [chats, setChats] = useState(initialChats);
   const [activeChatId, setActiveChatId] = useState(initialChats[0].id);
   const [selectedChannelId, setSelectedChannelId] = useState(initialChannels[0].id);
   const [draftOpen, setDraftOpen] = useState(false);
@@ -293,9 +293,16 @@ export function App() {
   const [channelPostDraftPinned, setChannelPostDraftPinned] = useState(false);
   const [channelPostDraftImage, setChannelPostDraftImage] = useState(false);
   const [channelPostDetail, setChannelPostDetail] = useState(null);
+  const [chatInput, setChatInput] = useState("");
   const [reportTarget, setReportTarget] = useState(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [activeTheme, setActiveTheme] = useState("blue");
+  const [profileEditOpen, setProfileEditOpen] = useState(false);
+  const [profileName, setProfileName] = useState(currentUser.name);
+  const [profileMeta, setProfileMeta] = useState(currentUser.meta);
+  const [profileBio, setProfileBio] = useState("校园生活、课程项目、摄影记录");
+  const [profileAvatar, setProfileAvatar] = useState(currentUser.avatar);
+  const [selectedRelation, setSelectedRelation] = useState("关注");
   const [privacy, setPrivacy] = useState({
     noteVisibility: "公开",
     channelPermission: "公开",
@@ -305,6 +312,7 @@ export function App() {
 
   const selectedChannel = channels.find((channel) => channel.id === selectedChannelId) ?? channels[0];
   const activeChat = chats.find((chat) => chat.id === activeChatId) ?? chats[0];
+  const chatUnreadCount = chats.reduce((sum, chat) => sum + (chat.unread > 0 ? chat.unread : 0), 0);
 
   const publicNotes = useMemo(
     () =>
@@ -500,6 +508,43 @@ export function App() {
   function updatePrivacy(key, value) {
     setPrivacy((items) => ({ ...items, [key]: value }));
     if (key === "noteVisibility") setDraftVisibility(value);
+  }
+
+  function markAllChatsAsRead() {
+    setChats((items) => items.map((chat) => ({ ...chat, unread: 0 })));
+  }
+
+  function saveProfile() {
+    setProfileEditOpen(false);
+  }
+
+  function openChat(chatId) {
+    setActiveChatId(chatId);
+    setChats((items) =>
+      items.map((chat) => (chat.id === chatId ? { ...chat, unread: 0 } : chat)),
+    );
+  }
+
+  function sendChatMessage() {
+    const text = chatInput.trim();
+    if (!text) return;
+
+    const now = new Date();
+    const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    const message = { from: "我", text, time, mine: true, read: true };
+
+    setChats((items) =>
+      items.map((chat) =>
+        chat.id === activeChatId
+          ? {
+              ...chat,
+              messages: [...chat.messages, message],
+              lastTime: "刚刚",
+            }
+          : chat,
+      ),
+    );
+    setChatInput("");
   }
 
   function renderIconButton({ title, children, onClick, active }) {
@@ -724,11 +769,17 @@ export function App() {
     return (
       <section className="chat-layout">
         <aside className="chat-list">
+          <div className="chat-list-head">
+            <div>
+              <h2>消息</h2>
+            </div>
+            <button className="ghost-button small" onClick={markAllChatsAsRead}>全部已读</button>
+          </div>
           {chats.map((chat) => (
             <button
               className={activeChatId === chat.id ? "chat-preview active" : "chat-preview"}
               key={chat.id}
-              onClick={() => setActiveChatId(chat.id)}
+              onClick={() => openChat(chat.id)}
             >
               <div className="chat-avatar">
                 {chat.type === "群聊" ? <ChatsCircle size={22} /> : <UserCircle size={22} />}
@@ -771,8 +822,13 @@ export function App() {
             ))}
           </div>
           <div className="chat-input">
-            <input placeholder="输入消息..." />
-            <button title="发送">
+            <input value={chatInput} onChange={(event) => setChatInput(event.target.value)} onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                sendChatMessage();
+              }
+            }} placeholder="输入消息..." />
+            <button title="发送" onClick={sendChatMessage}>
               <PaperPlaneTilt size={18} weight="fill" />
             </button>
           </div>
@@ -782,25 +838,117 @@ export function App() {
   }
 
   function renderProfile() {
-    const ownNotes = notes.filter((note) => note.author === currentUser.name || note.visibility === "私密");
+    const ownNotes = notes.filter((note) => note.author === profileName || note.visibility === "私密");
+    const relationCards = [
+      { label: "关注", value: 42, hint: "正在关注" },
+      { label: "粉丝", value: 18, hint: "关注你" },
+      { label: "好友", value: 16, hint: "互相关注" },
+      { label: "频道", value: channels.filter((channel) => channel.joined).length, hint: "已加入" },
+    ];
+    const relationDetails = {
+      关注: [
+        { name: "林深时见鹿", detail: "正在共同复习课程" },
+        { name: "东湖边的猫", detail: "校园摄影爱好者" },
+        { name: "一只小橘子", detail: "周末约拍" },
+      ],
+      粉丝: [
+        { name: "珞珈少年", detail: "刚刚关注了你" },
+        { name: "南湖程序员", detail: "在看你的项目分享" },
+      ],
+      好友: [
+        { name: "林深时见鹿", detail: "互相关注 · 可私信" },
+        { name: "东湖边的猫", detail: "关注中 · 可评论" },
+      ],
+      频道: channels.filter((channel) => channel.joined).map((channel) => ({
+        name: channel.name,
+        detail: channel.type === "密码" ? "私密频道" : "公开频道",
+      })),
+    };
+
     return (
       <section className="section-card profile-page-card">
         <div className="profile-cover" />
         <div className="profile-line">
-          <img className="avatar large" src={currentUser.avatar} alt="当前用户头像" />
+          <img className="avatar large" src={profileAvatar} alt="当前用户头像" />
           <div>
-            <h2>{currentUser.name}</h2>
-            <p>{currentUser.meta} · 校园生活、课程项目、摄影记录</p>
+            <h2>{profileName}</h2>
+            <p>{profileMeta}</p>
+            <span>{profileBio}</span>
           </div>
-          <button>编辑</button>
+          <button onClick={() => setProfileEditOpen(true)}>编辑</button>
         </div>
-        <div className="profile-stats">
-          <span><strong>{ownNotes.length}</strong>笔记</span>
-          <span><strong>42</strong>关注</span>
-          <span><strong>16</strong>好友</span>
-          <span><strong>{channels.filter((channel) => channel.joined).length}</strong>频道</span>
+
+        <div className="profile-summary-grid">
+          <section className="profile-summary-card">
+            <div className="section-head compact">
+              <div>
+                <p>基本信息</p>
+                <h2>个人资料</h2>
+              </div>
+            </div>
+            <div className="profile-detail-list">
+              <div>
+                <strong>学校</strong>
+                <span>武汉大学</span>
+              </div>
+              <div>
+                <strong>专业</strong>
+                <span>新闻与传播学院</span>
+              </div>
+              <div>
+                <strong>身份</strong>
+                <span>学生 · 生活分享者</span>
+              </div>
+            </div>
+          </section>
+
+          <section className="profile-summary-card">
+            <div className="section-head compact">
+              <div>
+                <p>关系</p>
+                <h2>社交概览</h2>
+              </div>
+            </div>
+            <div className="profile-stats compact">
+              {relationCards.map((item) => (
+                <button
+                  className={selectedRelation === item.label ? "profile-stat-card active" : "profile-stat-card"}
+                  key={item.label}
+                  onClick={() => setSelectedRelation(item.label)}
+                >
+                  <strong>{item.value}</strong>
+                  <em>{item.label}</em>
+                  <small>{item.hint}</small>
+                </button>
+              ))}
+            </div>
+            <div className="relation-detail-list">
+              {relationDetails[selectedRelation].map((item) => (
+                <div className="relation-detail-item" key={item.name}>
+                  <div>
+                    <strong>{item.name}</strong>
+                    <span>{item.detail}</span>
+                  </div>
+                  <button>查看</button>
+                </div>
+              ))}
+            </div>
+          </section>
         </div>
-        {renderNotes(ownNotes, "linear")}
+
+        <section className="profile-note-section">
+          <div className="section-head compact">
+            <div>
+              <p>我的动态</p>
+              <h2>我发布过的笔记</h2>
+            </div>
+          </div>
+          {ownNotes.length === 0 ? (
+            <div className="empty-state">你还没有发布过笔记。</div>
+          ) : (
+            renderNotes(ownNotes, "linear")
+          )}
+        </section>
       </section>
     );
   }
@@ -982,7 +1130,7 @@ export function App() {
             <button className={activeNav === label ? "nav-item active" : "nav-item"} key={label} onClick={() => goTo(label)}>
               <Icon size={21} />
               <span>{label}</span>
-              {label === "聊天" && <em>4</em>}
+              {label === "聊天" && chatUnreadCount > 0 && <em>{chatUnreadCount}</em>}
             </button>
           ))}
         </nav>
@@ -1015,9 +1163,7 @@ export function App() {
       <main className="content">
         <header className="topbar">
           <div>
-            <p>{activeNav}</p>
             <h1>{page[0]}</h1>
-            <span>{page[1]}</span>
           </div>
           <button className="icon-button" aria-label="通知" title="通知">
             <Bell size={21} />
@@ -1093,6 +1239,31 @@ export function App() {
               <input className="title-input" value={joinPassword} onChange={(event) => setJoinPassword(event.target.value)} placeholder="输入频道密码：whu2026" />
             )}
             <button className="submit-note" onClick={submitJoinChannel}>加入</button>
+          </section>
+        </div>
+      )}
+
+      {profileEditOpen && (
+        <div className="modal-backdrop" onClick={() => setProfileEditOpen(false)}>
+          <section className="small-modal" onClick={(event) => event.stopPropagation()}>
+            <ModalHead title="编辑资料" subtitle="更新你的个人信息" onClose={() => setProfileEditOpen(false)} />
+            <label className="auth-field">
+              <span>昵称</span>
+              <input className="title-input" value={profileName} onChange={(event) => setProfileName(event.target.value)} placeholder="输入昵称" />
+            </label>
+            <label className="auth-field">
+              <span>学院/年级</span>
+              <input className="title-input" value={profileMeta} onChange={(event) => setProfileMeta(event.target.value)} placeholder="例如：2024级 · 计算机学院" />
+            </label>
+            <label className="auth-field">
+              <span>个人简介</span>
+              <input className="title-input" value={profileBio} onChange={(event) => setProfileBio(event.target.value)} placeholder="一句话介绍自己" />
+            </label>
+            <label className="auth-field">
+              <span>头像链接</span>
+              <input className="title-input" value={profileAvatar} onChange={(event) => setProfileAvatar(event.target.value)} placeholder="输入头像图片地址" />
+            </label>
+            <button className="submit-note" onClick={saveProfile}>保存</button>
           </section>
         </div>
       )}
