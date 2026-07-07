@@ -263,7 +263,7 @@ export function App() {
   const [activeNav, setActiveNav] = useState("主页");
   const [notes, setNotes] = useState(initialNotes);
   const [channels, setChannels] = useState(initialChannels);
-  const [chats] = useState(initialChats);
+  const [chats, setChats] = useState(initialChats);
   const [activeChatId, setActiveChatId] = useState(initialChats[0].id);
   const [selectedChannelId, setSelectedChannelId] = useState(initialChannels[0].id);
   const [draftOpen, setDraftOpen] = useState(false);
@@ -290,6 +290,7 @@ export function App() {
   const [channelPostDraftPinned, setChannelPostDraftPinned] = useState(false);
   const [channelPostDraftImage, setChannelPostDraftImage] = useState(false);
   const [channelPostDetail, setChannelPostDetail] = useState(null);
+  const [chatInput, setChatInput] = useState("");
   const [reportTarget, setReportTarget] = useState(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [activeTheme, setActiveTheme] = useState("blue");
@@ -302,6 +303,7 @@ export function App() {
 
   const selectedChannel = channels.find((channel) => channel.id === selectedChannelId) ?? channels[0];
   const activeChat = chats.find((chat) => chat.id === activeChatId) ?? chats[0];
+  const chatUnreadCount = chats.reduce((sum, chat) => sum + (chat.unread > 0 ? chat.unread : 0), 0);
 
   const publicNotes = useMemo(
     () =>
@@ -480,6 +482,39 @@ export function App() {
   function updatePrivacy(key, value) {
     setPrivacy((items) => ({ ...items, [key]: value }));
     if (key === "noteVisibility") setDraftVisibility(value);
+  }
+
+  function markAllChatsAsRead() {
+    setChats((items) => items.map((chat) => ({ ...chat, unread: 0 })));
+  }
+
+  function openChat(chatId) {
+    setActiveChatId(chatId);
+    setChats((items) =>
+      items.map((chat) => (chat.id === chatId ? { ...chat, unread: 0 } : chat)),
+    );
+  }
+
+  function sendChatMessage() {
+    const text = chatInput.trim();
+    if (!text) return;
+
+    const now = new Date();
+    const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    const message = { from: "我", text, time, mine: true, read: true };
+
+    setChats((items) =>
+      items.map((chat) =>
+        chat.id === activeChatId
+          ? {
+              ...chat,
+              messages: [...chat.messages, message],
+              lastTime: "刚刚",
+            }
+          : chat,
+      ),
+    );
+    setChatInput("");
   }
 
   function renderIconButton({ title, children, onClick, active }) {
@@ -704,11 +739,17 @@ export function App() {
     return (
       <section className="chat-layout">
         <aside className="chat-list">
+          <div className="chat-list-head">
+            <div>
+              <h2>消息</h2>
+            </div>
+            <button className="ghost-button small" onClick={markAllChatsAsRead}>全部已读</button>
+          </div>
           {chats.map((chat) => (
             <button
               className={activeChatId === chat.id ? "chat-preview active" : "chat-preview"}
               key={chat.id}
-              onClick={() => setActiveChatId(chat.id)}
+              onClick={() => openChat(chat.id)}
             >
               <div className="chat-avatar">
                 {chat.type === "群聊" ? <ChatsCircle size={22} /> : <UserCircle size={22} />}
@@ -751,8 +792,13 @@ export function App() {
             ))}
           </div>
           <div className="chat-input">
-            <input placeholder="输入消息..." />
-            <button title="发送">
+            <input value={chatInput} onChange={(event) => setChatInput(event.target.value)} onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                sendChatMessage();
+              }
+            }} placeholder="输入消息..." />
+            <button title="发送" onClick={sendChatMessage}>
               <PaperPlaneTilt size={18} weight="fill" />
             </button>
           </div>
@@ -962,7 +1008,7 @@ export function App() {
             <button className={activeNav === label ? "nav-item active" : "nav-item"} key={label} onClick={() => goTo(label)}>
               <Icon size={21} />
               <span>{label}</span>
-              {label === "聊天" && <em>4</em>}
+              {label === "聊天" && chatUnreadCount > 0 && <em>{chatUnreadCount}</em>}
             </button>
           ))}
         </nav>
@@ -995,9 +1041,7 @@ export function App() {
       <main className="content">
         <header className="topbar">
           <div>
-            <p>{activeNav}</p>
             <h1>{page[0]}</h1>
-            <span>{page[1]}</span>
           </div>
           <button className="icon-button" aria-label="通知" title="通知">
             <Bell size={21} />

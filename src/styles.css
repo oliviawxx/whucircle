@@ -742,7 +742,7 @@ button {
 }
 
 .chat-layout {
-  grid-template-columns: 330px minmax(0, 1fr);
+  grid-template-columns: 280px minmax(0, 1fr);
 }
 
 .section-card,
@@ -980,6 +980,23 @@ button {
 .chat-list {
   display: grid;
   gap: 8px;
+  max-height: calc(100vh - 180px);
+  padding-right: 6px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.chat-list-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.chat-list-head h2 {
+  margin: 0 0 2px;
+  font-size: 17px;
 }
 
 .chat-preview {
