@@ -9,8 +9,10 @@ import java.util.Optional;
 public interface ChatRepository {
     List<Conversation> findByMember(Long userId);
     Optional<Conversation> findConversationById(Long conversationId);
+    Conversation saveConversation(Conversation conversation);
     List<ChatMessage> findMessages(Long conversationId);
     ChatMessage saveMessage(ChatMessage message);
     void markRead(Long conversationId, Long userId);
+    long nextConversationId();
     long nextMessageId();
 }

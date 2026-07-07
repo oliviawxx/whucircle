@@ -5,9 +5,9 @@
 > 后端：Spring Boot 3.5.16、Java 17、springdoc-openapi 2.8.17
 > 当前数据源：`mock` 内存数据
 
-## 1. 今晚交付结果
+## 1. 当前交付结果
 
-后端代码位于 `backend/`，已经可以独立启动，不依赖数据库。Swagger 当前包含 32 条路径、40 个 HTTP 操作，覆盖：
+后端代码位于 `backend/`，已经可以独立启动，不依赖数据库。Swagger 当前包含 39 条路径、50 个 HTTP 操作，覆盖：
 
 - 校内邮箱注册、登录、当前用户和退出。
 - 公开主页、社交圈、我的笔记、收藏搜索、详情、评论、点赞和收藏。
@@ -15,8 +15,9 @@
 - 频道列表、公开/密码加入、5 条游客预览、发帖、回复和点赞。
 - 好友私聊/群聊列表、历史消息、发送和已读。
 - 隐私设置、举报、图片上传占位接口。
+- 通知列表、未读数、单条已读和全部已读。
 
-已通过 6 个 Spring Boot 集成测试。当前实现用于前后端联调和产品展示，不是生产实现。
+当前自动化测试覆盖 15 个场景。当前实现用于前后端联调和产品展示，不是生产实现。
 
 ## 2. 启动与联调入口
 
@@ -177,6 +178,8 @@ POST /auth/register
 | 笔记卡片 | `POST /notes/{noteId}/save` | 切换收藏状态；收藏页复用 `scope=SAVED` | `NoteService.toggleSave` |
 | 社交圈 | `GET /feed/social` | 只显示已关注用户；好友可见内容要求互关 | `NoteController.socialFeed`、`NoteService.isSocialVisible` |
 | 标签筛选 | `GET /tags` | 汇总现有笔记标签并去重排序 | `NoteService.tags` |
+| 我的主页 | `DELETE /notes/{noteId}` | 仅作者可以删除自己的笔记，同时删除其评论 | `NoteService.delete`、`NoteRepository.deleteNote` |
+| 笔记弹层 | `DELETE /notes/{noteId}/comments/{commentId}` | 仅评论作者可以删除自己的评论 | `NoteService.deleteComment` |
 
 列表示例：
 
@@ -200,7 +203,7 @@ GET /api/v1/notes?scope=PUBLIC&keyword=图书馆&tag=学习&page=1&size=20
 
 | 界面 | 方法与路径 | 功能及实现思路 | 主要代码位置 |
 |---|---|---|---|
-| 编辑资料 | `GET /users/me/profile` | 返回邮箱、昵称、头像、学院、年级和简介 | `UserController.currentProfile`、`UserService.currentProfile` |
+| 编辑资料 | `GET /users/me/profile` | 返回邮箱、昵称、头像、学院、年级、简介和主页统计 | `UserController.currentProfile`、`UserService.currentProfile` |
 | 编辑资料 | `PUT /users/me/profile` | 更新可编辑字段；邮箱和密码不能通过该接口修改 | `UserController.updateCurrentProfile`、`UserService.updateCurrentProfile` |
 | 社交圈 | `GET /relations` | 返回其他用户及当前关系状态 | `UserController.relations`、`UserRepository.relation` |
 | 对方主页 | `GET /users/{userId}` | 拉黑任一方向时拒绝查看，否则返回资料和关系 | `UserService.profile` |
@@ -228,12 +231,15 @@ GET /api/v1/notes?scope=PUBLIC&keyword=图书馆&tag=学习&page=1&size=20
 |---|---|---|---|
 | 频道页 | `GET /channels` | 支持 `joined`、`keyword` 和分页，返回加入方式、公告、管理员 | `ChannelController.channels`、`ChannelService.list` |
 | 频道页 | `GET /channels/{channelId}` | 返回频道详情及当前用户是否加入 | `ChannelService.detail` |
+| 创建频道 | `POST /channels` | 创建公开或密码频道，创建者自动成为管理员和首位成员 | `ChannelService.create` |
 | 加入弹层 | `POST /channels/{channelId}/join` | 公开频道直接加入；密码频道校验 `password` | `ChannelService.join` |
+| 频道管理 | `PUT /channels/{channelId}/announcement` | 仅频道管理员可以修改频道公告 | `ChannelService.updateAnnouncement` |
 | 频道主页 | `GET /channels/{channelId}/posts` | 已加入返回完整列表；未加入最多返回 5 条 | `ChannelService.posts` |
 | 频道主页 | `POST /channels/{channelId}/posts` | 仅频道成员可发布内部帖子 | `ChannelService.createPost` |
 | 帖子弹层 | `GET /channel-posts/{postId}` | 仅成员可查看完整帖子和回复 | `ChannelService.postDetail` |
 | 帖子弹层 | `POST /channel-posts/{postId}/replies` | 仅成员可回复，并增加回复计数 | `ChannelService.reply` |
 | 帖子弹层 | `POST /channel-posts/{postId}/like` | 仅成员可切换点赞 | `ChannelService.toggleLike` |
+| 频道管理 | `PUT /channel-posts/{postId}/pin` | 仅频道管理员可以置顶或取消置顶帖子 | `ChannelService.setPinned` |
 
 密码频道加入请求：
 
@@ -246,20 +252,27 @@ GET /api/v1/notes?scope=PUBLIC&keyword=图书馆&tag=学习&page=1&size=20
 | 界面 | 方法与路径 | 功能及实现思路 | 主要代码位置 |
 |---|---|---|---|
 | 聊天列表 | `GET /conversations` | 返回当前用户参与的私聊和群聊，按最后消息时间倒序并计算未读数 | `ChatService.conversations` |
+| 新建会话 | `POST /conversations` | 创建私聊或群聊；私聊校验黑名单、好友关系和接收权限 | `ChatService.createConversation` |
 | 会话窗口 | `GET /conversations/{id}/messages` | 校验会话成员身份，分页返回消息 | `ChatService.messages` |
 | 会话窗口 | `POST /conversations/{id}/messages` | 校验成员和拉黑关系，保存消息并更新会话最后消息 | `ChatService.send`、`ChatRepository.saveMessage` |
 | 会话窗口 | `PUT /conversations/{id}/read` | 把当前会话消息标记为该用户已读 | `ChatService.markRead` |
 
 当前采用普通 HTTP，不实现 WebSocket。前端发送成功后把返回的消息插入当前列表即可。
 
-### 5.6 设置、举报与图片
+### 5.6 设置、通知、举报与图片
 
 | 界面 | 方法与路径 | 功能及实现思路 | 主要代码位置 |
 |---|---|---|---|
 | 隐私设置 | `GET /settings/privacy` | 获取默认笔记范围、默认频道类型和私信权限 | `SettingsController.get`、`SettingsRepository` |
 | 隐私设置 | `PUT /settings/privacy` | 整体覆盖三项隐私设置 | `SettingsService.update` |
+| 通知弹层 | `GET /notifications` | 分页返回当前用户通知，按时间倒序 | `NotificationService.list` |
+| 通知角标 | `GET /notifications/count` | 返回当前用户未读通知数量 | `NotificationService.count` |
+| 通知弹层 | `PUT /notifications/{notificationId}/read` | 将本人一条通知标记为已读 | `NotificationService.markRead` |
+| 通知弹层 | `PUT /notifications/read-all` | 将本人全部通知标记为已读 | `NotificationService.markAllRead` |
 | 举报入口 | `POST /reports` | 统一接收笔记、频道帖、消息、用户举报，返回待处理状态 | `ReportController`、`ReportService` |
 | 发布弹层 | `POST /files/images` | 校验 multipart 图片，mock 返回固定可访问图片 URL | `FileController.upload` |
+
+笔记点赞、评论、收藏以及频道帖子回复成功后，会在 `NotificationRepository` 中为内容作者生成未读通知。当前通知同样保存在内存中。
 
 举报请求：
 
@@ -306,7 +319,7 @@ A 同学联调前确认：后端 8080 端口已启动；浏览器 Network 中请
 
 建议索引优先覆盖：邮箱唯一索引、笔记作者和创建时间、关注双方联合唯一索引、频道成员联合唯一索引、消息会话和发送时间。
 
-## 7. 数据库替换步骤
+## 7. 数据库替换步骤（本阶段暂不执行）
 
 当前不要删除 `repository/mock/`，两套实现通过 Profile 切换。
 
@@ -360,7 +373,8 @@ mvn spring-boot:run "-Dspring-boot.run.profiles=mock,smtp"
 - Token 当前保存在内存且不含过期检查；后续可换 JWT 或服务端会话。
 - 图片上传返回固定外链，尚未保存文件或接对象存储。
 - 聊天是 HTTP 拉取，没有 WebSocket 实时推送。
-- `mysql` Profile 目前只有连接占位，C 同学完成依赖和实现后才能启动。
+- `mysql` Profile 目前只有连接占位，数据库建立前不要启用。
+- 通知、频道、聊天和删除操作当前只写入内存，重启后恢复初始数据。
 
 ## 11. 官方资料
 

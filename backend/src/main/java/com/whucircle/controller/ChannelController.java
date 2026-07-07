@@ -3,13 +3,16 @@ package com.whucircle.controller;
 import com.whucircle.common.ApiResponse;
 import com.whucircle.common.PageData;
 import com.whucircle.dto.ChannelDtos.ChannelView;
+import com.whucircle.dto.ChannelDtos.CreateChannelRequest;
 import com.whucircle.dto.ChannelDtos.CreatePostRequest;
 import com.whucircle.dto.ChannelDtos.CreateReplyRequest;
 import com.whucircle.dto.ChannelDtos.JoinRequest;
 import com.whucircle.dto.ChannelDtos.JoinResponse;
 import com.whucircle.dto.ChannelDtos.PostDetail;
 import com.whucircle.dto.ChannelDtos.PostView;
+import com.whucircle.dto.ChannelDtos.PinPostRequest;
 import com.whucircle.dto.ChannelDtos.ReplyView;
+import com.whucircle.dto.ChannelDtos.UpdateAnnouncementRequest;
 import com.whucircle.dto.NoteDtos.ToggleResponse;
 import com.whucircle.security.CurrentUser;
 import com.whucircle.service.ChannelService;
@@ -18,6 +21,7 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -41,6 +45,15 @@ public class ChannelController {
     }
     @GetMapping("/channels/{channelId}")
     public ApiResponse<ChannelView> channel(@PathVariable Long channelId) { return ApiResponse.success(channelService.detail(CurrentUser.id(), channelId)); }
+    @PostMapping("/channels")
+    public ApiResponse<ChannelView> createChannel(@Valid @RequestBody CreateChannelRequest request) {
+        return ApiResponse.success(channelService.create(CurrentUser.id(), request));
+    }
+    @PutMapping("/channels/{channelId}/announcement")
+    public ApiResponse<ChannelView> updateAnnouncement(@PathVariable Long channelId,
+            @Valid @RequestBody UpdateAnnouncementRequest request) {
+        return ApiResponse.success(channelService.updateAnnouncement(CurrentUser.id(), channelId, request.announcement()));
+    }
     @PostMapping("/channels/{channelId}/join")
     public ApiResponse<JoinResponse> join(@PathVariable Long channelId, @RequestBody(required = false) JoinRequest request) {
         return ApiResponse.success(channelService.join(CurrentUser.id(), channelId, request == null ? null : request.password()));
@@ -62,4 +75,8 @@ public class ChannelController {
     }
     @PostMapping("/channel-posts/{postId}/like")
     public ApiResponse<ToggleResponse> like(@PathVariable Long postId) { return ApiResponse.success(channelService.toggleLike(CurrentUser.id(), postId)); }
+    @PutMapping("/channel-posts/{postId}/pin")
+    public ApiResponse<PostView> pin(@PathVariable Long postId, @Valid @RequestBody PinPostRequest request) {
+        return ApiResponse.success(channelService.setPinned(CurrentUser.id(), postId, request.pinned()));
+    }
 }

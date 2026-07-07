@@ -3,6 +3,7 @@ package com.whucircle.controller;
 import com.whucircle.common.ApiResponse;
 import com.whucircle.common.PageData;
 import com.whucircle.dto.ChatDtos.ConversationView;
+import com.whucircle.dto.ChatDtos.CreateConversationRequest;
 import com.whucircle.dto.ChatDtos.MessageView;
 import com.whucircle.dto.ChatDtos.SendMessageRequest;
 import com.whucircle.security.CurrentUser;
@@ -30,6 +31,10 @@ public class ChatController {
 
     @GetMapping
     public ApiResponse<List<ConversationView>> conversations() { return ApiResponse.success(chatService.conversations(CurrentUser.id())); }
+    @PostMapping
+    public ApiResponse<ConversationView> createConversation(@Valid @RequestBody CreateConversationRequest request) {
+        return ApiResponse.success(chatService.createConversation(CurrentUser.id(), request));
+    }
     @GetMapping("/{conversationId}/messages")
     public ApiResponse<PageData<MessageView>> messages(@PathVariable Long conversationId,
             @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "50") int size) {

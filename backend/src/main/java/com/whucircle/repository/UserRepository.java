@@ -18,4 +18,6 @@ public interface UserRepository {
     void unblock(Long currentUserId, Long targetUserId);
     boolean isBlockedEitherWay(Long firstUserId, Long secondUserId);
     List<User> findBlockedUsers(Long currentUserId);
+    int countFollowing(Long userId);
+    int countFollowers(Long userId);
 }

@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class InMemoryChatRepository implements ChatRepository {
     private final Map<Long, Conversation> conversations = new ConcurrentHashMap<>();
     private final Map<Long, List<ChatMessage>> messages = new ConcurrentHashMap<>();
+    private final AtomicLong conversationIds = new AtomicLong(30);
     private final AtomicLong messageIds = new AtomicLong(500);
 
     public InMemoryChatRepository() {
@@ -54,6 +55,10 @@ public class InMemoryChatRepository implements ChatRepository {
     @Override public java.util.Optional<Conversation> findConversationById(Long conversationId) {
         return java.util.Optional.ofNullable(conversations.get(conversationId));
     }
+    @Override public Conversation saveConversation(Conversation conversation) {
+        conversations.put(conversation.id(), conversation);
+        return conversation;
+    }
     @Override public List<ChatMessage> findMessages(Long conversationId) {
         return messages.getOrDefault(conversationId, List.of()).stream().sorted(Comparator.comparing(ChatMessage::sentAt)).toList();
     }
@@ -66,5 +71,6 @@ public class InMemoryChatRepository implements ChatRepository {
     @Override public void markRead(Long conversationId, Long userId) {
         findMessages(conversationId).forEach(message -> message.readBy().add(userId));
     }
+    @Override public long nextConversationId() { return conversationIds.getAndIncrement(); }
     @Override public long nextMessageId() { return messageIds.getAndIncrement(); }
 }

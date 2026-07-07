@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
   BookmarkSimple,
@@ -34,6 +34,24 @@ import {
   logout as apiLogout,
 } from "./api/auth.js";
 import { setToken, getToken } from "./api/client.js";
+import {
+  getNotes, createNote as apiCreateNote, likeNote,
+  saveNote, createComment, getTags, getSocialFeed, getComments,
+} from "./api/notes.js";
+import {
+  getChannels, joinChannel as apiJoinChannel, getPosts,
+  createChannel as apiCreateChannel, createPost as apiCreatePost, likePost,
+} from "./api/channels.js";
+import {
+  getConversations, getMessages, sendMessage as apiSendMessage, markRead,
+} from "./api/chat.js";
+import {
+  getMyProfile, updateProfile, getRelations, block as apiBlock,
+} from "./api/users.js";
+import {
+  getPrivacy, updatePrivacy as apiUpdatePrivacy,
+} from "./api/settings.js";
+import { initialNotifications } from "./data/mockData.js";
 
 const DEFAULT_AVATAR =
   "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=160&q=80";
@@ -262,8 +280,6 @@ const themeOptions = [
   { key: "ink", name: "深灰", color: "#334155" },
 ];
 
-const tags = ["全部", "校园生活", "学习", "摄影", "互助", "食堂", "出行", "项目"];
-
 export function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState(DEMO_USER);
@@ -274,12 +290,17 @@ export function App() {
   const [codeSent, setCodeSent] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [tagsList, setTagsList] = useState([]);
+  const [notifications, setNotifications] = useState(initialNotifications);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [profileData, setProfileData] = useState(null);
+  const [relationsData, setRelationsData] = useState([]);
   const [activeNav, setActiveNav] = useState("主页");
   const [notes, setNotes] = useState(initialNotes);
   const [channels, setChannels] = useState(initialChannels);
   const [chats, setChats] = useState(initialChats);
-  const [activeChatId, setActiveChatId] = useState(initialChats[0].id);
-  const [selectedChannelId, setSelectedChannelId] = useState(initialChannels[0].id);
+  const [activeChatId, setActiveChatId] = useState(null);
+  const [selectedChannelId, setSelectedChannelId] = useState(null);
   const [draftOpen, setDraftOpen] = useState(false);
   const [draftTitle, setDraftTitle] = useState("");
   const [draftText, setDraftText] = useState("");
@@ -328,7 +349,7 @@ export function App() {
   const publicNotes = useMemo(
     () =>
       filterNotes(
-        notes.filter((note) => note.visibility === "公开"),
+        notes,
         searchTerm,
         activeTag,
       ),
@@ -451,65 +472,136 @@ export function App() {
     else handleRegister();
   }
 
+  // ── 数据映射 ──
+  const VIS_MAP = { PUBLIC: "公开", FRIENDS: "好友可见", PRIVATE: "私密" };
+  const VIS_REV = { "公开": "PUBLIC", "好友可见": "FRIENDS", "私密": "PRIVATE" };
+
+  function mapNote(apiNote) {
+    return {
+      id: apiNote.id,
+      authorId: apiNote.author?.id,
+      author: apiNote.author?.nickname || "未知",
+      meta: `${apiNote.author?.college || ""} · ${timeAgo(apiNote.createdAt)}`,
+      avatar: apiNote.author?.avatarUrl || DEFAULT_AVATAR,
+      title: apiNote.title,
+      body: apiNote.content,
+      images: apiNote.imageUrls || [],
+      tags: apiNote.tags || [],
+      visibility: VIS_MAP[apiNote.visibility] || "公开",
+      likes: apiNote.likeCount,
+      commentCount: apiNote.commentCount,
+      comments: [],
+      liked: apiNote.liked,
+      saved: apiNote.saved,
+    };
+  }
+
+  function timeAgo(dateStr) {
+    if (!dateStr) return "刚刚";
+    const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
+    if (diff < 60) return "刚刚";
+    if (diff < 3600) return `${Math.floor(diff / 60)}分钟前`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}小时前`;
+    return `${Math.floor(diff / 86400)}天前`;
+  }
+
+  // ── 数据加载 ──
+  async function loadAllData() {
+    try {
+      const [notesData, channelsData, chatsData, profileData, tagsData, relationsData] =
+        await Promise.all([
+          getNotes({ scope: "PUBLIC" }),
+          getChannels({ joined: null }),
+          getConversations(),
+          getMyProfile(),
+          getTags(),
+          getRelations(),
+        ]);
+      setNotes((notesData?.items || []).map(mapNote));
+      setTagsList(tagsData || []);
+      setChannels(mapChannels(channelsData?.items || [], profileData?.id));
+      setChats(mapChats(chatsData || [], profileData?.id));
+      setCurrentUser({
+        name: profileData?.nickname || "新用户",
+        meta: `${profileData?.grade || ""} · ${profileData?.college || ""}`,
+        avatar: profileData?.avatarUrl || DEFAULT_AVATAR,
+        id: profileData?.id,
+      });
+      setProfileData(profileData);
+      setRelationsData(relationsData || []);
+    } catch {
+      // 静默失败，保留 mock 数据兜底
+    }
+  }
+
+  function mapChannels(apiChannels, myId) {
+    return (apiChannels || []).map((ch) => ({
+      id: String(ch.id),
+      name: ch.name,
+      type: ch.joinType === "PASSWORD" ? "密码" : "公开",
+      password: ch.password || undefined,
+      joined: ch.joined,
+      admin: ch.administrator?.nickname || "管理员",
+      announcement: ch.announcement || "",
+      members: ch.memberCount,
+      posts: [],
+    }));
+  }
+
+  function mapChats(apiChats, myId) {
+    return (apiChats || []).map((c) => ({
+      id: String(c.id),
+      name: c.name,
+      type: c.type === "GROUP" ? "群聊" : "好友",
+      unread: c.unreadCount || 0,
+      lastTime: c.lastMessageAt ? timeAgo(c.lastMessageAt) : "",
+      messages: [],
+    }));
+  }
+
+  useEffect(() => {
+    if (loggedIn) loadAllData();
+  }, [loggedIn]);
+
   function toggleLike(id) {
-    setNotes((items) =>
-      items.map((note) =>
-        note.id === id
-          ? { ...note, liked: !note.liked, likes: note.liked ? note.likes - 1 : note.likes + 1 }
-          : note,
-      ),
-    );
+    likeNote(id).then((res) => {
+      setNotes((items) =>
+        items.map((note) => (note.id === id ? { ...note, liked: res.active, likes: res.count } : note)),
+      );
+    }).catch(() => {});
   }
 
   function toggleSave(id) {
-    setNotes((items) =>
-      items.map((note) => (note.id === id ? { ...note, saved: !note.saved } : note)),
-    );
+    saveNote(id).then((res) => {
+      setNotes((items) =>
+        items.map((note) => (note.id === id ? { ...note, saved: res.active } : note)),
+      );
+    }).catch(() => {});
   }
 
   function createNote() {
     if (!draftTitle.trim() && !draftText.trim() && imageCount === 0) return;
-    setNotes((items) => [
-      {
-        id: Date.now(),
-        author: currentUser.name,
-        meta: `${currentUser.meta} · 刚刚`,
-        visibility: draftVisibility,
-        avatar: currentUser.avatar,
-        title: draftTitle.trim() || "今天的校园记录",
-        body: draftText.trim() || "上传了一张新的校园图片。",
-        images:
-          imageCount > 0
-            ? ["https://images.unsplash.com/photo-1522383225653-ed111181a951?auto=format&fit=crop&w=640&q=80"]
-            : [],
-        tags: ["校园生活"],
-        likes: 0,
-        comments: [],
-        followed: true,
-        mutual: true,
-        liked: false,
-        saved: false,
-      },
-      ...items,
-    ]);
-    setDraftTitle("");
-    setDraftText("");
-    setImageCount(0);
-    setDraftOpen(false);
-    setActiveNav(draftVisibility === "公开" ? "主页" : "社交圈");
+    apiCreateNote({
+      title: draftTitle.trim() || "今天的校园记录",
+      content: draftText.trim() || "分享了一张校园图片。",
+      visibility: VIS_REV[draftVisibility] || "PUBLIC",
+      tags: ["校园生活"],
+    }).then((apiNote) => {
+      setNotes((items) => [mapNote(apiNote), ...items]);
+      setDraftTitle(""); setDraftText(""); setImageCount(0);
+      setDraftOpen(false);
+      setActiveNav(draftVisibility === "公开" ? "主页" : "社交圈");
+    }).catch(() => {});
   }
 
   function submitJoinChannel() {
     if (!joinChannel) return;
-    if (joinChannel.type === "密码" && joinPassword.trim() !== joinChannel.password) return;
-    setChannels((items) =>
-      items.map((channel) =>
-        channel.id === joinChannel.id ? { ...channel, joined: true } : channel,
-      ),
-    );
-    setSelectedChannelId(joinChannel.id);
-    setJoinChannel(null);
-    setJoinPassword("");
+    apiJoinChannel(Number(joinChannel.id), joinPassword || null).then(() => {
+      setChannels((items) => items.map((c) => c.id === joinChannel.id ? { ...c, joined: true } : c));
+      setSelectedChannelId(joinChannel.id);
+      setJoinChannel(null);
+      setJoinPassword("");
+    }).catch(() => {});
   }
 
   function submitCreateChannel() {
@@ -587,7 +679,16 @@ export function App() {
   }
 
   function saveProfile() {
-    setProfileEditOpen(false);
+    updateProfile({
+      nickname: profileName,
+      college: profileMeta.includes("·") ? profileMeta.split("·")[1]?.trim() : profileMeta,
+      grade: profileMeta.includes("·") ? profileMeta.split("·")[0]?.trim() : profileMeta,
+      bio: profileBio,
+      avatarUrl: profileAvatar,
+    }).then(() => {
+      setCurrentUser((u) => ({ ...u, name: profileName, meta: profileMeta, avatar: profileAvatar }));
+      setProfileEditOpen(false);
+    }).catch(() => {});
   }
 
   function openChat(chatId) {
@@ -688,7 +789,7 @@ export function App() {
             <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="搜索笔记、作者、内容" />
           </div>
           <div className="tag-filter">
-            {tags.map((tag) => (
+            {["全部", ...tagsList.filter((tag) => tag !== "全部")].map((tag) => (
               <button className={activeTag === tag ? "active" : ""} key={tag} onClick={() => setActiveTag(tag)}>
                 {tag}
               </button>
@@ -1238,10 +1339,40 @@ export function App() {
           <div>
             <h1>{page[0]}</h1>
           </div>
-          <button className="icon-button" aria-label="通知" title="通知">
-            <Bell size={21} />
-            <span />
-          </button>
+          <div className="notification-wrap">
+            <button className="icon-button" aria-label="通知" aria-expanded={notificationsOpen} title="通知"
+              onClick={() => setNotificationsOpen((value) => !value)}>
+              <Bell size={21} />
+              {notifications.some((item) => item.unread) && <span />}
+            </button>
+            {notificationsOpen && (
+              <section className="notification-panel">
+                <div className="notification-head">
+                  <h2>通知</h2>
+                  <button disabled={!notifications.some((item) => item.unread)}
+                    onClick={() => setNotifications((items) => items.map((item) => ({ ...item, unread: false })))}>
+                    全部已读
+                  </button>
+                </div>
+                <div className="notification-list">
+                  {notifications.map((item) => (
+                    <article className={item.unread ? "notification-item unread" : "notification-item"} key={item.id}>
+                      <div className="notification-icon">
+                        {item.type === "like" && <Heart size={18} weight="fill" />}
+                        {item.type === "comment" && <ChatCircle size={18} weight="fill" />}
+                        {item.type === "save" && <BookmarkSimple size={18} weight="fill" />}
+                      </div>
+                      <div>
+                        <p><strong>{item.user}</strong>{item.action}</p>
+                        <span>{item.target} · {item.time}</span>
+                      </div>
+                      {item.unread && <i />}
+                    </article>
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
         </header>
         {renderMainContent()}
       </main>

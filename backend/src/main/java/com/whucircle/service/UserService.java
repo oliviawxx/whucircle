@@ -9,6 +9,7 @@ import com.whucircle.dto.UserDtos.RelationView;
 import com.whucircle.dto.UserDtos.UserProfile;
 import com.whucircle.dto.UserDtos.CurrentUserProfile;
 import com.whucircle.dto.UserDtos.UpdateProfileRequest;
+import com.whucircle.repository.NoteRepository;
 import com.whucircle.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
@@ -17,8 +18,12 @@ import java.util.List;
 @Service
 public class UserService {
     private final UserRepository users;
+    private final NoteRepository notes;
 
-    public UserService(UserRepository users) { this.users = users; }
+    public UserService(UserRepository users, NoteRepository notes) {
+        this.users = users;
+        this.notes = notes;
+    }
 
     public List<RelationView> relations(Long currentUserId) {
         return users.findAll().stream().filter(user -> !user.id().equals(currentUserId))
@@ -81,8 +86,15 @@ public class UserService {
     }
     private User requireUser(Long id) { return users.findById(id).orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "用户不存在")); }
     private CurrentUserProfile toCurrentProfile(User user) {
+        int noteCount = notes.countByAuthorId(user.id());
+        int followingCount = users.countFollowing(user.id());
+        int followerCount = users.countFollowers(user.id());
+        int friendCount = (int) users.findAll().stream()
+                .filter(other -> !other.id().equals(user.id()))
+                .filter(other -> users.relation(user.id(), other.id()) == RelationStatus.FRIEND)
+                .count();
         return new CurrentUserProfile(user.id(), user.email(), user.nickname(), user.avatarUrl(),
-                user.college(), user.grade(), user.bio());
+                user.college(), user.grade(), user.bio(), noteCount, followingCount, followerCount, friendCount);
     }
     private String normalize(String value) { return value == null ? "" : value.trim(); }
 }
