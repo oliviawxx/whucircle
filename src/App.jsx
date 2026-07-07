@@ -26,12 +26,23 @@ import {
   UsersThree,
   X,
 } from "@phosphor-icons/react";
+import {
+  login as apiLogin,
+  register as apiRegister,
+  sendEmailCode as apiSendCode,
+  getMe,
+  logout as apiLogout,
+} from "./api/auth.js";
+import { setToken, getToken } from "./api/client.js";
 
-const currentUser = {
+const DEFAULT_AVATAR =
+  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=160&q=80";
+
+const DEMO_USER = {
   name: "小张",
   meta: "2024级 · 新闻与传播学院",
-  avatar:
-    "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=160&q=80",
+  avatar: DEFAULT_AVATAR,
+  id: null,
 };
 
 const initialNotes = [
@@ -255,11 +266,14 @@ const tags = ["全部", "校园生活", "学习", "摄影", "互助", "食堂", 
 
 export function App() {
   const [loggedIn, setLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState(DEMO_USER);
   const [authMode, setAuthMode] = useState("登录");
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authCode, setAuthCode] = useState("");
   const [codeSent, setCodeSent] = useState(false);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState("");
   const [activeNav, setActiveNav] = useState("主页");
   const [notes, setNotes] = useState(initialNotes);
   const [channels, setChannels] = useState(initialChannels);
@@ -357,6 +371,84 @@ export function App() {
   function goTo(label) {
     setActiveNav(label);
     setUserMenuOpen(false);
+  }
+
+  function fromApiUser(user) {
+    return {
+      name: user.nickname || "新用户",
+      meta: `${user.grade || "待完善"} · ${user.college || "待完善"}`,
+      avatar: user.avatarUrl || DEFAULT_AVATAR,
+      id: user.id,
+    };
+  }
+
+  function handleSendCode() {
+    setAuthError("");
+    setAuthLoading(true);
+    apiSendCode(authEmail)
+      .then((data) => {
+        setCodeSent(true);
+        if (data?.mockCode) setAuthCode(data.mockCode);
+      })
+      .catch((err) => setAuthError(err.message))
+      .finally(() => setAuthLoading(false));
+  }
+
+  function handleLogin() {
+    setAuthError("");
+    setAuthLoading(true);
+    apiLogin(authEmail, authPassword)
+      .then((data) => {
+        setCurrentUser(fromApiUser(data.user));
+        setLoggedIn(true);
+      })
+      .catch((err) => setAuthError(err.message))
+      .finally(() => setAuthLoading(false));
+  }
+
+  function handleRegister() {
+    setAuthError("");
+    if (authPassword.length < 8) {
+      setAuthError("密码至少 8 位");
+      return;
+    }
+    setAuthLoading(true);
+    const nickname = authEmail.split("@")[0];
+    apiRegister(authEmail, authCode, authPassword, nickname)
+      .then((data) => {
+        setCurrentUser(fromApiUser(data.user));
+        setLoggedIn(true);
+      })
+      .catch((err) => setAuthError(err.message))
+      .finally(() => setAuthLoading(false));
+  }
+
+  function handleDemoEntry() {
+    setAuthError("");
+    setAuthLoading(true);
+    setToken("demo-access-token");
+    getMe()
+      .then((user) => {
+        setCurrentUser(fromApiUser(user));
+        setLoggedIn(true);
+      })
+      .catch((err) => {
+        setAuthError(err.message);
+        setToken("");
+      })
+      .finally(() => setAuthLoading(false));
+  }
+
+  function handleLogout() {
+    apiLogout();
+    setCurrentUser(DEMO_USER);
+    setLoggedIn(false);
+    setActiveNav("主页");
+  }
+
+  function handleAuthSubmit() {
+    if (authMode === "登录") handleLogin();
+    else handleRegister();
   }
 
   function toggleLike(id) {
@@ -1056,7 +1148,7 @@ export function App() {
           <div className="auth-card">
             <div className="auth-tabs">
               {["登录", "注册"].map((mode) => (
-                <button className={authMode === mode ? "active" : ""} key={mode} onClick={() => setAuthMode(mode)}>
+                <button className={authMode === mode ? "active" : ""} key={mode} onClick={() => { setAuthMode(mode); setAuthError(""); }}>
                   {mode}
                 </button>
               ))}
@@ -1065,6 +1157,7 @@ export function App() {
               <p>{authMode === "登录" ? "欢迎回来" : "创建校园账号"}</p>
               <h2>{authMode === "登录" ? "登录 WHU Circle" : "使用校内邮箱注册"}</h2>
             </div>
+            {authError && <div className="auth-error">{authError}</div>}
             <label className="auth-field">
               <span>校内邮箱</span>
               <input value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="student@whu.edu.cn" />
@@ -1074,18 +1167,18 @@ export function App() {
                 <span>邮箱验证码</span>
                 <div className="code-field">
                   <input value={authCode} onChange={(event) => setAuthCode(event.target.value)} placeholder="6 位验证码" />
-                  <button onClick={() => setCodeSent(true)}>{codeSent ? "已发送" : "发送"}</button>
+                  <button onClick={handleSendCode} disabled={authLoading}>{codeSent ? "已发送" : "发送"}</button>
                 </div>
               </label>
             )}
             <label className="auth-field">
               <span>密码</span>
-              <input type="password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} placeholder="至少 8 位" />
+              <input type="password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} placeholder="至少 8 位" onKeyDown={(event) => { if (event.key === "Enter") handleAuthSubmit(); }} />
             </label>
-            <button className="auth-submit" onClick={() => setLoggedIn(true)}>
-              {authMode === "登录" ? "登录" : "注册并进入"}
+            <button className="auth-submit" onClick={handleAuthSubmit} disabled={authLoading}>
+              {authLoading ? "请稍候…" : authMode === "登录" ? "登录" : "注册并进入"}
             </button>
-            <button className="demo-entry" onClick={() => setLoggedIn(true)}>直接进入展示版</button>
+            <button className="demo-entry" onClick={handleDemoEntry} disabled={authLoading}>直接进入展示版</button>
           </div>
         </section>
       </main>
@@ -1134,7 +1227,7 @@ export function App() {
               <button onClick={() => goTo("我的主页")}><UserCircle size={18} />我的主页</button>
               <button onClick={() => goTo("收藏")}><BookmarkSimple size={18} />我的收藏</button>
               <button onClick={() => goTo("设置")}><GearSix size={18} />设置</button>
-              <button onClick={() => setLoggedIn(false)}>退出登录</button>
+              <button onClick={handleLogout}>退出登录</button>
             </div>
           )}
         </footer>

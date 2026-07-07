@@ -175,6 +175,16 @@ body {
   font-weight: 700;
 }
 
+.auth-error {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .auth-field > input,
 .code-field {
   width: 100%;
