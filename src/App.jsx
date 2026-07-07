@@ -36,13 +36,13 @@ const currentUser = {
 const initialNotes = [
   {
     id: 1,
-    author: "珞珈山下的风",
-    meta: "计算机学院 · 12分钟前",
+    author: "李健豪",
+    meta: "计算机学院 · 15分钟前",
     visibility: "公开",
     avatar:
       "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=160&q=80",
-    title: "傍晚从樱顶走到湖边，光线刚刚好",
-    body: "想把今天的散步路线存一下：老图书馆、樱顶、行政楼、东湖边。适合晚饭后慢慢走。",
+    title: "好想打cs",
+    body: "老图书馆、樱顶、行政楼、东湖边。都不如在回寝室玩游戏。",
     images: [
       "https://images.unsplash.com/photo-1522383225653-ed111181a951?auto=format&fit=crop&w=640&q=80",
     ],
@@ -287,6 +287,12 @@ export function App() {
     messagePermission: "仅好友",
   });
   const [blockedUsers, setBlockedUsers] = useState(["校外广告号"]);
+  const [createChannelOpen, setCreateChannelOpen] = useState(false);
+  const [newChannelName, setNewChannelName] = useState("");
+  const [newChannelType, setNewChannelType] = useState("公开");
+  const [newChannelPassword, setNewChannelPassword] = useState("");
+  const [newChannelAnnouncement, setNewChannelAnnouncement] = useState("");
+  const [channelPostDraft, setChannelPostDraft] = useState("");
 
   const selectedChannel = channels.find((channel) => channel.id === selectedChannelId) ?? channels[0];
   const activeChat = chats.find((chat) => chat.id === activeChatId) ?? chats[0];
@@ -387,6 +393,38 @@ export function App() {
     setActiveNav(draftVisibility === "公开" ? "主页" : "社交圈");
   }
 
+  function resetCreateChannelForm() {
+    setNewChannelName("");
+    setNewChannelType("公开");
+    setNewChannelPassword("");
+    setNewChannelAnnouncement("");
+  }
+
+  function createChannel() {
+    const trimmedName = newChannelName.trim();
+    if (!trimmedName) return;
+
+    const channelType = newChannelType;
+    const channelPassword = channelType === "密码" ? newChannelPassword.trim() || "whu2026" : "";
+    const newChannel = {
+      id: `channel-${Date.now()}`,
+      name: trimmedName,
+      type: channelType,
+      ...(channelType === "密码" ? { password: channelPassword } : {}),
+      joined: true,
+      admin: currentUser.name,
+      announcement: newChannelAnnouncement.trim() || "欢迎来到新频道，快来和同学们一起讨论吧。",
+      members: 1,
+      posts: [{ id: `post-${Date.now()}`, title: "欢迎来到新频道", pinned: true, likes: 0, replies: 0 }],
+    };
+
+    setChannels((items) => [newChannel, ...items]);
+    setSelectedChannelId(newChannel.id);
+    setCreateChannelOpen(false);
+    resetCreateChannelForm();
+    setActiveNav("频道");
+  }
+
   function submitJoinChannel() {
     if (!joinChannel) return;
     if (joinChannel.type === "密码" && joinPassword.trim() !== joinChannel.password) return;
@@ -398,6 +436,23 @@ export function App() {
     setSelectedChannelId(joinChannel.id);
     setJoinChannel(null);
     setJoinPassword("");
+  }
+
+  function submitChannelPost() {
+    const trimmedDraft = channelPostDraft.trim();
+    if (!trimmedDraft || !selectedChannel?.joined) return;
+
+    setChannels((items) =>
+      items.map((channel) =>
+        channel.id === selectedChannel.id
+          ? {
+              ...channel,
+              posts: [{ id: `post-${Date.now()}`, title: trimmedDraft, pinned: false, likes: 0, replies: 0 }, ...channel.posts],
+            }
+          : channel,
+      ),
+    );
+    setChannelPostDraft("");
   }
 
   function blockUser(name) {
@@ -528,9 +583,15 @@ export function App() {
     return (
       <section className="channel-layout">
         <aside className="channel-list">
-          <div className="panel-head">
-            <h2>频道</h2>
-            <span>公开 / 密码</span>
+          <div className="panel-head panel-head-row">
+            <div>
+              <h2>频道</h2>
+              <span>公开 / 密码</span>
+            </div>
+            <button className="channel-create-button" onClick={() => setCreateChannelOpen(true)}>
+              <Hash size={16} />
+              创建
+            </button>
           </div>
           {channels.map((channel) => (
             <button
@@ -565,6 +626,17 @@ export function App() {
             <Megaphone size={18} />
             <span>{selectedChannel.announcement}</span>
           </div>
+          {selectedChannel.joined && (
+            <div className="channel-compose">
+              <textarea
+                className="compose-textarea"
+                value={channelPostDraft}
+                onChange={(event) => setChannelPostDraft(event.target.value)}
+                placeholder={`在 ${selectedChannel.name} 里发一个帖子...`}
+              />
+              <button className="submit-note" onClick={submitChannelPost}>发布帖子</button>
+            </div>
+          )}
           <div className="channel-posts">
             {previewPosts.map((post) => (
               <article className="channel-post" key={post.id}>
@@ -962,6 +1034,27 @@ export function App() {
             <div className="modal-actions">
               <button title="举报" onClick={() => setReportTarget({ type: "笔记", title: detailNote.title })}><Flag size={18} />举报</button>
             </div>
+          </section>
+        </div>
+      )}
+
+      {createChannelOpen && (
+        <div className="modal-backdrop" onClick={() => setCreateChannelOpen(false)}>
+          <section className="small-modal" onClick={(event) => event.stopPropagation()}>
+            <ModalHead title="创建频道" subtitle="为同学们开一个新的讨论圈" onClose={() => setCreateChannelOpen(false)} />
+            <input className="title-input" value={newChannelName} onChange={(event) => setNewChannelName(event.target.value)} placeholder="频道名称" />
+            <div className="segmented compact">
+              {['公开', '密码'].map((item) => (
+                <button className={newChannelType === item ? 'active' : ''} key={item} onClick={() => setNewChannelType(item)}>
+                  {item}
+                </button>
+              ))}
+            </div>
+            {newChannelType === '密码' && (
+              <input className="title-input" value={newChannelPassword} onChange={(event) => setNewChannelPassword(event.target.value)} placeholder="设置访问密码" />
+            )}
+            <textarea className="compose-textarea" value={newChannelAnnouncement} onChange={(event) => setNewChannelAnnouncement(event.target.value)} placeholder="写下频道公告或欢迎语..." />
+            <button className="submit-note" onClick={createChannel}>创建频道</button>
           </section>
         </div>
       )}

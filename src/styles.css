@@ -773,8 +773,29 @@ button {
   margin-bottom: 14px;
 }
 
+.panel-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
 .panel-head h2 {
   font-size: 17px;
+}
+
+.channel-create-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 12px;
+  color: #fff;
+  font-weight: 700;
+  background: var(--accent);
+  border: 0;
+  border-radius: 999px;
 }
 
 .relation-row {
@@ -862,6 +883,20 @@ button {
   background: #f8fafc;
   border: 1px solid #edf1f6;
   border-radius: 8px;
+}
+
+.channel-compose {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.channel-compose .compose-textarea {
+  min-height: 96px;
+}
+
+.channel-compose .submit-note {
+  justify-self: start;
 }
 
 .join-reminder {
@@ -1209,15 +1244,17 @@ button {
 }
 
 .title-input,
-.draft-modal textarea {
+.draft-modal textarea,
+.compose-textarea {
   padding: 13px;
   background: #f8fafc;
   border: 1px solid var(--line);
   border-radius: 8px;
 }
 
-.draft-modal textarea {
-  min-height: 150px;
+.draft-modal textarea,
+.compose-textarea {
+  min-height: 120px;
   resize: vertical;
 }
 
