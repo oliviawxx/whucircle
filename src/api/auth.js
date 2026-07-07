@@ -8,6 +8,7 @@ export async function sendEmailCode(email) {
 }
 
 export async function register(email, code, password, nickname) {
+  setToken("");
   const data = await request("/auth/register", {
     method: "POST",
     body: JSON.stringify({ email, code, password, nickname }),
@@ -17,6 +18,7 @@ export async function register(email, code, password, nickname) {
 }
 
 export async function login(email, password) {
+  setToken("");
   const data = await request("/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),

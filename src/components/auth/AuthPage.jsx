@@ -7,12 +7,15 @@ export function AuthPage({
   password,
   code,
   codeSent,
+  authError,
+  authLoading,
   onModeChange,
   onEmailChange,
   onPasswordChange,
   onCodeChange,
   onSendCode,
   onEnter,
+  onKeyDown,
 }) {
   return (
     <main className={`auth-page theme-${activeTheme}`}>
@@ -40,6 +43,7 @@ export function AuthPage({
             <p>{mode === "登录" ? "欢迎回来" : "创建校园账号"}</p>
             <h2>{mode === "登录" ? "登录 WHU Circle" : "使用校内邮箱注册"}</h2>
           </div>
+          {authError && <div className="auth-error">{authError}</div>}
           <label className="auth-field">
             <span>校内邮箱</span>
             <input value={email} onChange={(event) => onEmailChange(event.target.value)} placeholder="student@whu.edu.cn" />
@@ -49,16 +53,18 @@ export function AuthPage({
               <span>邮箱验证码</span>
               <div className="code-field">
                 <input value={code} onChange={(event) => onCodeChange(event.target.value)} placeholder="6 位验证码" />
-                <button onClick={onSendCode}>{codeSent ? "已发送" : "发送"}</button>
+                <button onClick={onSendCode} disabled={authLoading}>{codeSent ? "已发送" : "发送"}</button>
               </div>
             </label>
           )}
           <label className="auth-field">
             <span>密码</span>
-            <input type="password" value={password} onChange={(event) => onPasswordChange(event.target.value)} placeholder="至少 8 位" />
+            <input type="password" value={password} onChange={(event) => onPasswordChange(event.target.value)} placeholder="至少 8 位" onKeyDown={onKeyDown} />
           </label>
-          <button className="auth-submit" onClick={onEnter}>{mode === "登录" ? "登录" : "注册并进入"}</button>
-          <button className="demo-entry" onClick={onEnter}>直接进入展示版</button>
+          <button className="auth-submit" onClick={onEnter} disabled={authLoading}>
+            {authLoading ? "请稍候…" : mode === "登录" ? "登录" : "注册并进入"}
+          </button>
+          <button className="demo-entry" onClick={onEnter} disabled={authLoading}>直接进入展示版</button>
         </div>
       </section>
     </main>

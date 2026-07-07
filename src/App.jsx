@@ -51,6 +51,7 @@ import {
 import {
   getPrivacy, updatePrivacy as apiUpdatePrivacy,
 } from "./api/settings.js";
+import { AuthPage } from "./components/auth/AuthPage.jsx";
 import { initialNotifications } from "./data/mockData.js";
 
 const DEFAULT_AVATAR =
@@ -343,7 +344,7 @@ export function App() {
   const [blockedUsers, setBlockedUsers] = useState(["校外广告号"]);
 
   const selectedChannel = channels.find((channel) => channel.id === selectedChannelId) ?? channels[0];
-  const activeChat = chats.find((chat) => chat.id === activeChatId) ?? chats[0];
+  const activeChat = chats.find((chat) => chat.id === activeChatId) ?? chats[0] ?? null;
   const chatUnreadCount = chats.reduce((sum, chat) => sum + (chat.unread > 0 ? chat.unread : 0), 0);
 
   const publicNotes = useMemo(
@@ -402,6 +403,23 @@ export function App() {
       id: user.id,
     };
   }
+
+  useEffect(() => {
+    const existingToken = getToken();
+    if (!existingToken) return;
+
+    setAuthLoading(true);
+    getMe()
+      .then((user) => {
+        setCurrentUser(fromApiUser(user));
+        setLoggedIn(true);
+      })
+      .catch(() => {
+        setToken("");
+        setLoggedIn(false);
+      })
+      .finally(() => setAuthLoading(false));
+  }, []);
 
   function handleSendCode() {
     setAuthError("");
@@ -562,6 +580,17 @@ export function App() {
   useEffect(() => {
     if (loggedIn) loadAllData();
   }, [loggedIn]);
+
+  useEffect(() => {
+    if (!chats.length) {
+      setActiveChatId(null);
+      return;
+    }
+
+    if (!activeChatId || !chats.some((chat) => chat.id === activeChatId)) {
+      setActiveChatId(chats[0].id);
+    }
+  }, [activeChatId, chats]);
 
   function toggleLike(id) {
     likeNote(id).then((res) => {
@@ -939,6 +968,24 @@ export function App() {
   }
 
   function renderChats() {
+    if (!chats.length || !activeChat) {
+      return (
+        <section className="chat-layout">
+          <aside className="chat-list">
+            <div className="chat-list-head">
+              <div>
+                <h2>消息</h2>
+              </div>
+            </div>
+            <div className="empty-state">暂无会话，先去发起一条消息吧。</div>
+          </aside>
+          <section className="chat-window">
+            <div className="empty-state">请选择一个会话开始聊天。</div>
+          </section>
+        </section>
+      );
+    }
+
     return (
       <section className="chat-layout">
         <aside className="chat-list">
@@ -1223,66 +1270,23 @@ export function App() {
 
   if (!loggedIn) {
     return (
-      <main className={`auth-page theme-${activeTheme}`}>
-        <section className="auth-brand-panel">
-          <div className="auth-brand">
-            <div className="brand-mark">
-              <Student weight="duotone" size={34} />
-            </div>
-            <div>
-              <strong>WHU Circle</strong>
-              <span>武大校园圈</span>
-            </div>
-          </div>
-          <div className="auth-copy">
-            <p>校园社交平台</p>
-            <h1>在一个更清楚的空间里，记录、交流和找到彼此。</h1>
-            <span>公开笔记、好友社交圈、频道讨论与聊天。</span>
-          </div>
-          <div className="auth-trust">
-            <ShieldCheck size={22} />
-            <span>注册使用校内邮箱验证</span>
-          </div>
-        </section>
-
-        <section className="auth-form-panel">
-          <div className="auth-card">
-            <div className="auth-tabs">
-              {["登录", "注册"].map((mode) => (
-                <button className={authMode === mode ? "active" : ""} key={mode} onClick={() => { setAuthMode(mode); setAuthError(""); }}>
-                  {mode}
-                </button>
-              ))}
-            </div>
-            <div className="auth-heading">
-              <p>{authMode === "登录" ? "欢迎回来" : "创建校园账号"}</p>
-              <h2>{authMode === "登录" ? "登录 WHU Circle" : "使用校内邮箱注册"}</h2>
-            </div>
-            {authError && <div className="auth-error">{authError}</div>}
-            <label className="auth-field">
-              <span>校内邮箱</span>
-              <input value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="student@whu.edu.cn" />
-            </label>
-            {authMode === "注册" && (
-              <label className="auth-field">
-                <span>邮箱验证码</span>
-                <div className="code-field">
-                  <input value={authCode} onChange={(event) => setAuthCode(event.target.value)} placeholder="6 位验证码" />
-                  <button onClick={handleSendCode} disabled={authLoading}>{codeSent ? "已发送" : "发送"}</button>
-                </div>
-              </label>
-            )}
-            <label className="auth-field">
-              <span>密码</span>
-              <input type="password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} placeholder="至少 8 位" onKeyDown={(event) => { if (event.key === "Enter") handleAuthSubmit(); }} />
-            </label>
-            <button className="auth-submit" onClick={handleAuthSubmit} disabled={authLoading}>
-              {authLoading ? "请稍候…" : authMode === "登录" ? "登录" : "注册并进入"}
-            </button>
-            <button className="demo-entry" onClick={handleDemoEntry} disabled={authLoading}>直接进入展示版</button>
-          </div>
-        </section>
-      </main>
+      <AuthPage
+        activeTheme={activeTheme}
+        mode={authMode}
+        email={authEmail}
+        password={authPassword}
+        code={authCode}
+        codeSent={codeSent}
+        authError={authError}
+        authLoading={authLoading}
+        onModeChange={(mode) => { setAuthMode(mode); setAuthError(""); }}
+        onEmailChange={setAuthEmail}
+        onPasswordChange={setAuthPassword}
+        onCodeChange={setAuthCode}
+        onSendCode={handleSendCode}
+        onEnter={handleAuthSubmit}
+        onKeyDown={(event) => { if (event.key === "Enter") handleAuthSubmit(); }}
+      />
     );
   }
 
