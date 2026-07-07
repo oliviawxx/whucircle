@@ -62,15 +62,110 @@ const DEMO_USER = {
   meta: "2024级 · 新闻与传播学院",
   avatar: DEFAULT_AVATAR,
   id: null,
+};
 
-  const currentUser = {
-    name: "Mocha",
-    meta: "2025级 · 计算机学院",
+const initialNotes = [
+  {
+    id: 1,
+    author: "李健豪",
+    meta: "计算机学院 · 15分钟前",
+    visibility: "公开",
     avatar:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=160&q=80",
-  };
+      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=160&q=80",
+    title: "好想打cs",
+    body: "老图书馆、樱顶、行政楼、东湖边。都不如在回寝室玩游戏。",
+    images: [
+      "https://images.unsplash.com/photo-1522383225653-ed111181a951?auto=format&fit=crop&w=640&q=80",
+    ],
+    tags: ["校园生活", "摄影"],
+    likes: 128,
+    comments: [
+      { user: "东湖边的猫", text: "这个路线真的很适合晚上散步。" },
+      { user: "林深时见鹿", text: "图片氛围好好。" },
+    ],
+    followed: true,
+    mutual: true,
+    liked: true,
+    saved: false,
+  },
+  {
+    id: 2,
+    author: "东湖边的猫",
+    meta: "外国语言文学学院 · 38分钟前",
+    visibility: "公开",
+    avatar:
+      "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=160&q=80",
+    title: "求一个期末复习搭子",
+    body: "晚上在工学部图书馆，主要复习英语语言学和二外。希望互相监督，不用一直聊天。",
+    images: [],
+    tags: ["学习", "互助"],
+    likes: 45,
+    comments: [{ user: "小张", text: "我今晚也在，可以一起自习。" }],
+    followed: true,
+    mutual: false,
+    liked: false,
+    saved: true,
+  },
+  {
+    id: 3,
+    author: "一只小橘子",
+    meta: "测绘学院 · 1小时前",
+    visibility: "公开",
+    avatar:
+      "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=160&q=80",
+    title: "磨山云海真的值得早起",
+    body: "六点到山顶的时候雾还没散，拍到了很安静的一组照片。路线不难，新手也可以试试。",
+    images: [
+      "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=640&q=80",
+    ],
+    tags: ["出行", "摄影"],
+    likes: 76,
+    comments: [],
+    followed: false,
+    mutual: false,
+    liked: false,
+    saved: false,
+  },
+  {
+    id: 4,
+    author: "热干面观察员",
+    meta: "经济与管理学院 · 2小时前",
+    visibility: "好友可见",
+    avatar:
+      "https://images.unsplash.com/photo-1527980965255-d3b416303d12?auto=format&fit=crop&w=160&q=80",
+    title: "今日食堂窗口记录",
+    body: "桂园二楼新出的鸡腿饭不错，排队十分钟以内。下次想做一个食堂效率小表。",
+    images: [
+      "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=640&q=80",
+    ],
+    tags: ["食堂", "校园生活"],
+    likes: 63,
+    comments: [{ user: "珞珈少年", text: "这个可以做成频道固定帖。" }],
+    followed: true,
+    mutual: true,
+    liked: false,
+    saved: false,
+  },
+  {
+    id: 5,
+    author: "南湖程序员",
+    meta: "电子信息学院 · 3小时前",
+    visibility: "私密",
+    avatar:
+      "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=160&q=80",
+    title: "课程项目分工备忘",
+    body: "先定接口和页面，再开工。前端不要等后端全部写完，后端也不要等页面完全确定。",
+    images: [],
+    tags: ["项目", "学习"],
+    likes: 0,
+    comments: [],
+    followed: true,
+    mutual: false,
+    liked: false,
+    saved: false,
+  },
+];
 
-<<<<<<< HEAD
 const initialChannels = [
   {
     id: "study",
@@ -573,109 +668,6 @@ export function App() {
       id: `post-${Date.now()}`,
       title: title || "新发布的讨论帖",
       pinned: channelPostDraftPinned,
-=======
-  const initialNotes = [
-    {
-      id: 1,
-      author: "李健豪",
-      meta: "计算机学院 · 15分钟前",
-      visibility: "公开",
-      avatar:
-        "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=160&q=80",
-      title: "好想打cs",
-      body: "老图书馆、樱顶、行政楼、东湖边。都不如在回寝室玩游戏。",
-      images: [
-        "https://images.unsplash.com/photo-1522383225653-ed111181a951?auto=format&fit=crop&w=640&q=80",
-      ],
-      tags: ["校园生活", "摄影"],
-      likes: 128,
-      comments: [
-        { user: "东湖边的猫", text: "这个路线真的很适合晚上散步。" },
-        { user: "林深时见鹿", text: "图片氛围好好。" },
-      ],
-      followed: true,
-      mutual: true,
-      liked: true,
-      saved: false,
-    },
-    {
-      id: 2,
-      author: "东湖边的猫",
-      meta: "外国语言文学学院 · 38分钟前",
-      visibility: "公开",
-      avatar:
-        "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=160&q=80",
-      title: "求一个期末复习搭子",
-      body: "晚上在工学部图书馆，主要复习英语语言学和二外。希望互相监督，不用一直聊天。",
-      images: [],
-      tags: ["学习", "互助"],
-      likes: 45,
-      comments: [{ user: "小张", text: "我今晚也在，可以一起自习。" }],
-      followed: true,
-      mutual: false,
-      liked: false,
-      saved: true,
-    },
-    {
-      id: 3,
-      author: "一只小橘子",
-      meta: "测绘学院 · 1小时前",
-      visibility: "公开",
-      avatar:
-        "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=160&q=80",
-      title: "磨山云海真的值得早起",
-      body: "六点到山顶的时候雾还没散，拍到了很安静的一组照片。路线不难，新手也可以试试。",
-      images: [
-        "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=640&q=80",
-      ],
-      tags: ["出行", "摄影"],
-      likes: 76,
-      comments: [],
-      followed: false,
-      mutual: false,
-      liked: false,
-      saved: false,
-    },
-    {
-      id: 4,
-      author: "热干面观察员",
-      meta: "经济与管理学院 · 2小时前",
-      visibility: "好友可见",
-      avatar:
-        "https://images.unsplash.com/photo-1527980965255-d3b416303d12?auto=format&fit=crop&w=160&q=80",
-      title: "今日食堂窗口记录",
-      body: "桂园二楼新出的鸡腿饭不错，排队十分钟以内。下次想做一个食堂效率小表。",
-      images: [
-        "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=640&q=80",
-      ],
-      tags: ["食堂", "校园生活"],
-      likes: 63,
-      comments: [{ user: "珞珈少年", text: "这个可以做成频道固定帖。" }],
-      followed: true,
-      mutual: true,
-      liked: false,
-      saved: false,
-    },
-    {
-      id: 5,
-      author: "南湖程序员",
-      meta: "电子信息学院 · 3小时前",
-      visibility: "私密",
-      avatar:
-        "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=160&q=80",
-      title: "课程项目分工备忘",
-      body: "先定接口和页面，再开工。前端不要等后端全部写完，后端也不要等页面完全确定。",
-      images: [],
-      tags: ["项目", "学习"],
->>>>>>> 927f6112ca4494b01a4ae0609f381b865bc65442
-      likes: 0,
-      comments: [],
-      followed: true,
-      mutual: false,
-      liked: false,
-      saved: false,
-    },
-  ];
 
   const initialChannels = [
     {
@@ -1273,7 +1265,6 @@ function renderNotes(items, variant = "masonry") {
               <button className="avatar-button" title="查看主页" onClick={() => setProfileUser(note)}>
                 <img className="avatar" src={note.avatar} alt={`${note.author}头像`} />
               </button>
-<<<<<<< HEAD
             ))}
         </aside>
       </section>
@@ -1317,8 +1308,6 @@ function renderNotes(items, variant = "masonry") {
               <div className="chat-avatar">
                 {chat.type === "群聊" ? <ChatsCircle size={22} /> : <UserCircle size={22} />}
               </div>
-=======
->>>>>>> 927f6112ca4494b01a4ae0609f381b865bc65442
               <div>
                 <strong>{note.author}</strong>
                 <span>{note.meta}</span>
@@ -1764,7 +1753,6 @@ function renderSettings() {
           ))}
         </div>
       </section>
-<<<<<<< HEAD
     );
   }
 
@@ -1802,13 +1790,309 @@ function renderSettings() {
       />
     );
   }
-=======
-    </section>
+
+  return (
+    <div className={`app-shell theme-${activeTheme}`}>
+      <aside className="sidebar">
+        <div className="brand">
+          <div className="brand-mark">
+            <Student weight="duotone" size={30} />
+          </div>
+          <div>
+            <strong>WHU Circle</strong>
+            <span>武大校园圈</span>
+          </div>
+        </div>
+
+        <nav className="nav-list">
+          {navItems.map(([label, Icon]) => (
+            <button className={activeNav === label ? "nav-item active" : "nav-item"} key={label} onClick={() => goTo(label)}>
+              <Icon size={21} />
+              <span>{label}</span>
+              {label === "聊天" && chatUnreadCount > 0 && <em>{chatUnreadCount}</em>}
+            </button>
+          ))}
+        </nav>
+
+        <button className="publish-entry" onClick={() => setDraftOpen(true)}>
+          <PaperPlaneTilt size={20} weight="fill" />
+          发布笔记
+        </button>
+
+        <footer className="side-profile">
+          <button className="profile-button" onClick={() => setUserMenuOpen((value) => !value)}>
+            <img className="avatar" src={currentUser.avatar} alt="当前用户头像" />
+            <div>
+              <strong>{currentUser.name}</strong>
+              <span>个人中心</span>
+            </div>
+            <CaretDown size={15} />
+          </button>
+          {userMenuOpen && (
+            <div className="user-menu">
+              <button onClick={() => goTo("我的主页")}><UserCircle size={18} />我的主页</button>
+              <button onClick={() => goTo("收藏")}><BookmarkSimple size={18} />我的收藏</button>
+              <button onClick={() => goTo("设置")}><GearSix size={18} />设置</button>
+              <button onClick={handleLogout}>退出登录</button>
+            </div>
+          )}
+        </footer>
+      </aside>
+
+      <main className="content">
+        <header className="topbar">
+          <div>
+            <h1>{page[0]}</h1>
+          </div>
+          <div className="notification-wrap">
+            <button className="icon-button" aria-label="通知" aria-expanded={notificationsOpen} title="通知"
+              onClick={() => setNotificationsOpen((value) => !value)}>
+              <Bell size={21} />
+              {notifications.some((item) => item.unread) && <span />}
+            </button>
+            {notificationsOpen && (
+              <section className="notification-panel">
+                <div className="notification-head">
+                  <h2>通知</h2>
+                  <button disabled={!notifications.some((item) => item.unread)}
+                    onClick={() => setNotifications((items) => items.map((item) => ({ ...item, unread: false })))}>
+                    全部已读
+                  </button>
+                </div>
+                <div className="notification-list">
+                  {notifications.map((item) => (
+                    <article className={item.unread ? "notification-item unread" : "notification-item"} key={item.id}>
+                      <div className="notification-icon">
+                        {item.type === "like" && <Heart size={18} weight="fill" />}
+                        {item.type === "comment" && <ChatCircle size={18} weight="fill" />}
+                        {item.type === "save" && <BookmarkSimple size={18} weight="fill" />}
+                      </div>
+                      <div>
+                        <p><strong>{item.user}</strong>{item.action}</p>
+                        <span>{item.target} · {item.time}</span>
+                      </div>
+                      {item.unread && <i />}
+                    </article>
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+        </header>
+        {renderMainContent()}
+      </main>
+
+      {draftOpen && (
+        <div className="modal-backdrop" onClick={() => setDraftOpen(false)}>
+          <section className="draft-modal" onClick={(event) => event.stopPropagation()}>
+            <ModalHead title="发布笔记" subtitle="文字、图片或图文内容" onClose={() => setDraftOpen(false)} />
+            <input className="title-input" value={draftTitle} onChange={(event) => setDraftTitle(event.target.value)} placeholder="标题" />
+            <textarea value={draftText} onChange={(event) => setDraftText(event.target.value)} placeholder="分享你想记录的内容..." />
+            <div className="draft-tools">
+              <button onClick={() => setImageCount((value) => Math.min(value + 1, 3))}>
+                <Image size={18} />
+                图片 {imageCount > 0 ? imageCount : ""}
+              </button>
+              <div className="segmented compact">
+                {["公开", "好友可见", "私密"].map((item) => (
+                  <button className={draftVisibility === item ? "active" : ""} key={item} onClick={() => setDraftVisibility(item)}>
+                    {item}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button className="submit-note" onClick={createNote}>发布</button>
+          </section>
+        </div>
+      )}
+
+      {detailNote && (
+        <div className="modal-backdrop" onClick={() => setDetailNote(null)}>
+          <section className="detail-modal" onClick={(event) => event.stopPropagation()}>
+            <ModalHead title={detailNote.title} subtitle={`${detailNote.author} · ${detailNote.meta}`} onClose={() => setDetailNote(null)} />
+            {detailNote.images[0] && <img className="detail-image" src={detailNote.images[0]} alt="笔记图片" />}
+            <p className="detail-body">{detailNote.body}</p>
+            <div className="comment-panel">
+              <h3>评论</h3>
+              {detailNote.comments.length === 0 ? (
+                <span className="muted">还没有评论。</span>
+              ) : (
+                detailNote.comments.map((comment) => (
+                  <p key={`${comment.user}-${comment.text}`}><strong>{comment.user}</strong>{comment.text}</p>
+                ))
+              )}
+              <div className="comment-input">
+                <input
+                  placeholder="写评论..."
+                  value={commentText}
+                  onChange={e => setCommentText(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && addComment(detailNote.id, commentText)}
+                />
+                <button title="发送" onClick={() => addComment(detailNote.id, commentText)}>
+                  <PaperPlaneTilt size={17} weight="fill" />
+                </button>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button title="举报" onClick={() => setReportTarget({ type: "笔记", title: detailNote.title })}><Flag size={18} />举报</button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {joinChannel && (
+        <div className="modal-backdrop" onClick={() => setJoinChannel(null)}>
+          <section className="small-modal" onClick={(event) => event.stopPropagation()}>
+            <ModalHead title="加入频道" subtitle={joinChannel.name} onClose={() => setJoinChannel(null)} />
+            {joinChannel.type === "密码" && (
+              <input className="title-input" value={joinPassword} onChange={(event) => setJoinPassword(event.target.value)} placeholder="输入频道密码：whu2026" />
+            )}
+            <button className="submit-note" onClick={submitJoinChannel}>加入</button>
+          </section>
+        </div>
+      )}
+
+      {profileEditOpen && (
+        <div className="modal-backdrop" onClick={() => setProfileEditOpen(false)}>
+          <section className="small-modal" onClick={(event) => event.stopPropagation()}>
+            <ModalHead title="编辑资料" subtitle="更新你的个人信息" onClose={() => setProfileEditOpen(false)} />
+            <label className="auth-field">
+              <span>昵称</span>
+              <input className="title-input" value={profileName} onChange={(event) => setProfileName(event.target.value)} placeholder="输入昵称" />
+            </label>
+            <label className="auth-field">
+              <span>学院/年级</span>
+              <input className="title-input" value={profileMeta} onChange={(event) => setProfileMeta(event.target.value)} placeholder="例如：2024级 · 计算机学院" />
+            </label>
+            <label className="auth-field">
+              <span>个人简介</span>
+              <input className="title-input" value={profileBio} onChange={(event) => setProfileBio(event.target.value)} placeholder="一句话介绍自己" />
+            </label>
+            <label className="auth-field">
+              <span>头像链接</span>
+              <input className="title-input" value={profileAvatar} onChange={(event) => setProfileAvatar(event.target.value)} placeholder="输入头像图片地址" />
+            </label>
+            <button className="submit-note" onClick={saveProfile}>保存</button>
+          </section>
+        </div>
+      )}
+
+      {createChannelOpen && (
+        <div className="modal-backdrop" onClick={() => setCreateChannelOpen(false)}>
+          <section className="small-modal" onClick={(event) => event.stopPropagation()}>
+            <ModalHead title="创建新频道" subtitle="为校园话题建立一个专属空间" onClose={() => setCreateChannelOpen(false)} />
+            <label className="auth-field">
+              <span>频道名称</span>
+              <input className="title-input" value={newChannelName} onChange={(event) => setNewChannelName(event.target.value)} placeholder="例如：武大摄影交流" />
+            </label>
+            <div className="segmented compact">
+              {['公开', '密码'].map((option) => (
+                <button className={newChannelType === option ? 'active' : ''} key={option} onClick={() => setNewChannelType(option)}>
+                  {option}
+                </button>
+              ))}
+            </div>
+            {newChannelType === '密码' && (
+              <label className="auth-field">
+                <span>频道密码</span>
+                <input className="title-input" value={newChannelPassword} onChange={(event) => setNewChannelPassword(event.target.value)} placeholder="设置加入密码" />
+              </label>
+            )}
+            <label className="auth-field">
+              <span>频道公告</span>
+              <textarea className="title-input" value={newChannelAnnouncement} onChange={(event) => setNewChannelAnnouncement(event.target.value)} placeholder="写一句欢迎语或规则说明" />
+            </label>
+            <button className="submit-note" onClick={submitCreateChannel}>创建频道</button>
+          </section>
+        </div>
+      )}
+
+      {channelPostDraftOpen && (
+        <div className="modal-backdrop" onClick={() => setChannelPostDraftOpen(false)}>
+          <section className="small-modal" onClick={(event) => event.stopPropagation()}>
+            <ModalHead title="发布频道帖子" subtitle={selectedChannel?.name} onClose={() => setChannelPostDraftOpen(false)} />
+            <label className="auth-field">
+              <span>标题</span>
+              <input className="title-input" value={channelPostDraftTitle} onChange={(event) => setChannelPostDraftTitle(event.target.value)} placeholder="写一个吸引人的标题" />
+            </label>
+            <label className="auth-field">
+              <span>内容</span>
+              <textarea className="title-input" value={channelPostDraftBody} onChange={(event) => setChannelPostDraftBody(event.target.value)} placeholder="分享你想讨论的内容..." />
+            </label>
+            <div className="draft-tools">
+              <button onClick={() => setChannelPostDraftImage((value) => !value)}>
+                <Image size={18} />
+                {channelPostDraftImage ? "已附图" : "附图"}
+              </button>
+              <div className="segmented compact">
+                {['学习', '活动', '求助', '闲聊'].map((tag) => (
+                  <button className={channelPostDraftTags.includes(tag) ? 'active' : ''} key={tag} onClick={() => {
+                    setChannelPostDraftTags((items) => items.includes(tag) ? items.filter((item) => item !== tag) : [...items, tag]);
+                  }}>
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <label className="segmented compact">
+              <button className={channelPostDraftPinned ? 'active' : ''} onClick={() => setChannelPostDraftPinned((value) => !value)}>
+                <PushPin size={16} />
+                置顶此帖
+              </button>
+            </label>
+            <button className="submit-note" onClick={submitCreateChannelPost}>发布</button>
+          </section>
+        </div>
+      )}
+
+      {channelPostDetail && (
+        <div className="modal-backdrop" onClick={() => setChannelPostDetail(null)}>
+          <section className="small-modal" onClick={(event) => event.stopPropagation()}>
+            <ModalHead title={channelPostDetail.post.title} subtitle={channelPostDetail.channel.name} onClose={() => setChannelPostDetail(null)} />
+            <p className="detail-body">频道内部交流帖。加入频道后可继续查看回复、点赞和参与讨论。</p>
+            <div className="comment-panel">
+              <h3>回复</h3>
+              <p><strong>频道成员</strong>这个信息很有用，建议置顶。</p>
+              <p><strong>管理员</strong>已加入本周公告。</p>
+            </div>
+            <div className="modal-actions">
+              <button title="举报" onClick={() => setReportTarget({ type: "频道帖子", title: channelPostDetail.post.title })}><Flag size={18} />举报</button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {profileUser && (
+        <div className="modal-backdrop" onClick={() => setProfileUser(null)}>
+          <section className="small-modal" onClick={(event) => event.stopPropagation()}>
+            <ModalHead title={profileUser.author} subtitle={profileUser.meta} onClose={() => setProfileUser(null)} />
+            <div className="profile-preview">
+              <img className="avatar large" src={profileUser.avatar} alt={`${profileUser.author}头像`} />
+              <p>展示对方主页预览。拉黑后不能私信、评论、查看主页。</p>
+            </div>
+            <button className="danger-button" onClick={() => blockUser(profileUser.author)}>
+              <Prohibit size={18} />
+              拉黑
+            </button>
+          </section>
+        </div>
+      )}
+
+      {reportTarget && (
+        <div className="modal-backdrop" onClick={() => setReportTarget(null)}>
+          <section className="small-modal" onClick={(event) => event.stopPropagation()}>
+            <ModalHead title="举报" subtitle={`${reportTarget.type} · ${reportTarget.title}`} onClose={() => setReportTarget(null)} />
+            <div className="report-reasons">
+              {["广告", "骚扰", "不实信息", "其他"].map((reason) => (
+                <button key={reason} onClick={() => setReportTarget(null)}>{reason}</button>
+              ))}
+            </div>
+          </section>
+        </div>
+      )}
+    </div>
   );
 }
->>>>>>> 927f6112ca4494b01a4ae0609f381b865bc65442
-
-function renderSegment(label, key, options) {
   return (
     <section className="setting-block">
       <div>
