@@ -13,6 +13,8 @@ public final class AuthDtos {
                                   @NotBlank @Size(min = 8, max = 64) String password,
                                   @NotBlank @Size(min = 2, max = 30) String nickname) {}
     public record LoginRequest(@NotBlank @Email String email, @NotBlank String password) {}
+    public record ResetPasswordRequest(@NotBlank @Email String email, @NotBlank String code,
+                                       @NotBlank @Size(min = 8, max = 64) String newPassword) {}
     public record UserView(Long id, String email, String nickname, String avatarUrl,
                            String college, String grade, String bio) {}
     public record LoginResponse(String accessToken, String refreshToken, int expiresIn, UserView user) {}

@@ -48,6 +48,7 @@ mvn test
 POST /api/v1/auth/email-code       发送注册验证码
 POST /api/v1/auth/register         校内邮箱注册
 POST /api/v1/auth/login            校内邮箱和密码登录
+POST /api/v1/auth/reset-password   邮箱验证码重置密码
 GET  /api/v1/auth/me               获取当前登录用户摘要
 GET  /api/v1/users/me/profile      获取可编辑个人资料
 PUT  /api/v1/users/me/profile      更新个人资料
@@ -80,7 +81,7 @@ controller/       HTTP 路由和参数接收
 service/          可见性、关系、频道和聊天等业务规则
 repository/       与存储方式无关的数据接口
 repository/mock/  当前可运行的内存实现
-repository/mysql/ 用户、笔记、通知和隐私设置的 MySQL 实现
+repository/mysql/ 全部业务 Repository 的 MySQL 实现
 domain/           核心业务对象和枚举
 dto/              请求与响应对象
 security/         Bearer Token 解析和当前用户
@@ -114,9 +115,9 @@ Remove-Item Env:MYSQL_PWD
 
 ### 当前数据库接入进度
 
-已使用 MySQL 持久化：注册和登录账号、个人资料、关注与拉黑、笔记、标签、图片地址、评论、点赞、收藏、通知和隐私设置。以上数据在后端重启后不会丢失。
+已使用 MySQL 持久化：账号与登录令牌、注册验证码、个人资料、关注与拉黑、笔记、标签、图片、评论、点赞、收藏、通知、隐私设置、频道及帖子、聊天及已读状态、举报和推荐反馈。使用 `mysql` Profile 时，现有业务 API 不再依赖进程内数据，后端重启后数据仍然保留。
 
-频道和聊天 API 暂时继续使用内存 Repository；访问令牌、验证码、举报和推荐反馈也仍是进程内状态。下一阶段将继续迁移这些模块。
+`mock` Profile 仍保留内存实现，供不安装数据库时快速预览和运行自动化测试；其接口格式与 MySQL 模式一致。
 
 本机启动：
 

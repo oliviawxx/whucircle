@@ -30,6 +30,7 @@ import {
   login as apiLogin,
   register as apiRegister,
   sendEmailCode as apiSendCode,
+  resetPassword as apiResetPassword,
   getMe,
   logout as apiLogout,
 } from "./api/auth.js";
@@ -91,6 +92,7 @@ export function App() {
   const [authMode, setAuthMode] = useState("登录");
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
+  const [authPasswordConfirm, setAuthPasswordConfirm] = useState("");
   const [authCode, setAuthCode] = useState("");
   const [codeSent, setCodeSent] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
@@ -380,10 +382,9 @@ export function App() {
   function handleSendCode() {
     setAuthError("");
     setAuthLoading(true);
-    apiSendCode(authEmail)
+    apiSendCode(authEmail, authMode === "找回密码" ? "RESET_PASSWORD" : "REGISTER")
       .then((data) => {
         setCodeSent(true);
-        if (data?.mockCode) setAuthCode(data.mockCode);
       })
       .catch((err) => setAuthError(err.message))
       .finally(() => setAuthLoading(false));
@@ -407,12 +408,40 @@ export function App() {
       setAuthError("密码至少 8 位");
       return;
     }
+    if (authPassword !== authPasswordConfirm) {
+      setAuthError("两次输入的密码不一致");
+      return;
+    }
     setAuthLoading(true);
     const nickname = authEmail.split("@")[0];
     apiRegister(authEmail, authCode, authPassword, nickname)
       .then((data) => {
         setCurrentUser(fromApiUser(data.user));
         setLoggedIn(true);
+      })
+      .catch((err) => setAuthError(err.message))
+      .finally(() => setAuthLoading(false));
+  }
+
+  function handleResetPassword() {
+    setAuthError("");
+    if (authPassword.length < 8) {
+      setAuthError("密码至少 8 位");
+      return;
+    }
+    if (authPassword !== authPasswordConfirm) {
+      setAuthError("两次输入的密码不一致");
+      return;
+    }
+    setAuthLoading(true);
+    apiResetPassword(authEmail, authCode, authPassword)
+      .then(() => {
+        setAuthMode("登录");
+        setAuthPassword("");
+        setAuthPasswordConfirm("");
+        setAuthCode("");
+        setCodeSent(false);
+        setAuthError("密码已重置，请使用新密码登录");
       })
       .catch((err) => setAuthError(err.message))
       .finally(() => setAuthLoading(false));
@@ -436,7 +465,8 @@ export function App() {
 
   function handleAuthSubmit() {
     if (authMode === "登录") handleLogin();
-    else handleRegister();
+    else if (authMode === "注册") handleRegister();
+    else handleResetPassword();
   }
 
   function handleLogout() {
@@ -797,6 +827,7 @@ export function App() {
         mode={authMode}
         email={authEmail}
         password={authPassword}
+        passwordConfirm={authPasswordConfirm}
         code={authCode}
         codeSent={codeSent}
         authError={authError}
@@ -804,13 +835,22 @@ export function App() {
         onModeChange={(mode) => {
           setAuthMode(mode);
           setAuthError("");
+          setAuthPasswordConfirm("");
+          setAuthCode("");
+          setCodeSent(false);
         }}
         onEmailChange={setAuthEmail}
         onPasswordChange={setAuthPassword}
+        onPasswordConfirmChange={setAuthPasswordConfirm}
         onCodeChange={setAuthCode}
         onSendCode={handleSendCode}
         onEnter={handleAuthSubmit}
         onDemoEntry={handleDemoEntry}
+        onForgotPassword={() => {
+          setAuthMode("找回密码");
+          setAuthError("");
+          setAuthPassword("");
+        }}
         onKeyDown={(event) => {
           if (event.key === "Enter") handleAuthSubmit();
         }}

@@ -17,7 +17,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Repository
-@Profile({"mock", "mysql"})
+@Profile("mock")
 public class InMemoryChatRepository implements ChatRepository {
     private final Map<Long, Conversation> conversations = new ConcurrentHashMap<>();
     private final Map<Long, List<ChatMessage>> messages = new ConcurrentHashMap<>();

@@ -6,6 +6,7 @@ import com.whucircle.dto.AuthDtos.EmailCodeResponse;
 import com.whucircle.dto.AuthDtos.LoginRequest;
 import com.whucircle.dto.AuthDtos.LoginResponse;
 import com.whucircle.dto.AuthDtos.RegisterRequest;
+import com.whucircle.dto.AuthDtos.ResetPasswordRequest;
 import com.whucircle.dto.AuthDtos.UserView;
 import com.whucircle.security.CurrentUser;
 import com.whucircle.service.AuthService;
@@ -39,6 +40,12 @@ public class AuthController {
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         return ApiResponse.success(authService.login(request.email(), request.password()));
+    }
+
+    @PostMapping("/reset-password")
+    public ApiResponse<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request.email(), request.code(), request.newPassword());
+        return ApiResponse.success();
     }
 
     @GetMapping("/me")

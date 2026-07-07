@@ -19,7 +19,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Repository
-@Profile({"mock", "mysql"})
+@Profile("mock")
 public class InMemoryChannelRepository implements ChannelRepository {
     private final Map<Long, Channel> channels = new ConcurrentHashMap<>();
     private final Map<Long, ChannelPost> posts = new ConcurrentHashMap<>();

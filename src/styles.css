@@ -533,6 +533,27 @@ button {
   border-radius: 50%;
 }
 
+.auth-back,
+.forgot-password {
+  width: fit-content;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--primary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.auth-back {
+  margin-bottom: 18px;
+}
+
+.forgot-password {
+  margin-top: -8px;
+  align-self: flex-end;
+}
+
 .notification-wrap {
   position: relative;
 }

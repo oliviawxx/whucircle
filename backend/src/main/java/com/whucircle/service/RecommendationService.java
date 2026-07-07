@@ -16,6 +16,9 @@ import com.whucircle.repository.ChannelRepository;
 import com.whucircle.repository.NoteRepository;
 import com.whucircle.repository.UserRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.core.env.Environment;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -31,11 +34,15 @@ public class RecommendationService {
     private final NoteRepository notes;
     private final ChannelRepository channels;
     private final AtomicLong feedbackIds = new AtomicLong(10000);
+    private final JdbcClient jdbc;
+    private final boolean mysql;
 
-    public RecommendationService(UserRepository users, NoteRepository notes, ChannelRepository channels) {
+    public RecommendationService(UserRepository users, NoteRepository notes, ChannelRepository channels, ObjectProvider<JdbcClient> jdbc, Environment environment) {
         this.users = users;
         this.notes = notes;
         this.channels = channels;
+        this.jdbc=jdbc.getIfAvailable();
+        this.mysql=java.util.Arrays.asList(environment.getActiveProfiles()).contains("mysql");
     }
 
     public PageData<RecommendationCardView> home(Long currentUserId, int page, int size) {
@@ -84,6 +91,13 @@ public class RecommendationService {
 
     public RecommendationFeedbackResponse feedback(Long currentUserId, RecommendationFeedbackRequest request) {
         requireUser(currentUserId);
+        if(mysql){
+            jdbc.sql("INSERT INTO recommendation_feedback(user_id,scene,target_type,target_id,action,detail) VALUES(:user,:scene,:type,:target,:action,:detail)")
+                    .param("user",currentUserId).param("scene",request.scene()).param("type",request.targetType()).param("target",request.targetId())
+                    .param("action",request.action()).param("detail",request.detail()==null?"":request.detail()).update();
+            Long id=jdbc.sql("SELECT LAST_INSERT_ID()").query(Long.class).single();
+            return new RecommendationFeedbackResponse(id,"ACCEPTED",OffsetDateTime.now());
+        }
         return new RecommendationFeedbackResponse(feedbackIds.getAndIncrement(), "ACCEPTED", OffsetDateTime.now());
     }
 

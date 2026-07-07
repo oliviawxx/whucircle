@@ -41,19 +41,24 @@ public class AuthService {
 
     public EmailCodeResponse sendCode(String email, String scene) {
         String normalizedEmail = normalizeAndValidateCampusEmail(email);
-        if (!"REGISTER".equalsIgnoreCase(scene)) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "当前仅支持 REGISTER 验证码场景");
+        String normalizedScene = scene.toUpperCase();
+        if (!Set.of("REGISTER", "RESET_PASSWORD").contains(normalizedScene)) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "不支持的验证码场景");
         }
-        if (users.findByEmail(normalizedEmail).isPresent()) {
+        boolean exists = users.findByEmail(normalizedEmail).isPresent();
+        if ("REGISTER".equals(normalizedScene) && exists) {
             throw new BusinessException(ErrorCode.CONFLICT, "该邮箱已注册");
         }
-        return verificationCodes.send(normalizedEmail);
+        if ("RESET_PASSWORD".equals(normalizedScene) && !exists) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "账号不存在，请先注册账号");
+        }
+        return verificationCodes.send(normalizedEmail, normalizedScene);
     }
 
     public LoginResponse register(String email, String code, String password, String nickname) {
         String normalizedEmail = normalizeAndValidateCampusEmail(email);
         if (users.findByEmail(normalizedEmail).isPresent()) throw new BusinessException(ErrorCode.CONFLICT, "该邮箱已注册");
-        verificationCodes.verifyAndConsume(normalizedEmail, code);
+        verificationCodes.verifyAndConsume(normalizedEmail, code, "REGISTER");
         User user = users.save(new User(null, normalizedEmail, passwordEncoder.encode(password), nickname.trim(),
                 "", "待完善", "待完善", ""));
         return issueTokens(user);
@@ -62,9 +67,20 @@ public class AuthService {
     public LoginResponse login(String email, String password) {
         String normalizedEmail = normalizeAndValidateCampusEmail(email);
         User user = users.findByEmail(normalizedEmail)
-                .filter(found -> passwordEncoder.matches(password, found.passwordHash()))
-                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_CREDENTIALS));
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "账号不存在，请先注册账号"));
+        if (!passwordEncoder.matches(password, user.passwordHash())) {
+            throw new BusinessException(ErrorCode.INVALID_CREDENTIALS, "密码错误");
+        }
         return issueTokens(user);
+    }
+
+    public void resetPassword(String email, String code, String newPassword) {
+        String normalizedEmail = normalizeAndValidateCampusEmail(email);
+        User user = users.findByEmail(normalizedEmail)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "账号不存在，请先注册账号"));
+        verificationCodes.verifyAndConsume(normalizedEmail, code, "RESET_PASSWORD");
+        users.save(new User(user.id(), user.email(), passwordEncoder.encode(newPassword), user.nickname(),
+                user.avatarUrl(), user.college(), user.grade(), user.bio()));
     }
 
     public UserView me(Long userId) {

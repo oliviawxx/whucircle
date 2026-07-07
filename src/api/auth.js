@@ -1,9 +1,16 @@
 import { request, setToken, getToken } from "./client.js";
 
-export async function sendEmailCode(email) {
+export async function sendEmailCode(email, scene = "REGISTER") {
   return request("/auth/email-code", {
     method: "POST",
-    body: JSON.stringify({ email, scene: "REGISTER" }),
+    body: JSON.stringify({ email, scene }),
+  });
+}
+
+export async function resetPassword(email, code, newPassword) {
+  return request("/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ email, code, newPassword }),
   });
 }
 
