@@ -17,8 +17,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
 @AutoConfigureMockMvc
+@SpringBootTest
 class ApiIntegrationTest {
     private static final String AUTH = "Bearer demo-access-token";
 
@@ -255,5 +255,27 @@ class ApiIntegrationTest {
         mockMvc.perform(get("/api/v1/notifications/count").header("Authorization", AUTH))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.unreadCount").value(0));
+    }
+
+    @Test
+    void recommendationApisReturnScoredCards() throws Exception {
+        mockMvc.perform(get("/api/v1/recommendations/home").header("Authorization", AUTH))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items").isArray())
+                .andExpect(jsonPath("$.data.items[0].type").exists())
+                .andExpect(jsonPath("$.data.items[0].reason").exists());
+
+        mockMvc.perform(get("/api/v1/recommendations/notes").header("Authorization", AUTH))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].type").value("NOTE"));
+
+        mockMvc.perform(post("/api/v1/recommendations/feedback")
+                        .header("Authorization", AUTH)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"scene":"HOME","targetType":"NOTE","targetId":105,"action":"CLICK","detail":"先联调"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("ACCEPTED"));
     }
 }

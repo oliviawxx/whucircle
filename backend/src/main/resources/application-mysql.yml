@@ -3,9 +3,15 @@ spring:
     activate:
       on-profile: mysql
   datasource:
-    url: ${DB_URL}
-    username: ${DB_USERNAME}
+    url: ${DB_URL:jdbc:mysql://127.0.0.1:3306/whu_circle?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${DB_USERNAME:whu_circle}
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 5000
 
-# C 同学接入数据库时再加入 spring-boot-starter-data-jpa、mysql-connector-j 和迁移脚本。
+whu-circle:
+  mail:
+    mode: mock

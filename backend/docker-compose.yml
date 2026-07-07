@@ -13,6 +13,7 @@ services:
       - "127.0.0.1:3306:3306"
     volumes:
       - whu_circle_mysql_data:/var/lib/mysql
+      - ./sql:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-root-password}"]
       interval: 10s

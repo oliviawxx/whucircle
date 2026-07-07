@@ -80,6 +80,7 @@ controller/       HTTP 路由和参数接收
 service/          可见性、关系、频道和聊天等业务规则
 repository/       与存储方式无关的数据接口
 repository/mock/  当前可运行的内存实现
+repository/mysql/ 用户、笔记、通知和隐私设置的 MySQL 实现
 domain/           核心业务对象和枚举
 dto/              请求与响应对象
 security/         Bearer Token 解析和当前用户
@@ -87,16 +88,57 @@ config/           CORS、Swagger、拦截器注册
 common/           统一响应、分页、错误码和异常处理
 ```
 
-数据库接入时保留 Controller、DTO 和 Service，新增 `repository/mysql/` 实现 Repository 接口。
+Controller、DTO 和 Service 在 mock/MySQL 两种模式下保持同一套接口格式。
 
-## MySQL 容器
+## 本地 MySQL
 
-数据库成员可以先复制环境变量示例，再启动 MySQL 8.4：
+本机已使用现有 MySQL 服务初始化 `whu_circle` 数据库。数据库只监听本机 `3306` 端口，项目使用账号为 `whu_circle`，密码保存在被 Git 忽略的 `.env` 中。
 
-```powershell
-Copy-Item .env.example .env
-docker compose up -d
-docker compose ps
+数据库结构位于：
+
+```text
+sql/001_schema.sql  24 张业务表、索引、约束和外键
+sql/002_seed.sql    可重复执行的用户、笔记、频道、聊天示例数据
+sql/README.md       初始化、检查和重建说明
 ```
 
-当前 `mysql` Profile 只预留连接配置，尚未加入 JPA 驱动和 Repository 实现。完成数据库代码前不要切换 Profile。
+检查本机数据库：
+
+```powershell
+$env:MYSQL_PWD="你的应用账号密码"
+& "D:\sql\mysql-9.7.1-winx64\bin\mysql.exe" `
+  -u whu_circle -h 127.0.0.1 -P 3306 --protocol=tcp `
+  -e "USE whu_circle; SHOW TABLES;"
+Remove-Item Env:MYSQL_PWD
+```
+
+### 当前数据库接入进度
+
+已使用 MySQL 持久化：注册和登录账号、个人资料、关注与拉黑、笔记、标签、图片地址、评论、点赞、收藏、通知和隐私设置。以上数据在后端重启后不会丢失。
+
+频道和聊天 API 暂时继续使用内存 Repository；访问令牌、验证码、举报和推荐反馈也仍是进程内状态。下一阶段将继续迁移这些模块。
+
+本机启动：
+
+```powershell
+cd D:\whu-circle-prototype\backend
+mvn spring-boot:run "-Dspring-boot.run.profiles=mysql"
+```
+
+测试账号为 `student@whu.edu.cn`，密码为 `example123`。
+
+### 队友使用 Docker
+
+安装并启动 Docker Desktop 后：
+
+```powershell
+git pull origin main
+cd backend
+Copy-Item .env.example .env
+docker compose up -d
+mvn spring-boot:run "-Dspring-boot.run.profiles=mysql"
+```
+
+首次创建 Docker 数据卷时会自动执行 `sql/001_schema.sql` 和 `sql/002_seed.sql`。如果数据卷已经存在，MySQL 不会重复自动初始化；需要人工执行脚本或删除不再需要的旧数据卷后重建。
+
+`docker-compose.yml` 作为其他成员未来创建独立本地 MySQL 的可选方案保留；当前展示电脑直接使用已安装的 MySQL 服务，不依赖 Docker。
