@@ -85,6 +85,7 @@ import {
   report as apiReport,
 } from "./api/users.js";
 import { getPrivacy, updatePrivacy as apiUpdatePrivacy } from "./api/settings.js";
+import { uploadImage } from "./api/files.js";
 import { AuthPage } from "./components/auth/AuthPage.jsx";
 import { ModalHead } from "./components/common/ModalHead.jsx";
 import { Sidebar } from "./components/layout/Sidebar.jsx";
@@ -200,6 +201,9 @@ export function App() {
   const [draftText, setDraftText] = useState("");
   const [draftVisibility, setDraftVisibility] = useState("公开");
   const [imageCount, setImageCount] = useState(0);
+  const [draftImages, setDraftImages] = useState([]);
+  const [draftUploading, setDraftUploading] = useState(false);
+  const [draftError, setDraftError] = useState("");
 
   // ── 弹窗状态 ──
   const [detailNote, setDetailNote] = useState(null);
@@ -800,23 +804,83 @@ export function App() {
       .catch(() => {});
   }
 
-  function createNote() {
-    if (!draftTitle.trim() && !draftText.trim() && imageCount === 0) return;
-    apiCreateNote({
-      title: draftTitle.trim() || "今天的校园记录",
-      content: draftText.trim() || "分享了一张校园图片。",
-      visibility: VIS_REV[draftVisibility] || "PUBLIC",
-      tags: ["校园生活"],
-    })
-      .then((apiNote) => {
-        setNotes((items) => [mapNote(apiNote), ...items]);
-        setDraftTitle("");
-        setDraftText("");
-        setImageCount(0);
-        setDraftOpen(false);
-        setActiveNav(draftVisibility === "公开" ? "主页" : "社交圈");
-      })
-      .catch(() => {});
+  function resetDraft() {
+    draftImages.forEach((image) => URL.revokeObjectURL(image.previewUrl));
+    setDraftTitle("");
+    setDraftText("");
+    setImageCount(0);
+    setDraftImages([]);
+    setDraftError("");
+    setDraftUploading(false);
+  }
+
+  function closeDraft() {
+    resetDraft();
+    setDraftOpen(false);
+  }
+
+  function addDraftImages(files) {
+    const selected = Array.from(files || []);
+    if (!selected.length) return;
+    setDraftError("");
+    const slots = Math.max(9 - draftImages.length, 0);
+    const valid = selected
+      .filter((file) => file.type.startsWith("image/"))
+      .slice(0, slots)
+      .map((file) => ({
+        id: `${Date.now()}-${file.name}-${Math.random()}`,
+        file,
+        name: file.name,
+        previewUrl: URL.createObjectURL(file),
+      }));
+    if (selected.length > slots) {
+      setDraftError("一篇笔记最多上传 9 张图片");
+    } else if (valid.length !== selected.length) {
+      setDraftError("只能选择图片文件");
+    }
+    setDraftImages((items) => [...items, ...valid]);
+    setImageCount((count) => count + valid.length);
+  }
+
+  function removeDraftImage(imageId) {
+    setDraftImages((items) => {
+      const target = items.find((image) => image.id === imageId);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      const next = items.filter((image) => image.id !== imageId);
+      setImageCount(next.length);
+      return next;
+    });
+  }
+
+  async function createNote() {
+    if (draftUploading) return;
+    if (!draftTitle.trim() && !draftText.trim() && draftImages.length === 0) return;
+    setDraftUploading(true);
+    setDraftError("");
+    try {
+      const uploadedImages = await Promise.all(
+        draftImages.map((image) => uploadImage(image.file)),
+      );
+      const imageUrls = uploadedImages.map((image) => image.url);
+      const apiNote = await apiCreateNote({
+        title: draftTitle.trim() || "今天的校园记录",
+        content: draftText.trim() || (imageUrls.length ? "分享了一组校园图片。" : "分享了一张校园图片。"),
+        visibility: VIS_REV[draftVisibility] || "PUBLIC",
+        imageUrls,
+        tags: ["校园生活"],
+      });
+      setNotes((items) => [mapNote(apiNote), ...items]);
+      if (apiNote.visibility === "FRIENDS") {
+        setSocialFeedNotes((items) => [mapNote(apiNote), ...items]);
+      }
+      resetDraft();
+      setDraftOpen(false);
+      setActiveNav(draftVisibility === "公开" ? "主页" : "社交圈");
+    } catch (err) {
+      setDraftError(err.message || "图片上传失败，请稍后重试");
+    } finally {
+      setDraftUploading(false);
+    }
   }
 
   // ── 频道操作 ──
@@ -1240,7 +1304,10 @@ export function App() {
     open: draftOpen,
     title: draftTitle,
     text: draftText,
-    imageCount,
+    imageCount: draftImages.length,
+    images: draftImages,
+    uploading: draftUploading,
+    error: draftError,
     visibility: draftVisibility,
   };
 
@@ -1600,7 +1667,9 @@ export function App() {
         reportTarget={reportTarget}
         onDraftChange={handleDraftChange}
         onCreateNote={createNote}
-        onCloseDraft={() => setDraftOpen(false)}
+        onCloseDraft={closeDraft}
+        onAddDraftImages={addDraftImages}
+        onRemoveDraftImage={removeDraftImage}
         onCloseJoin={() => {
           setJoinChannel(null);
           setJoinPassword("");

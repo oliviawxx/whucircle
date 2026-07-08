@@ -373,6 +373,7 @@ button {
 .chat-input button,
 .modal-head button,
 .draft-tools button,
+.draft-tools label,
 .submit-note,
 .profile-line button,
 .segmented button,
@@ -1780,7 +1781,8 @@ button {
   gap: 12px;
 }
 
-.draft-tools button {
+.draft-tools button,
+.draft-tools label {
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -1790,6 +1792,65 @@ button {
   background: #f8fafc;
   border: 1px solid var(--line);
   border-radius: 8px;
+  cursor: pointer;
+}
+
+.draft-tools label.disabled {
+  color: #9aa5b5;
+  cursor: not-allowed;
+}
+
+.draft-tools input[type="file"] {
+  display: none;
+}
+
+.draft-image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 10px;
+}
+
+.draft-image-grid figure {
+  position: relative;
+  aspect-ratio: 1;
+  margin: 0;
+  overflow: hidden;
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.draft-image-grid img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.draft-image-grid button {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+  background: rgba(15, 23, 42, 0.72);
+  border: 0;
+  border-radius: 50%;
+}
+
+.form-error {
+  margin: -2px 0 0;
+  color: #9f1d2f;
+  font-size: 13px;
+}
+
+.submit-note:disabled {
+  opacity: 0.65;
+  cursor: wait;
 }
 
 .detail-image {

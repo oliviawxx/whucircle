@@ -11,6 +11,10 @@ spring:
   jackson:
     default-property-inclusion: non_null
     time-zone: Asia/Shanghai
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 45MB
 
 whu-circle:
   auth:
@@ -20,6 +24,8 @@ whu-circle:
     max-code-attempts: 5
   mail:
     mode: mock
+  upload:
+    image-dir: ${UPLOAD_IMAGE_DIR:uploads/images}
 
 springdoc:
   swagger-ui:

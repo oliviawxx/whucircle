@@ -10,6 +10,8 @@ export function AppModals({
   onDraftChange,
   onCreateNote,
   onCloseDraft,
+  onAddDraftImages,
+  onRemoveDraftImage,
   onCloseJoin,
   onClosePost,
   onCloseProfile,
@@ -45,10 +47,20 @@ export function AppModals({
               placeholder="分享你想记录的内容..."
             />
             <div className="draft-tools">
-              <button onClick={() => onDraftChange("imageCount", Math.min(draft.imageCount + 1, 3))}>
+              <label className={draft.imageCount >= 9 ? "disabled" : ""}>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif,image/webp"
+                  multiple
+                  disabled={draft.imageCount >= 9 || draft.uploading}
+                  onChange={(event) => {
+                    onAddDraftImages(event.target.files);
+                    event.target.value = "";
+                  }}
+                />
                 <Image size={18} />
                 图片 {draft.imageCount > 0 ? draft.imageCount : ""}
-              </button>
+              </label>
               <div className="segmented compact">
                 {["公开", "好友可见", "私密"].map((item) => (
                   <button
@@ -61,7 +73,26 @@ export function AppModals({
                 ))}
               </div>
             </div>
-            <button className="submit-note" onClick={onCreateNote}>发布</button>
+            {draft.images.length > 0 && (
+              <div className="draft-image-grid">
+                {draft.images.map((image) => (
+                  <figure key={image.id}>
+                    <img src={image.previewUrl} alt={image.name} />
+                    <button
+                      title="移除图片"
+                      disabled={draft.uploading}
+                      onClick={() => onRemoveDraftImage(image.id)}
+                    >
+                      ×
+                    </button>
+                  </figure>
+                ))}
+              </div>
+            )}
+            {draft.error && <p className="form-error">{draft.error}</p>}
+            <button className="submit-note" disabled={draft.uploading} onClick={onCreateNote}>
+              {draft.uploading ? "上传中..." : "发布"}
+            </button>
           </section>
         </div>
       )}

@@ -250,13 +250,23 @@ POST /api/v1/reports
 - `CHANNEL_POST`
 - `MESSAGE`
 
-### 8.4 图片上传占位
+### 8.4 图片上传
 
 ```http
 POST /api/v1/files/images
 ```
 
-当前图片上传仍属于展示版占位能力。后续如果接入对象存储或服务器本地文件目录，需要再确认存储策略。
+当前本地联调版本会把图片保存到后端本机 `uploads/images` 目录，并返回可访问地址，例如：
+
+```json
+{
+  "url": "/uploads/images/2026/07/xxxx.png"
+}
+```
+
+前端发布笔记时先上传图片，再把返回的 URL 放入 `imageUrls` 提交给 `/notes`。MySQL 只保存图片 URL 和排序信息，不保存图片二进制内容。`uploads` 目录已被 Git 忽略，不要提交本地上传文件。
+
+后续如果部署到线上，可把本地目录替换为对象存储，接口返回格式保持不变。
 
 ## 9. 推荐接口
 
