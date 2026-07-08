@@ -86,6 +86,13 @@ import {
 } from "./api/users.js";
 import { getPrivacy, updatePrivacy as apiUpdatePrivacy } from "./api/settings.js";
 import { uploadImage } from "./api/files.js";
+import {
+  getAdminDashboard,
+  setAdminUserStatus,
+  setAdminChannelStatus,
+  deleteAdminNote,
+  deleteAdminChannelPost,
+} from "./api/admin.js";
 import { AuthPage } from "./components/auth/AuthPage.jsx";
 import { ModalHead } from "./components/common/ModalHead.jsx";
 import { Sidebar } from "./components/layout/Sidebar.jsx";
@@ -98,6 +105,7 @@ import { ChatsPage } from "./pages/ChatsPage.jsx";
 import { ProfilePage } from "./pages/ProfilePage.jsx";
 import { SavedPage } from "./pages/SavedPage.jsx";
 import { SettingsPage } from "./pages/SettingsPage.jsx";
+import { AdminPage } from "./pages/AdminPage.jsx";
 import {
   currentUser as DEMO_USER_RAW,
   initialNotes,
@@ -181,6 +189,8 @@ export function App() {
   const [profileData, setProfileData] = useState(null);
   const [relationsData, setRelationsData] = useState([]);
   const [blockedRelations, setBlockedRelations] = useState([]);
+  const [adminDashboard, setAdminDashboard] = useState(null);
+  const [adminLoading, setAdminLoading] = useState(false);
 
   // ── UI 状态 ──
   const [activeNav, setActiveNav] = useState("主页");
@@ -294,6 +304,7 @@ export function App() {
 
   // ── 工具函数 ──
   function goTo(label) {
+    if (label === "全站管理" && currentUser.role !== "ADMIN") return;
     setActiveNav(label);
     setUserMenuOpen(false);
   }
@@ -304,6 +315,8 @@ export function App() {
       meta: `${user.grade || "待完善"} · ${user.college || "待完善"}`,
       avatar: user.avatarUrl || DEFAULT_AVATAR,
       id: user.id,
+      role: user.role || "USER",
+      status: user.status || "ACTIVE",
     };
   }
 
@@ -508,6 +521,8 @@ export function App() {
         meta: `${profileDataRes?.grade || ""} · ${profileDataRes?.college || ""}`,
         avatar: profileDataRes?.avatarUrl || DEFAULT_AVATAR,
         id: profileDataRes?.id,
+        role: profileDataRes?.role || currentUser.role || "USER",
+        status: profileDataRes?.status || currentUser.status || "ACTIVE",
       });
       setProfileData(profileDataRes);
       setRelationsData(relationsDataRes || []);
@@ -562,6 +577,12 @@ export function App() {
   useEffect(() => {
     if (loggedIn) loadAllData();
   }, [loggedIn]);
+
+  useEffect(() => {
+    if (loggedIn && activeNav === "全站管理" && currentUser.role === "ADMIN") {
+      loadAdminDashboard();
+    }
+  }, [loggedIn, activeNav, currentUser.role]);
 
   // ── 初始化 activeChatId ──
   useEffect(() => {
@@ -679,6 +700,7 @@ export function App() {
     setCurrentUser(DEMO_USER);
     setLoggedIn(false);
     setActiveNav("主页");
+    setAdminDashboard(null);
   }
 
   // ── 笔记操作 ──
@@ -1130,6 +1152,58 @@ export function App() {
       );
   }
 
+  function loadAdminDashboard() {
+    if (currentUser.role !== "ADMIN") return;
+    setAdminLoading(true);
+    getAdminDashboard()
+      .then(setAdminDashboard)
+      .catch(() => {})
+      .finally(() => setAdminLoading(false));
+  }
+
+  function updateAdminUserStatus(userId, status) {
+    setAdminLoading(true);
+    setAdminUserStatus(userId, status)
+      .then(loadAdminDashboard)
+      .catch(() => {})
+      .finally(() => setAdminLoading(false));
+  }
+
+  function updateAdminChannelStatus(channelId, status) {
+    setAdminLoading(true);
+    setAdminChannelStatus(channelId, status)
+      .then(() => {
+        loadAdminDashboard();
+        loadAllData();
+      })
+      .catch(() => {})
+      .finally(() => setAdminLoading(false));
+  }
+
+  function removeAdminNote(noteId) {
+    deleteAdminNote(noteId)
+      .then(() => {
+        setNotes((items) => items.filter((note) => note.id !== noteId));
+        setSocialFeedNotes((items) => items.filter((note) => note.id !== noteId));
+        loadAdminDashboard();
+      })
+      .catch(() => {});
+  }
+
+  function removeAdminChannelPost(postId) {
+    deleteAdminChannelPost(postId)
+      .then(() => {
+        setChannels((items) =>
+          items.map((channel) => ({
+            ...channel,
+            posts: channel.posts.filter((post) => String(post.id) !== String(postId)),
+          })),
+        );
+        loadAdminDashboard();
+      })
+      .catch(() => {});
+  }
+
   function updatePrivacyField(key, value) {
     setPrivacy((items) => ({ ...items, [key]: value }));
     if (key === "noteVisibility") setDraftVisibility(value);
@@ -1438,6 +1512,19 @@ export function App() {
             onThemeChange={setActiveTheme}
           />
         );
+      case "全站管理":
+        if (currentUser.role !== "ADMIN") return <div className="empty-state">仅全站管理员可访问。</div>;
+        return (
+          <AdminPage
+            dashboard={adminDashboard}
+            loading={adminLoading}
+            onRefresh={loadAdminDashboard}
+            onUserStatus={updateAdminUserStatus}
+            onChannelStatus={updateAdminChannelStatus}
+            onDeleteNote={removeAdminNote}
+            onDeletePost={removeAdminChannelPost}
+          />
+        );
       default:
         return null;
     }
@@ -1498,6 +1585,7 @@ export function App() {
         onOpenDraft={() => setDraftOpen(true)}
         onToggleMenu={() => setUserMenuOpen((v) => !v)}
         onLogout={handleLogout}
+        isAdmin={currentUser.role === "ADMIN"}
       />
 
       <main className="content">

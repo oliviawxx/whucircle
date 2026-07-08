@@ -1,6 +1,8 @@
 package com.whucircle.repository.mock;
 
 import com.whucircle.domain.Enums.RelationStatus;
+import com.whucircle.domain.Enums.AccountStatus;
+import com.whucircle.domain.Enums.UserRole;
 import com.whucircle.domain.User;
 import com.whucircle.repository.UserRepository;
 import org.springframework.context.annotation.Profile;
@@ -27,20 +29,22 @@ public class InMemoryUserRepository implements UserRepository {
     public InMemoryUserRepository(PasswordEncoder passwordEncoder) {
         saveSeed(new User(1L, "student@whu.edu.cn", passwordEncoder.encode("example123"), "小张",
                 "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=160&q=80",
-                "新闻与传播学院", "2024级", "记录校园生活和课程项目。"));
+                "新闻与传播学院", "2024级", "记录校园生活和课程项目。", UserRole.USER, AccountStatus.ACTIVE));
         saveSeed(new User(2L, "wind@whu.edu.cn", passwordEncoder.encode("example123"), "珞珈山下的风",
                 "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=160&q=80",
-                "计算机学院", "2023级", "喜欢散步和摄影。"));
+                "计算机学院", "2023级", "喜欢散步和摄影。", UserRole.USER, AccountStatus.ACTIVE));
         saveSeed(new User(3L, "cat@whu.edu.cn", passwordEncoder.encode("example123"), "东湖边的猫",
                 "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=160&q=80",
-                "外国语言文学学院", "2024级", "寻找学习搭子。"));
+                "外国语言文学学院", "2024级", "寻找学习搭子。", UserRole.USER, AccountStatus.ACTIVE));
         saveSeed(new User(4L, "orange@whu.edu.cn", passwordEncoder.encode("example123"), "一只小橘子",
                 "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=160&q=80",
-                "测绘学院", "2022级", "周末出行记录。"));
+                "测绘学院", "2022级", "周末出行记录。", UserRole.USER, AccountStatus.ACTIVE));
         saveSeed(new User(5L, "noodle@whu.edu.cn", passwordEncoder.encode("example123"), "热干面观察员",
                 "https://images.unsplash.com/photo-1527980965255-d3b416303d12?auto=format&fit=crop&w=160&q=80",
-                "经济与管理学院", "2023级", "认真吃饭，认真记录。"));
-        saveSeed(new User(6L, "lin@whu.edu.cn", passwordEncoder.encode("example123"), "林深时见鹿", "", "文学院", "2024级", ""));
+                "经济与管理学院", "2023级", "认真吃饭，认真记录。", UserRole.USER, AccountStatus.ACTIVE));
+        saveSeed(new User(6L, "lin@whu.edu.cn", passwordEncoder.encode("example123"), "林深时见鹿", "", "文学院", "2024级", "", UserRole.USER, AccountStatus.ACTIVE));
+        saveSeed(new User(99L, "admin@whu.edu.cn", passwordEncoder.encode("example123"), "全站管理员", "", "平台管理组", "管理员",
+                "负责内容治理、账号和频道管理。", UserRole.ADMIN, AccountStatus.ACTIVE));
 
         follow(1L, 2L);
         follow(2L, 1L);
@@ -62,7 +66,7 @@ public class InMemoryUserRepository implements UserRepository {
     }
     @Override public User save(User user) {
         User saved = user.id() == null
-                ? new User(ids.getAndIncrement(), user.email(), user.passwordHash(), user.nickname(), user.avatarUrl(), user.college(), user.grade(), user.bio())
+                ? new User(ids.getAndIncrement(), user.email(), user.passwordHash(), user.nickname(), user.avatarUrl(), user.college(), user.grade(), user.bio(), user.role(), user.status())
                 : user;
         users.put(saved.id(), saved);
         return saved;

@@ -6,6 +6,7 @@
 
 - `001_schema.sql`：创建 `whu_circle` 数据库、业务表和应用账号。
 - `002_seed.sql`：写入演示用户、笔记、频道、聊天、通知等数据。
+- `003_admin_migration.sql`：为已经初始化过的旧库补充全站管理员字段和演示管理员账号。
 
 ## 初始化顺序
 
@@ -15,6 +16,12 @@ $env:MYSQL_PWD="你的 root 密码"
 Get-Content -Raw -Encoding utf8 sql\001_schema.sql | mysql -u root -h 127.0.0.1 -P 3306 --protocol=tcp --default-character-set=utf8mb4
 Get-Content -Raw -Encoding utf8 sql\002_seed.sql | mysql -u root -h 127.0.0.1 -P 3306 --protocol=tcp --default-character-set=utf8mb4
 Remove-Item Env:MYSQL_PWD
+```
+
+如果数据库是在全站管理员功能之前创建的，先额外执行一次迁移脚本：
+
+```powershell
+Get-Content -Raw -Encoding utf8 sql\003_admin_migration.sql | mysql -u root -h 127.0.0.1 -P 3306 --protocol=tcp --default-character-set=utf8mb4
 ```
 
 如果 MySQL 没有加入 PATH，把 `mysql` 替换为本机实际路径，例如：
@@ -39,5 +46,6 @@ DB_PASSWORD=你的本机数据库密码
 
 - 每位成员在自己的电脑上初始化自己的 MySQL。
 - 演示数据脚本可以重复执行。
+- 全站管理员演示账号为 `admin@whu.edu.cn`，密码为 `example123`。
 - 脚本不会清空真实注册账号，但会更新固定 demo id 的演示数据。
 - 如果要完全重建数据库，请先确认本机数据不再需要，再手动删除 `whu_circle` 后重新执行脚本。

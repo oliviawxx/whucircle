@@ -15,6 +15,7 @@ public interface ChannelRepository {
     List<ChannelPost> findPosts(Long channelId);
     Optional<ChannelPost> findPostById(Long postId);
     ChannelPost savePost(ChannelPost post);
+    void deletePost(Long postId);
     ChannelPost togglePostLike(Long postId, Long userId);
     List<ChannelReply> findReplies(Long postId);
     ChannelReply saveReply(ChannelReply reply);

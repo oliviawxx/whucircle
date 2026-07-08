@@ -35,7 +35,7 @@ public class UserService {
         if (users.isBlockedEitherWay(currentUserId, targetUserId)) throw new BusinessException(ErrorCode.FORBIDDEN, "拉黑关系下不能查看主页");
         User user = requireUser(targetUserId);
         return new UserProfile(user.id(), user.nickname(), user.avatarUrl(), user.college(), user.grade(),
-                user.bio(), users.relation(currentUserId, targetUserId));
+                user.bio(), users.relation(currentUserId, targetUserId), user.role(), user.status());
     }
 
     public CurrentUserProfile currentProfile(Long currentUserId) {
@@ -45,7 +45,8 @@ public class UserService {
     public CurrentUserProfile updateCurrentProfile(Long currentUserId, UpdateProfileRequest request) {
         User existing = requireUser(currentUserId);
         User updated = new User(existing.id(), existing.email(), existing.passwordHash(), request.nickname().trim(),
-                normalize(request.avatarUrl()), normalize(request.college()), normalize(request.grade()), normalize(request.bio()));
+                normalize(request.avatarUrl()), normalize(request.college()), normalize(request.grade()), normalize(request.bio()),
+                existing.role(), existing.status());
         return toCurrentProfile(users.save(updated));
     }
 
@@ -76,7 +77,7 @@ public class UserService {
     public List<UserProfile> blockedUsers(Long currentUserId) {
         return users.findBlockedUsers(currentUserId).stream()
                 .map(user -> new UserProfile(user.id(), user.nickname(), user.avatarUrl(), user.college(), user.grade(),
-                        user.bio(), RelationStatus.BLOCKED))
+                        user.bio(), RelationStatus.BLOCKED, user.role(), user.status()))
                 .toList();
     }
 
@@ -94,7 +95,8 @@ public class UserService {
                 .filter(other -> users.relation(user.id(), other.id()) == RelationStatus.FRIEND)
                 .count();
         return new CurrentUserProfile(user.id(), user.email(), user.nickname(), user.avatarUrl(),
-                user.college(), user.grade(), user.bio(), noteCount, followingCount, followerCount, friendCount);
+                user.college(), user.grade(), user.bio(), noteCount, followingCount, followerCount, friendCount,
+                user.role(), user.status());
     }
     private String normalize(String value) { return value == null ? "" : value.trim(); }
 }

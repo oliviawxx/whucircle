@@ -1,6 +1,8 @@
 package com.whucircle.repository.mysql;
 
 import com.whucircle.domain.Enums.RelationStatus;
+import com.whucircle.domain.Enums.AccountStatus;
+import com.whucircle.domain.Enums.UserRole;
 import com.whucircle.domain.User;
 import com.whucircle.repository.UserRepository;
 import org.springframework.context.annotation.Profile;
@@ -22,7 +24,7 @@ public class MySqlUserRepository implements UserRepository {
     public MySqlUserRepository(JdbcClient jdbc, DataSource dataSource) {
         this.jdbc = jdbc;
         this.userInsert = new SimpleJdbcInsert(dataSource).withTableName("users")
-                .usingColumns("email", "password_hash", "nickname", "avatar_url", "college", "grade", "bio")
+                .usingColumns("email", "password_hash", "nickname", "avatar_url", "college", "grade", "bio", "role", "status")
                 .usingGeneratedKeyColumns("id");
     }
 
@@ -37,15 +39,17 @@ public class MySqlUserRepository implements UserRepository {
             Number id = userInsert.executeAndReturnKey(Map.of(
                     "email", user.email(), "password_hash", user.passwordHash(), "nickname", user.nickname(),
                     "avatar_url", safe(user.avatarUrl()), "college", safe(user.college()),
-                    "grade", safe(user.grade()), "bio", safe(user.bio())));
+                    "grade", safe(user.grade()), "bio", safe(user.bio()), "role", user.role().name(),
+                    "status", user.status().name()));
             return findById(id.longValue()).orElseThrow();
         }
         jdbc.sql("""
                 UPDATE users SET email=:email,password_hash=:password,nickname=:nickname,avatar_url=:avatar,
-                college=:college,grade=:grade,bio=:bio WHERE id=:id
+                college=:college,grade=:grade,bio=:bio,role=:role,status=:status WHERE id=:id
                 """).params(Map.of("id", user.id(), "email", user.email(), "password", user.passwordHash(),
                 "nickname", user.nickname(), "avatar", safe(user.avatarUrl()), "college", safe(user.college()),
-                "grade", safe(user.grade()), "bio", safe(user.bio()))).update();
+                "grade", safe(user.grade()), "bio", safe(user.bio()), "role", user.role().name(),
+                "status", user.status().name())).update();
         return user;
     }
     @Override public List<User> findAll() { return jdbc.sql("SELECT * FROM users ORDER BY id").query(this::mapUser).list(); }
@@ -84,7 +88,8 @@ public class MySqlUserRepository implements UserRepository {
 
     private User mapUser(java.sql.ResultSet rs, int row) throws java.sql.SQLException {
         return new User(rs.getLong("id"), rs.getString("email"), rs.getString("password_hash"), rs.getString("nickname"),
-                rs.getString("avatar_url"), rs.getString("college"), rs.getString("grade"), rs.getString("bio"));
+                rs.getString("avatar_url"), rs.getString("college"), rs.getString("grade"), rs.getString("bio"),
+                UserRole.valueOf(rs.getString("role")), AccountStatus.valueOf(rs.getString("status")));
     }
     private boolean exists(String sql, Long a, Long b) {
         return jdbc.sql(sql).params(Map.of("a",a,"b",b)).query(Integer.class).single() > 0;

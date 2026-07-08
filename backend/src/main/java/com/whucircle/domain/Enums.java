@@ -9,6 +9,9 @@ public final class Enums {
     public enum ConversationType { PRIVATE, GROUP }
     public enum DirectMessagePermission { EVERYONE, FRIENDS_ONLY, NONE }
     public enum RelationStatus { NONE, FOLLOWING, FOLLOWER, FRIEND, BLOCKED }
+    public enum UserRole { USER, ADMIN }
+    public enum AccountStatus { ACTIVE, BANNED }
+    public enum ChannelStatus { ACTIVE, BANNED }
     public enum ReportTargetType { NOTE, CHANNEL_POST, MESSAGE, USER }
     public enum ReportReason { ADVERTISEMENT, HARASSMENT, FALSE_INFORMATION, OTHER }
 }

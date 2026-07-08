@@ -4,6 +4,7 @@ import com.whucircle.domain.Channel;
 import com.whucircle.domain.ChannelPost;
 import com.whucircle.domain.ChannelReply;
 import com.whucircle.domain.Enums.JoinType;
+import com.whucircle.domain.Enums.ChannelStatus;
 import com.whucircle.repository.ChannelRepository;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
@@ -30,11 +31,11 @@ public class InMemoryChannelRepository implements ChannelRepository {
 
     public InMemoryChannelRepository() {
         channels.put(11L, new Channel(11L, "期末互助频道", JoinType.PUBLIC, null, 1248, 2L,
-                "置顶资料请先看公告，重复问题会合并到集中帖。", mutableSet(1L, 2L, 3L)));
+                "置顶资料请先看公告，重复问题会合并到集中帖。", mutableSet(1L, 2L, 3L), ChannelStatus.ACTIVE));
         channels.put(12L, new Channel(12L, "校园摄影社", JoinType.PUBLIC, null, 532, 3L,
-                "本周主题：校园里的蓝色时刻。", mutableSet(1L, 3L, 4L)));
+                "本周主题：校园里的蓝色时刻。", mutableSet(1L, 3L, 4L), ChannelStatus.ACTIVE));
         channels.put(13L, new Channel(13L, "二手交换站", JoinType.PASSWORD, "whu2026", 916, 5L,
-                "交易请保留聊天记录，贵重物品建议线下当面确认。", mutableSet(5L)));
+                "交易请保留聊天记录，贵重物品建议线下当面确认。", mutableSet(5L), ChannelStatus.ACTIVE));
 
         putPost(new ChannelPost(301L, 11L, 2L, "高数 A2 历年题整理到 2024 版", "资料链接会持续更新。", true, 46, 1, mutableSet(), OffsetDateTime.now().minusHours(1)));
         putPost(new ChannelPost(302L, 11L, 6L, "明晚七点线上讲一下离散数学重点", "先收集大家最想听的章节。", false, 31, 0, mutableSet(), OffsetDateTime.now().minusHours(2)));
@@ -65,7 +66,7 @@ public class InMemoryChannelRepository implements ChannelRepository {
         if (old == null) return null;
         boolean added = old.memberIds().add(userId);
         Channel updated = new Channel(old.id(), old.name(), old.joinType(), old.password(), old.memberCount() + (added ? 1 : 0),
-                old.administratorId(), old.announcement(), old.memberIds());
+                old.administratorId(), old.announcement(), old.memberIds(), old.status());
         channels.put(channelId, updated);
         return updated;
     }
@@ -76,6 +77,7 @@ public class InMemoryChannelRepository implements ChannelRepository {
     }
     @Override public java.util.Optional<ChannelPost> findPostById(Long postId) { return java.util.Optional.ofNullable(posts.get(postId)); }
     @Override public ChannelPost savePost(ChannelPost post) { posts.put(post.id(), post); return post; }
+    @Override public void deletePost(Long postId) { posts.remove(postId); replies.remove(postId); }
     @Override public synchronized ChannelPost togglePostLike(Long postId, Long userId) {
         ChannelPost old = posts.get(postId);
         if (old == null) return null;

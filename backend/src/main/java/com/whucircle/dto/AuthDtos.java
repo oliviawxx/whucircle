@@ -1,5 +1,7 @@
 package com.whucircle.dto;
 
+import com.whucircle.domain.Enums.AccountStatus;
+import com.whucircle.domain.Enums.UserRole;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -16,6 +18,6 @@ public final class AuthDtos {
     public record ResetPasswordRequest(@NotBlank @Email String email, @NotBlank String code,
                                        @NotBlank @Size(min = 8, max = 64) String newPassword) {}
     public record UserView(Long id, String email, String nickname, String avatarUrl,
-                           String college, String grade, String bio) {}
+                           String college, String grade, String bio, UserRole role, AccountStatus status) {}
     public record LoginResponse(String accessToken, String refreshToken, int expiresIn, UserView user) {}
 }

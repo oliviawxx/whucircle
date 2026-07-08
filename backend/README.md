@@ -24,6 +24,7 @@ Swagger 右上角 `Authorize` 填写 `demo-access-token`，不需要手动添加
 ```text
 邮箱：student@whu.edu.cn
 密码：example123
+全站管理员：admin@whu.edu.cn / example123
 固定验证码：123456
 固定 Token：demo-access-token
 ```
@@ -100,6 +101,7 @@ Controller、DTO 和 Service 在 mock/MySQL 两种模式下保持同一套接口
 ```text
 sql/001_schema.sql  24 张业务表、索引、约束和外键
 sql/002_seed.sql    可重复执行的用户、笔记、频道、聊天示例数据
+sql/003_admin_migration.sql  已有数据库补充全站管理员所需字段和演示账号
 sql/README.md       初始化、检查和重建说明
 ```
 
@@ -126,7 +128,9 @@ cd D:\whu-circle-prototype\backend
 mvn spring-boot:run "-Dspring-boot.run.profiles=mysql"
 ```
 
-测试账号为 `student@whu.edu.cn`，密码为 `example123`。
+测试账号为 `student@whu.edu.cn`，密码为 `example123`。全站管理员账号为 `admin@whu.edu.cn`，密码同为 `example123`。
+
+如果数据库是在全站管理员功能之前初始化的，请在执行最新 `002_seed.sql` 前先执行 `sql/003_admin_migration.sql`，它会为旧表补充账号角色、账号状态和频道状态字段。
 
 ### 队友使用 Docker
 

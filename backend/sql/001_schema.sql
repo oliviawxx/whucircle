@@ -13,8 +13,12 @@ CREATE TABLE IF NOT EXISTS users (
     college VARCHAR(100) NOT NULL DEFAULT '',
     grade VARCHAR(30) NOT NULL DEFAULT '',
     bio VARCHAR(200) NOT NULL DEFAULT '',
+    role VARCHAR(20) NOT NULL DEFAULT 'USER',
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
     created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)
+    updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    CONSTRAINT chk_user_role CHECK (role IN ('USER', 'ADMIN')),
+    CONSTRAINT chk_user_status CHECK (status IN ('ACTIVE', 'BANNED'))
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS email_verification_codes (
@@ -135,10 +139,12 @@ CREATE TABLE IF NOT EXISTS channels (
     administrator_id BIGINT NOT NULL,
     announcement VARCHAR(500) NOT NULL DEFAULT '',
     member_count INT NOT NULL DEFAULT 1,
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
     created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
     CONSTRAINT fk_channel_admin FOREIGN KEY (administrator_id) REFERENCES users(id) ON DELETE RESTRICT,
     CONSTRAINT chk_channel_join_type CHECK (join_type IN ('PUBLIC', 'PASSWORD')),
+    CONSTRAINT chk_channel_status CHECK (status IN ('ACTIVE', 'BANNED')),
     INDEX idx_channel_name (name),
     INDEX idx_channel_admin (administrator_id)
 ) ENGINE=InnoDB;

@@ -298,4 +298,58 @@ class ApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.url").value(org.hamcrest.Matchers.startsWith("/uploads/images/")));
     }
+
+    @Test
+    void adminApisRequireAdminRoleAndCanModerateUsersAndChannels() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/dashboard").header("Authorization", AUTH))
+                .andExpect(status().isForbidden());
+
+        String adminAuth = "Bearer " + loginAndReturnToken("admin@whu.edu.cn", "example123");
+
+        mockMvc.perform(get("/api/v1/admin/dashboard").header("Authorization", adminAuth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.summary.userCount").exists())
+                .andExpect(jsonPath("$.data.users[?(@.email == 'admin@whu.edu.cn')].role").value(org.hamcrest.Matchers.hasItem("ADMIN")));
+
+        mockMvc.perform(put("/api/v1/admin/users/6/status")
+                        .header("Authorization", adminAuth)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"BANNED\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("BANNED"));
+
+        mockMvc.perform(put("/api/v1/admin/users/6/status")
+                        .header("Authorization", adminAuth)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"ACTIVE\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("ACTIVE"));
+
+        String channelBody = mockMvc.perform(post("/api/v1/channels")
+                        .header("Authorization", AUTH)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"全站管理测试频道\",\"joinType\":\"PUBLIC\",\"announcement\":\"测试后可封禁\"}"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        long channelId = objectMapper.readTree(channelBody).path("data").path("id").asLong();
+
+        mockMvc.perform(put("/api/v1/admin/channels/{id}/status", channelId)
+                        .header("Authorization", adminAuth)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"BANNED\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("BANNED"));
+
+        mockMvc.perform(get("/api/v1/channels/{id}", channelId).header("Authorization", AUTH))
+                .andExpect(status().isForbidden());
+    }
+
+    private String loginAndReturnToken(String email, String password) throws Exception {
+        String body = mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        return objectMapper.readTree(body).path("data").path("accessToken").asText();
+    }
 }

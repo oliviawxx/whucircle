@@ -1,19 +1,22 @@
 SET NAMES utf8mb4;
 USE whu_circle;
 
-INSERT INTO users (id, email, password_hash, nickname, avatar_url, college, grade, bio) VALUES
-(1, 'student@whu.edu.cn', '{BCrypt}', '小张', '', '新闻与传播学院', '2024级', '记录校园生活和课程项目。'),
-(2, 'wind@whu.edu.cn', '{BCrypt}', '珞珈山下的风', '', '计算机学院', '2023级', '喜欢散步、摄影和做小工具。'),
-(3, 'cat@whu.edu.cn', '{BCrypt}', '东湖边的猫', '', '外国语言文学学院', '2024级', '寻找学习搭子和校园灵感。'),
-(4, 'orange@whu.edu.cn', '{BCrypt}', '一只小橘子', '', '测绘学院', '2022级', '周末出行记录。'),
-(5, 'noodle@whu.edu.cn', '{BCrypt}', '热干面观察员', '', '经济与管理学院', '2023级', '认真吃饭，认真记录。'),
-(6, 'lin@whu.edu.cn', '{BCrypt}', '林深时见鹿', '', '文学院', '2024级', '写一点校园碎片。')
+INSERT INTO users (id, email, password_hash, nickname, avatar_url, college, grade, bio, role, status) VALUES
+(1, 'student@whu.edu.cn', '$2a$10$yBvFn9fll.gGR2cCmChx0uRxSWZ9Bz/EoNIHNNCJSOjQ7E/f02fke', '小张', '', '新闻与传播学院', '2024级', '记录校园生活和课程项目。', 'USER', 'ACTIVE'),
+(2, 'wind@whu.edu.cn', '$2a$10$yBvFn9fll.gGR2cCmChx0uRxSWZ9Bz/EoNIHNNCJSOjQ7E/f02fke', '珞珈山下的风', '', '计算机学院', '2023级', '喜欢散步、摄影和做小工具。', 'USER', 'ACTIVE'),
+(3, 'cat@whu.edu.cn', '$2a$10$yBvFn9fll.gGR2cCmChx0uRxSWZ9Bz/EoNIHNNCJSOjQ7E/f02fke', '东湖边的猫', '', '外国语言文学学院', '2024级', '寻找学习搭子和校园灵感。', 'USER', 'ACTIVE'),
+(4, 'orange@whu.edu.cn', '$2a$10$yBvFn9fll.gGR2cCmChx0uRxSWZ9Bz/EoNIHNNCJSOjQ7E/f02fke', '一只小橘子', '', '测绘学院', '2022级', '周末出行记录。', 'USER', 'ACTIVE'),
+(5, 'noodle@whu.edu.cn', '$2a$10$yBvFn9fll.gGR2cCmChx0uRxSWZ9Bz/EoNIHNNCJSOjQ7E/f02fke', '热干面观察员', '', '经济与管理学院', '2023级', '认真吃饭，认真记录。', 'USER', 'ACTIVE'),
+(6, 'lin@whu.edu.cn', '$2a$10$yBvFn9fll.gGR2cCmChx0uRxSWZ9Bz/EoNIHNNCJSOjQ7E/f02fke', '林深时见鹿', '', '文学院', '2024级', '写一点校园碎片。', 'USER', 'ACTIVE'),
+(99, 'admin@whu.edu.cn', '$2a$10$yBvFn9fll.gGR2cCmChx0uRxSWZ9Bz/EoNIHNNCJSOjQ7E/f02fke', '全站管理员', '', '平台管理组', '管理员', '负责内容治理、账号和频道管理。', 'ADMIN', 'ACTIVE')
 ON DUPLICATE KEY UPDATE
     nickname = VALUES(nickname),
     avatar_url = VALUES(avatar_url),
     college = VALUES(college),
     grade = VALUES(grade),
-    bio = VALUES(bio);
+    bio = VALUES(bio),
+    role = VALUES(role),
+    status = VALUES(status);
 
 INSERT IGNORE INTO privacy_settings (user_id)
 SELECT id FROM users;
@@ -91,17 +94,18 @@ DELETE FROM channel_post_likes WHERE post_id BETWEEN 301 AND 310;
 DELETE FROM channel_posts WHERE id BETWEEN 301 AND 310;
 DELETE FROM channel_members WHERE channel_id BETWEEN 11 AND 13;
 
-INSERT INTO channels (id, name, join_type, password_hash, administrator_id, announcement, member_count) VALUES
-(11, '期末互助频道', 'PUBLIC', NULL, 2, '资料和复习安排请先看置顶帖。', 3),
-(12, '校园摄影社', 'PUBLIC', NULL, 3, '本周主题：校园里的蓝色时刻。', 3),
-(13, '二手交换站', 'PASSWORD', 'whu2026', 5, '交易请保留聊天记录，线下见面注意安全。', 1)
+INSERT INTO channels (id, name, join_type, password_hash, administrator_id, announcement, member_count, status) VALUES
+(11, '期末互助频道', 'PUBLIC', NULL, 2, '资料和复习安排请先看置顶帖。', 3, 'ACTIVE'),
+(12, '校园摄影社', 'PUBLIC', NULL, 3, '本周主题：校园里的蓝色时刻。', 3, 'ACTIVE'),
+(13, '二手交换站', 'PASSWORD', 'whu2026', 5, '交易请保留聊天记录，线下见面注意安全。', 1, 'ACTIVE')
 ON DUPLICATE KEY UPDATE
     name = VALUES(name),
     join_type = VALUES(join_type),
     password_hash = VALUES(password_hash),
     administrator_id = VALUES(administrator_id),
     announcement = VALUES(announcement),
-    member_count = VALUES(member_count);
+    member_count = VALUES(member_count),
+    status = VALUES(status);
 
 INSERT IGNORE INTO channel_members (channel_id, user_id, role) VALUES
 (11,1,'MEMBER'),(11,2,'ADMIN'),(11,3,'MEMBER'),

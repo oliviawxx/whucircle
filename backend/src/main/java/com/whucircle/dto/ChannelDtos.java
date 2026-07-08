@@ -1,6 +1,7 @@
 package com.whucircle.dto;
 
 import com.whucircle.domain.Enums.JoinType;
+import com.whucircle.domain.Enums.ChannelStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -13,7 +14,7 @@ public final class ChannelDtos {
 
     public record AdminView(Long id, String nickname) {}
     public record ChannelView(Long id, String name, JoinType joinType, boolean joined, int memberCount,
-                              AdminView administrator, String announcement) {}
+                              AdminView administrator, String announcement, ChannelStatus status) {}
     public record JoinRequest(String password) {}
     public record JoinResponse(boolean joined, int memberCount) {}
     public record PostView(Long id, Long channelId, Long authorId, String authorName, String title,

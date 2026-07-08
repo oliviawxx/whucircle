@@ -6,6 +6,7 @@ import com.whucircle.common.PageData;
 import com.whucircle.domain.Channel;
 import com.whucircle.domain.ChannelPost;
 import com.whucircle.domain.ChannelReply;
+import com.whucircle.domain.Enums.ChannelStatus;
 import com.whucircle.domain.Enums.JoinType;
 import com.whucircle.domain.Notification;
 import com.whucircle.domain.User;
@@ -41,6 +42,7 @@ public class ChannelService {
 
     public PageData<ChannelView> list(Long currentUserId, Boolean joined, String keyword, int page, int size) {
         List<ChannelView> result = channels.findAll().stream()
+                .filter(channel -> channel.status() == ChannelStatus.ACTIVE)
                 .filter(channel -> joined == null || channel.memberIds().contains(currentUserId) == joined)
                 .filter(channel -> keyword == null || keyword.isBlank() || channel.name().contains(keyword.trim()))
                 .map(channel -> toView(channel, currentUserId)).toList();
@@ -68,7 +70,7 @@ public class ChannelService {
         Channel channel = new Channel(channels.nextChannelId(), request.name(), request.joinType(),
                 request.password(), 1, currentUserId,
                 request.announcement() == null || request.announcement().isBlank() ? "欢迎来到新频道！" : request.announcement(),
-                memberSet);
+                memberSet, ChannelStatus.ACTIVE);
         return toView(channels.save(channel), currentUserId);
     }
 
@@ -76,7 +78,7 @@ public class ChannelService {
         Channel channel = requireChannel(channelId);
         requireAdministrator(currentUserId, channel);
         Channel updated = new Channel(channel.id(), channel.name(), channel.joinType(), channel.password(),
-                channel.memberCount(), channel.administratorId(), announcement.trim(), channel.memberIds());
+                channel.memberCount(), channel.administratorId(), announcement.trim(), channel.memberIds(), channel.status());
         return toView(channels.save(updated), currentUserId);
     }
 
@@ -132,7 +134,7 @@ public class ChannelService {
     private ChannelView toView(Channel channel, Long currentUserId) {
         User admin = users.findById(channel.administratorId()).orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "管理员不存在"));
         return new ChannelView(channel.id(), channel.name(), channel.joinType(), channel.memberIds().contains(currentUserId),
-                channel.memberCount(), new AdminView(admin.id(), admin.nickname()), channel.announcement());
+                channel.memberCount(), new AdminView(admin.id(), admin.nickname()), channel.announcement(), channel.status());
     }
 
     private PostView toPostView(ChannelPost post, Long currentUserId) {
@@ -146,7 +148,11 @@ public class ChannelService {
         return new ReplyView(reply.id(), author.id(), author.nickname(), reply.content(), reply.createdAt());
     }
 
-    private Channel requireChannel(Long id) { return channels.findById(id).orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "频道不存在")); }
+    private Channel requireChannel(Long id) {
+        Channel channel = channels.findById(id).orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "频道不存在"));
+        if (channel.status() == ChannelStatus.BANNED) throw new BusinessException(ErrorCode.FORBIDDEN, "频道已被封禁");
+        return channel;
+    }
     private ChannelPost requirePost(Long id) { return channels.findPostById(id).orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "频道帖子不存在")); }
     private void requireMember(Long userId, Channel channel) {
         if (!channel.memberIds().contains(userId)) throw new BusinessException(ErrorCode.CHANNEL_NOT_JOINED);

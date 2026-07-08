@@ -1329,6 +1329,131 @@ button {
   overflow: hidden;
 }
 
+.admin-page {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.admin-head p,
+.admin-panel .panel-head span {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.admin-head h2 {
+  margin: 4px 0 0;
+  font-size: 20px;
+}
+
+.admin-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-metrics article,
+.admin-panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.admin-metrics article {
+  display: grid;
+  gap: 5px;
+  padding: 14px;
+}
+
+.admin-metrics span,
+.admin-metrics em,
+.admin-row span,
+.admin-row em {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.admin-metrics strong {
+  color: #172033;
+  font-size: 24px;
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.admin-panel {
+  padding: 14px;
+  overflow: hidden;
+}
+
+.admin-list {
+  display: grid;
+  gap: 8px;
+  max-height: 430px;
+  overflow-y: auto;
+}
+
+.admin-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  background: #f8fafc;
+  border: 1px solid #edf1f6;
+  border-radius: 8px;
+}
+
+.admin-row strong {
+  display: block;
+  margin-bottom: 3px;
+  color: #172033;
+}
+
+.admin-row em.danger {
+  color: #9f1d2f;
+  font-weight: 700;
+}
+
+.admin-row button,
+.admin-lock {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 10px;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--accent-soft);
+  border: 1px solid #cfe0ff;
+  border-radius: 8px;
+}
+
+.admin-row .danger-button {
+  color: #9f1d2f;
+  background: #fff0f2;
+  border-color: #ffd7dd;
+}
+
 .profile-cover {
   height: 150px;
   margin: -18px -18px 0;

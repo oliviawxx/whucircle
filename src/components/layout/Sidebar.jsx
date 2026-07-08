@@ -6,6 +6,7 @@ import {
   Hash,
   House,
   PaperPlaneTilt,
+  ShieldCheck,
   Student,
   UserCircle,
   UsersThree,
@@ -23,6 +24,7 @@ export function Sidebar({
   currentUser,
   menuOpen,
   chatUnreadCount = 0,
+  isAdmin = false,
   onNavigate,
   onOpenDraft,
   onToggleMenu,
@@ -46,6 +48,12 @@ export function Sidebar({
             {label === "聊天" && chatUnreadCount > 0 && <em>{chatUnreadCount}</em>}
           </button>
         ))}
+        {isAdmin && (
+          <button className={activeNav === "全站管理" ? "nav-item active" : "nav-item"} onClick={() => onNavigate("全站管理")}>
+            <ShieldCheck size={21} />
+            <span>全站管理</span>
+          </button>
+        )}
       </nav>
 
       <button className="publish-entry" onClick={onOpenDraft}>
@@ -67,6 +75,7 @@ export function Sidebar({
             <button onClick={() => onNavigate("我的主页")}><UserCircle size={18} />我的主页</button>
             <button onClick={() => onNavigate("收藏")}><BookmarkSimple size={18} />我的收藏</button>
             <button onClick={() => onNavigate("设置")}><GearSix size={18} />设置</button>
+            {isAdmin && <button onClick={() => onNavigate("全站管理")}><ShieldCheck size={18} />全站管理</button>}
             <button onClick={onLogout}>退出登录</button>
           </div>
         )}

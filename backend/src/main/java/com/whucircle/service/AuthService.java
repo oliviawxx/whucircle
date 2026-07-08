@@ -2,6 +2,8 @@ package com.whucircle.service;
 
 import com.whucircle.common.BusinessException;
 import com.whucircle.common.ErrorCode;
+import com.whucircle.domain.Enums.AccountStatus;
+import com.whucircle.domain.Enums.UserRole;
 import com.whucircle.domain.User;
 import com.whucircle.dto.AuthDtos.EmailCodeResponse;
 import com.whucircle.dto.AuthDtos.LoginResponse;
@@ -60,7 +62,7 @@ public class AuthService {
         if (users.findByEmail(normalizedEmail).isPresent()) throw new BusinessException(ErrorCode.CONFLICT, "该邮箱已注册");
         verificationCodes.verifyAndConsume(normalizedEmail, code, "REGISTER");
         User user = users.save(new User(null, normalizedEmail, passwordEncoder.encode(password), nickname.trim(),
-                "", "待完善", "待完善", ""));
+                "", "待完善", "待完善", "", UserRole.USER, AccountStatus.ACTIVE));
         return issueTokens(user);
     }
 
@@ -71,6 +73,9 @@ public class AuthService {
         if (!passwordEncoder.matches(password, user.passwordHash())) {
             throw new BusinessException(ErrorCode.INVALID_CREDENTIALS, "密码错误");
         }
+        if (user.status() == AccountStatus.BANNED) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "账号已被封禁");
+        }
         return issueTokens(user);
     }
 
@@ -80,7 +85,7 @@ public class AuthService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "账号不存在，请先注册账号"));
         verificationCodes.verifyAndConsume(normalizedEmail, code, "RESET_PASSWORD");
         users.save(new User(user.id(), user.email(), passwordEncoder.encode(newPassword), user.nickname(),
-                user.avatarUrl(), user.college(), user.grade(), user.bio()));
+                user.avatarUrl(), user.college(), user.grade(), user.bio(), user.role(), user.status()));
     }
 
     public UserView me(Long userId) {
@@ -98,7 +103,7 @@ public class AuthService {
 
     private UserView toView(User user) {
         return new UserView(user.id(), user.email(), user.nickname(), user.avatarUrl(),
-                user.college(), user.grade(), user.bio());
+                user.college(), user.grade(), user.bio(), user.role(), user.status());
     }
 
     private String normalizeAndValidateCampusEmail(String email) {
