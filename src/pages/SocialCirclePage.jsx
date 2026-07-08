@@ -1,10 +1,18 @@
 import { NotesFeed } from "../components/notes/NotesFeed.jsx";
+import { ChatCircle, Prohibit, UserMinus, UserPlus } from "@phosphor-icons/react";
+import { IconButton } from "../components/common/IconButton.jsx";
 
 function isReadable(value) {
   return value && !String(value).includes("?") && !String(value).includes("�");
 }
 
-export function SocialCirclePage({ notes, friends, noteFeedProps }) {
+export function SocialCirclePage({
+  notes,
+  friends,
+  noteFeedProps,
+  onRelationAction,
+  onStartConversation,
+}) {
   const visibleFriends = (friends || [])
     .filter((friend) => isReadable(friend.name))
     .slice(0, 6);
@@ -39,6 +47,39 @@ export function SocialCirclePage({ notes, friends, noteFeedProps }) {
                 <span>{friend.detail}</span>
               </div>
               <em>{friend.state}</em>
+              {friend.id && (
+                <div className="relation-actions">
+                  {friend.status === "BLOCKED" ? (
+                    <IconButton title="取消拉黑" onClick={() => onRelationAction(friend.id, "unblock")}>
+                      <UserPlus size={16} />
+                    </IconButton>
+                  ) : (
+                    <>
+                      <IconButton
+                        title={friend.status === "FOLLOWING" || friend.status === "FRIEND" ? "取消关注" : "关注"}
+                        onClick={() =>
+                          onRelationAction(
+                            friend.id,
+                            friend.status === "FOLLOWING" || friend.status === "FRIEND" ? "unfollow" : "follow",
+                          )
+                        }
+                      >
+                        {friend.status === "FOLLOWING" || friend.status === "FRIEND" ? (
+                          <UserMinus size={16} />
+                        ) : (
+                          <UserPlus size={16} />
+                        )}
+                      </IconButton>
+                      <IconButton title="发起私聊" onClick={() => onStartConversation(friend)}>
+                        <ChatCircle size={16} />
+                      </IconButton>
+                      <IconButton title="拉黑" onClick={() => onRelationAction(friend.id, "block")}>
+                        <Prohibit size={16} />
+                      </IconButton>
+                    </>
+                  )}
+                </div>
+              )}
             </article>
           ))
         ) : (

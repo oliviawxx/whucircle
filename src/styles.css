@@ -379,6 +379,9 @@ button {
 .theme-choice,
 .danger-button,
 .modal-actions button,
+.post-action-row button,
+.profile-action-row button,
+.notification-read,
 .report-reasons button {
   border: 0;
   background: transparent;
@@ -613,7 +616,7 @@ button {
 .notification-item {
   position: relative;
   display: grid;
-  grid-template-columns: 34px 1fr;
+  grid-template-columns: 34px 1fr auto;
   gap: 10px;
   align-items: center;
   padding: 13px 16px;
@@ -652,6 +655,17 @@ button {
   width: 6px;
   height: 6px;
   background: var(--accent);
+  border-radius: 50%;
+}
+
+.notification-read {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  color: var(--accent);
+  background: #fff;
+  border: 1px solid #dbe6f6;
   border-radius: 50%;
 }
 
@@ -805,7 +819,7 @@ button {
 
 .note-author {
   display: grid;
-  grid-template-columns: 42px 1fr auto;
+  grid-template-columns: 42px 1fr auto auto;
   gap: 10px;
   align-items: center;
 }
@@ -944,6 +958,20 @@ button {
   border-bottom: 1px solid #edf1f6;
 }
 
+.relation-actions {
+  display: flex;
+  gap: 4px;
+  grid-column: 1 / -1;
+}
+
+.relation-actions .icon-button {
+  width: 30px;
+  height: 30px;
+  color: #64748b;
+  background: #f8fafc;
+  border: 1px solid #edf1f6;
+}
+
 .relation-row em,
 .channel-item em {
   color: var(--accent);
@@ -1022,6 +1050,42 @@ button {
   background: #f8fafc;
   border: 1px solid #edf1f6;
   border-radius: 8px;
+}
+
+.announcement > span {
+  flex: 1;
+}
+
+.announcement .icon-button {
+  width: 30px;
+  height: 30px;
+  color: var(--accent);
+  background: #fff;
+  border: 1px solid #dbe6f6;
+}
+
+.announcement-editor {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  flex: 1;
+  align-items: start;
+}
+
+.announcement-editor textarea {
+  min-height: 78px;
+  padding: 10px 12px;
+  resize: vertical;
+  color: #27344a;
+  background: #fff;
+  border: 1px solid #dbe6f6;
+  border-radius: 8px;
+  outline: none;
+}
+
+.announcement-editor div {
+  display: flex;
+  gap: 6px;
 }
 
 .channel-actions {
@@ -1741,6 +1805,31 @@ button {
   line-height: 1.75;
 }
 
+.post-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.post-action-row button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 12px;
+  color: #4d5a70;
+  background: #f8fafc;
+  border: 1px solid #edf1f6;
+  border-radius: 8px;
+}
+
+.post-action-row button.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: #cfe0ff;
+}
+
 .comment-panel {
   display: grid;
   gap: 10px;
@@ -1761,6 +1850,13 @@ button {
   line-height: 1.55;
 }
 
+.comment-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
 .comment-panel strong {
   margin-right: 8px;
   color: var(--accent);
@@ -1768,6 +1864,7 @@ button {
 
 .modal-actions {
   display: flex;
+  gap: 8px;
   justify-content: flex-end;
 }
 
@@ -1798,6 +1895,31 @@ button {
   margin: 0;
   color: #3f4d63;
   line-height: 1.6;
+}
+
+.profile-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.profile-action-row button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 13px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid #cfe0ff;
+  border-radius: 8px;
+}
+
+.profile-action-row .danger-button {
+  color: #9f1d2f;
+  background: #fff0f2;
+  border-color: #ffd7dd;
 }
 
 @media (max-width: 1180px) {

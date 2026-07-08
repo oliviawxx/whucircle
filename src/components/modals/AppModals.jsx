@@ -1,4 +1,4 @@
-import { Flag, Image, Prohibit } from "@phosphor-icons/react";
+import { ChatCircle, Flag, Heart, Image, PaperPlaneTilt, Prohibit, PushPin, UserMinus, UserPlus } from "@phosphor-icons/react";
 import { ModalHead } from "../common/ModalHead.jsx";
 
 export function AppModals({
@@ -19,6 +19,13 @@ export function AppModals({
   onSubmitJoin,
   onBlockUser,
   onReport,
+  channelPostReply,
+  onChannelPostReplyChange,
+  onSubmitChannelPostReply,
+  onToggleChannelPostLike,
+  onToggleChannelPostPinned,
+  onRelationAction,
+  onStartConversation,
 }) {
   return (
     <>
@@ -85,6 +92,24 @@ export function AppModals({
               onClose={onClosePost}
             />
             <p className="detail-body">{channelPostDetail.post.body || "频道内部交流帖。"}</p>
+            <div className="post-action-row">
+              <button
+                className={channelPostDetail.post.liked ? "active" : ""}
+                onClick={onToggleChannelPostLike}
+              >
+                <Heart size={17} weight={channelPostDetail.post.liked ? "fill" : "regular"} />
+                {channelPostDetail.post.likes || 0}
+              </button>
+              {channelPostDetail.channel.isAdmin && (
+                <button
+                  className={channelPostDetail.post.pinned ? "active" : ""}
+                  onClick={onToggleChannelPostPinned}
+                >
+                  <PushPin size={17} weight={channelPostDetail.post.pinned ? "fill" : "regular"} />
+                  {channelPostDetail.post.pinned ? "已置顶" : "置顶"}
+                </button>
+              )}
+            </div>
             <div className="comment-panel">
               <h3>回复</h3>
               {(channelPostDetail.replies || []).length ? (
@@ -97,6 +122,19 @@ export function AppModals({
               ) : (
                 <span className="muted">暂无回复。</span>
               )}
+              <div className="comment-input">
+                <input
+                  value={channelPostReply}
+                  onChange={(event) => onChannelPostReplyChange(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") onSubmitChannelPostReply();
+                  }}
+                  placeholder="回复这个帖子..."
+                />
+                <button title="发送回复" onClick={onSubmitChannelPostReply}>
+                  <PaperPlaneTilt size={17} weight="fill" />
+                </button>
+              </div>
             </div>
             <div className="modal-actions">
               <button
@@ -124,12 +162,49 @@ export function AppModals({
             <ModalHead title={profileUser.author} subtitle={profileUser.meta} onClose={onCloseProfile} />
             <div className="profile-preview">
               <img className="avatar large" src={profileUser.avatar} alt={`${profileUser.author}头像`} />
-              <p>展示对方主页预览。拉黑后不能私信、评论、查看主页。</p>
+              <p>{profileUser.bio || "展示对方主页预览。拉黑后不能私信、评论、查看主页。"}</p>
             </div>
-            <button className="danger-button" onClick={() => onBlockUser(profileUser.author)}>
-              <Prohibit size={18} />
-              拉黑
-            </button>
+            {profileUser.id || profileUser.authorId ? (
+              <div className="profile-action-row">
+                {profileUser.relation === "BLOCKED" ? (
+                  <button onClick={() => onRelationAction(profileUser.id || profileUser.authorId, "unblock")}>
+                    <UserPlus size={18} />
+                    取消拉黑
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={() =>
+                        onRelationAction(
+                          profileUser.id || profileUser.authorId,
+                          profileUser.relation === "FOLLOWING" || profileUser.relation === "FRIEND" ? "unfollow" : "follow",
+                        )
+                      }
+                    >
+                      {profileUser.relation === "FOLLOWING" || profileUser.relation === "FRIEND" ? (
+                        <UserMinus size={18} />
+                      ) : (
+                        <UserPlus size={18} />
+                      )}
+                      {profileUser.relation === "FOLLOWING" || profileUser.relation === "FRIEND" ? "取消关注" : "关注"}
+                    </button>
+                    <button onClick={() => onStartConversation(profileUser)}>
+                      <ChatCircle size={18} />
+                      私聊
+                    </button>
+                    <button className="danger-button" onClick={() => onBlockUser(profileUser)}>
+                      <Prohibit size={18} />
+                      拉黑
+                    </button>
+                  </>
+                )}
+              </div>
+            ) : (
+              <button className="danger-button" onClick={() => onBlockUser(profileUser)}>
+                <Prohibit size={18} />
+                拉黑
+              </button>
+            )}
           </section>
         </div>
       )}

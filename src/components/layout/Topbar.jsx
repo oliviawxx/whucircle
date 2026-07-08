@@ -1,6 +1,6 @@
-import { Bell, BookmarkSimple, ChatCircle, Heart } from "@phosphor-icons/react";
+import { Bell, BookmarkSimple, ChatCircle, Check, Heart } from "@phosphor-icons/react";
 
-export function Topbar({ activeNav, page, notifications, open, onToggle, onMarkAllRead }) {
+export function Topbar({ activeNav, page, notifications, open, onToggle, onMarkAllRead, onMarkRead }) {
   const hasUnread = notifications.some((item) => item.unread);
 
   return (
@@ -33,7 +33,11 @@ export function Topbar({ activeNav, page, notifications, open, onToggle, onMarkA
                     <p><strong>{item.user}</strong>{item.action}</p>
                     <span>{item.target} · {item.time}</span>
                   </div>
-                  {item.unread && <i />}
+                  {item.unread && (
+                    <button className="notification-read" title="标为已读" onClick={() => onMarkRead(item.id)}>
+                      <Check size={14} />
+                    </button>
+                  )}
                 </article>
               ))}
             </div>

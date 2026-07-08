@@ -1,15 +1,17 @@
-import { BookmarkSimple, ChatCircle, Flag, Heart } from "@phosphor-icons/react";
+import { BookmarkSimple, ChatCircle, Flag, Heart, Trash } from "@phosphor-icons/react";
 import { IconButton } from "../common/IconButton.jsx";
 
 export function NotesFeed({
   items,
   variant = "masonry",
+  currentUserId,
   onOpenNote,
   onOpenProfile,
   onReport,
   onSelectTag,
   onToggleLike,
   onToggleSave,
+  onDeleteNote,
 }) {
   return (
     <section className={variant === "masonry" ? "masonry-feed" : "linear-feed"}>
@@ -30,6 +32,11 @@ export function NotesFeed({
               <IconButton title="举报笔记" onClick={() => onReport({ type: "笔记", title: note.title, targetId: note.id })}>
                 <Flag size={17} />
               </IconButton>
+              {currentUserId && note.authorId === currentUserId && (
+                <IconButton title="删除笔记" onClick={() => onDeleteNote(note.id)}>
+                  <Trash size={17} />
+                </IconButton>
+              )}
             </div>
             <button className="note-open" onClick={() => onOpenNote(note)}>
               <h2>{note.title}</h2>

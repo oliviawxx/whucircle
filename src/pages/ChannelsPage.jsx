@@ -1,7 +1,25 @@
-import { CheckCircle, Flag, Hash, LockKey, Megaphone, Plus, PushPin } from "@phosphor-icons/react";
+import { Check, CheckCircle, Flag, Hash, LockKey, Megaphone, PencilSimple, Plus, PushPin, X } from "@phosphor-icons/react";
+import { useEffect, useState } from "react";
 import { IconButton } from "../components/common/IconButton.jsx";
 
-export function ChannelsPage({ channels, selectedChannel, onSelectChannel, onJoin, onOpenPost, onReport, onCreateChannel }) {
+export function ChannelsPage({
+  channels,
+  selectedChannel,
+  onSelectChannel,
+  onJoin,
+  onOpenPost,
+  onReport,
+  onCreateChannel,
+  onUpdateAnnouncement,
+}) {
+  const [editingAnnouncement, setEditingAnnouncement] = useState(false);
+  const [announcementDraft, setAnnouncementDraft] = useState("");
+
+  useEffect(() => {
+    setEditingAnnouncement(false);
+    setAnnouncementDraft(selectedChannel?.announcement || "");
+  }, [selectedChannel?.id, selectedChannel?.announcement]);
+
   if (!selectedChannel) {
     return (
       <section className="channel-layout">
@@ -30,6 +48,13 @@ export function ChannelsPage({ channels, selectedChannel, onSelectChannel, onJoi
   }
 
   const previewPosts = selectedChannel.joined ? selectedChannel.posts : selectedChannel.posts.slice(0, 5);
+  const canEditAnnouncement = selectedChannel.joined && selectedChannel.isAdmin;
+
+  function submitAnnouncement() {
+    if (!announcementDraft.trim()) return;
+    onUpdateAnnouncement?.(selectedChannel.id, announcementDraft);
+    setEditingAnnouncement(false);
+  }
 
   return (
     <section className="channel-layout">
@@ -66,7 +91,42 @@ export function ChannelsPage({ channels, selectedChannel, onSelectChannel, onJoi
             </button>
           )}
         </div>
-        <div className="announcement"><Megaphone size={18} /><span>{selectedChannel.announcement}</span></div>
+        <div className="announcement">
+          <Megaphone size={18} />
+          {editingAnnouncement ? (
+            <div className="announcement-editor">
+              <textarea
+                value={announcementDraft}
+                onChange={(event) => setAnnouncementDraft(event.target.value)}
+                maxLength={500}
+                autoFocus
+              />
+              <div>
+                <IconButton title="保存公告" onClick={submitAnnouncement}>
+                  <Check size={17} />
+                </IconButton>
+                <IconButton
+                  title="取消编辑"
+                  onClick={() => {
+                    setAnnouncementDraft(selectedChannel.announcement || "");
+                    setEditingAnnouncement(false);
+                  }}
+                >
+                  <X size={17} />
+                </IconButton>
+              </div>
+            </div>
+          ) : (
+            <>
+              <span>{selectedChannel.announcement}</span>
+              {canEditAnnouncement && (
+                <IconButton title="编辑公告" onClick={() => setEditingAnnouncement(true)}>
+                  <PencilSimple size={17} />
+                </IconButton>
+              )}
+            </>
+          )}
+        </div>
         <div className="channel-posts">
           {previewPosts.map((post) => (
             <article className="channel-post" key={post.id}>

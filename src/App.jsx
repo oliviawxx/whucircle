@@ -22,6 +22,7 @@ import {
   PushPin,
   ShieldCheck,
   Student,
+  Trash,
   UserCircle,
   UsersThree,
   X,
@@ -37,8 +38,11 @@ import {
 import { setToken, getToken } from "./api/client.js";
 import {
   getNotes,
+  getComments,
   createNote as apiCreateNote,
   createComment as apiCreateComment,
+  deleteNote as apiDeleteNote,
+  deleteComment as apiDeleteComment,
   likeNote,
   saveNote,
   getTags,
@@ -51,18 +55,35 @@ import {
   joinChannel as apiJoinChannel,
   createChannel as apiCreateChannel,
   createPost as apiCreatePost,
+  updateAnnouncement as apiUpdateAnnouncement,
+  replyToPost as apiReplyToPost,
+  likePost as apiLikePost,
+  setPostPinned as apiSetPostPinned,
 } from "./api/channels.js";
 import {
   getConversations,
   getMessages,
   markRead as apiMarkChatRead,
   sendMessage as apiSendMessage,
+  createConversation as apiCreateConversation,
 } from "./api/chat.js";
 import {
   getNotifications as apiGetNotifications,
+  markNotificationRead as apiMarkNotificationRead,
   markAllNotificationsRead as apiMarkAllNotificationsRead,
 } from "./api/notifications.js";
-import { getMyProfile, updateProfile, getRelations, report as apiReport } from "./api/users.js";
+import {
+  getMyProfile,
+  updateProfile,
+  getRelations,
+  getUserProfile,
+  follow as apiFollow,
+  unfollow as apiUnfollow,
+  block as apiBlock,
+  unblock as apiUnblock,
+  getBlockedUsers,
+  report as apiReport,
+} from "./api/users.js";
 import { getPrivacy, updatePrivacy as apiUpdatePrivacy } from "./api/settings.js";
 import { AuthPage } from "./components/auth/AuthPage.jsx";
 import { ModalHead } from "./components/common/ModalHead.jsx";
@@ -158,6 +179,7 @@ export function App() {
   const [notifications, setNotifications] = useState(initialNotifications);
   const [profileData, setProfileData] = useState(null);
   const [relationsData, setRelationsData] = useState([]);
+  const [blockedRelations, setBlockedRelations] = useState([]);
 
   // ── UI 状态 ──
   const [activeNav, setActiveNav] = useState("主页");
@@ -197,6 +219,7 @@ export function App() {
   const [channelPostDraftPinned, setChannelPostDraftPinned] = useState(false);
   const [channelPostDraftImage, setChannelPostDraftImage] = useState(false);
   const [channelPostDetail, setChannelPostDetail] = useState(null);
+  const [channelPostReply, setChannelPostReply] = useState("");
   const [reportTarget, setReportTarget] = useState(null);
 
   // ── 设置/个人资料状态 ──
@@ -251,14 +274,16 @@ export function App() {
         FOLLOWING: ["关注中", "你关注了对方，但还不是好友"],
         FOLLOWER: ["被关注", "对方关注了你，快去关注吧"],
         NONE: ["未关注", "关注后内容会进入社交圈"],
+        BLOCKED: ["已拉黑", "已限制对方与你互动"],
       };
-      return relationsData
-        .filter((r) => r.status !== "BLOCKED")
-        .map((r) => ({
-          name: r.nickname || "用户",
-          state: statusMap[r.status]?.[0] || r.status,
-          detail: statusMap[r.status]?.[1] || "",
-        }));
+      return relationsData.map((r) => ({
+        id: r.userId,
+        name: r.nickname || "用户",
+        avatar: r.avatarUrl || DEFAULT_AVATAR,
+        status: r.status,
+        state: statusMap[r.status]?.[0] || r.status,
+        detail: statusMap[r.status]?.[1] || "",
+      }));
     }
     return friendRows;
   }, [relationsData]);
@@ -310,6 +335,15 @@ export function App() {
     };
   }
 
+  function mapComment(apiComment) {
+    return {
+      id: apiComment.id,
+      authorId: apiComment.author?.id,
+      user: apiComment.author?.nickname || "用户",
+      text: apiComment.content || "",
+    };
+  }
+
   function mapChannels(apiChannels, myId) {
     return (apiChannels || []).map((ch) => ({
       id: String(ch.id),
@@ -318,6 +352,8 @@ export function App() {
       password: ch.password || undefined,
       joined: ch.joined,
       admin: ch.administrator?.nickname || "管理员",
+      administratorId: ch.administrator?.id,
+      isAdmin: ch.administrator?.id === myId,
       announcement: ch.announcement || "",
       members: ch.memberCount,
       posts: [],
@@ -333,6 +369,8 @@ export function App() {
       replies: apiPost.replyCount || 0,
       body: apiPost.content || "",
       author: apiPost.authorName || "用户",
+      authorId: apiPost.authorId,
+      channelId: apiPost.channelId,
       liked: apiPost.liked || false,
       time: apiPost.createdAt ? timeAgo(apiPost.createdAt) : "",
       tags: [],
@@ -403,6 +441,7 @@ export function App() {
         relationsDataRes,
         notificationsData,
         privacyData,
+        blockedData,
       ] = await Promise.all([
         getNotes({ scope: "PUBLIC" }),
         getSocialFeed(),
@@ -413,6 +452,7 @@ export function App() {
         getRelations(),
         apiGetNotifications(),
         getPrivacy(),
+        getBlockedUsers(),
       ]);
       setNotes((notesData?.items || []).map(mapNote));
       setSocialFeedNotes((socialFeedData?.items || []).map(mapNote));
@@ -467,6 +507,11 @@ export function App() {
       });
       setProfileData(profileDataRes);
       setRelationsData(relationsDataRes || []);
+      const apiBlocked = blockedData?.items || blockedData || [];
+      setBlockedRelations(apiBlocked);
+      if (apiBlocked.length > 0) {
+        setBlockedUsers(apiBlocked.map((user) => user.nickname || "用户"));
+      }
       // 同步编辑表单状态
       if (profileDataRes) {
         setProfileName(profileDataRes.nickname || "");
@@ -491,10 +536,15 @@ export function App() {
         setNotifications(
           apiNotifications.map((n) => ({
             id: n.id,
-            type: n.type || "like",
+            type: String(n.type || "").includes("COMMENT") || String(n.type || "").includes("REPLY")
+              ? "comment"
+              : String(n.type || "").includes("SAVE")
+                ? "save"
+                : "like",
+            rawType: n.type,
             user: n.title || "系统",
             action: n.content || "",
-            target: "",
+            target: n.targetId ? `#${n.targetId}` : "",
             time: timeAgo(n.createdAt),
             unread: !n.read,
           })),
@@ -628,14 +678,29 @@ export function App() {
   }
 
   // ── 笔记操作 ──
+  function openNoteDetail(note) {
+    setDetailNote(note);
+    getComments(note.id)
+      .then((comments) => {
+        const mappedComments = (comments?.items || comments || []).map(mapComment);
+        setDetailNote((current) =>
+          current && current.id === note.id
+            ? { ...current, comments: mappedComments }
+            : current,
+        );
+      })
+      .catch(() => {});
+  }
+
   function toggleLike(id) {
     likeNote(id)
       .then((res) => {
-        setNotes((items) =>
+        const update = (items) =>
           items.map((n) =>
             n.id === id ? { ...n, liked: res.active, likes: res.count } : n,
-          ),
-        );
+          );
+        setNotes(update);
+        setSocialFeedNotes(update);
       })
       .catch(() => {});
   }
@@ -643,11 +708,12 @@ export function App() {
   function toggleSave(id) {
     saveNote(id)
       .then((res) => {
-        setNotes((items) =>
+        const update = (items) =>
           items.map((n) =>
             n.id === id ? { ...n, saved: res.active, saves: res.count } : n,
-          ),
-        );
+          );
+        setNotes(update);
+        setSocialFeedNotes(update);
       })
       .catch(() => {});
   }
@@ -657,13 +723,22 @@ export function App() {
     apiCreateComment(noteId, text.trim())
       .then((apiComment) => {
         const newComment = {
+          id: apiComment.id,
+          authorId: apiComment.author?.id,
           user: apiComment.author?.nickname || currentUser.name,
           text: apiComment.content || text.trim(),
         };
         setNotes((prev) =>
           prev.map((n) =>
             n.id === noteId
-              ? { ...n, comments: [...n.comments, newComment], commentCount: n.commentCount + 1 }
+              ? { ...n, comments: [...n.comments, newComment], commentCount: (n.commentCount || 0) + 1 }
+              : n,
+          ),
+        );
+        setSocialFeedNotes((prev) =>
+          prev.map((n) =>
+            n.id === noteId
+              ? { ...n, comments: [...n.comments, newComment], commentCount: (n.commentCount || 0) + 1 }
               : n,
           ),
         );
@@ -675,6 +750,54 @@ export function App() {
       })
       .catch(() => {});
     setCommentText("");
+  }
+
+  function removeNote(noteId) {
+    apiDeleteNote(noteId)
+      .then(() => {
+        setNotes((items) => items.filter((note) => note.id !== noteId));
+        setSocialFeedNotes((items) => items.filter((note) => note.id !== noteId));
+        setDetailNote((note) => (note?.id === noteId ? null : note));
+      })
+      .catch(() => {});
+  }
+
+  function removeComment(noteId, commentId) {
+    apiDeleteComment(noteId, commentId)
+      .then(() => {
+        setNotes((items) =>
+          items.map((note) =>
+            note.id === noteId
+              ? {
+                  ...note,
+                  comments: note.comments.filter((comment) => comment.id !== commentId),
+                  commentCount: Math.max((note.commentCount || 0) - 1, 0),
+                }
+              : note,
+          ),
+        );
+        setSocialFeedNotes((items) =>
+          items.map((note) =>
+            note.id === noteId
+              ? {
+                  ...note,
+                  comments: note.comments.filter((comment) => comment.id !== commentId),
+                  commentCount: Math.max((note.commentCount || 0) - 1, 0),
+                }
+              : note,
+          ),
+        );
+        setDetailNote((note) =>
+          note?.id === noteId
+            ? {
+                ...note,
+                comments: note.comments.filter((comment) => comment.id !== commentId),
+                commentCount: Math.max((note.commentCount || 0) - 1, 0),
+              }
+            : note,
+        );
+      })
+      .catch(() => {});
   }
 
   function createNote() {
@@ -731,6 +854,8 @@ export function App() {
           type: apiChannel.joinType === "PASSWORD" ? "密码" : "公开",
           joined: true,
           admin: apiChannel.administrator?.nickname || currentUser.name,
+          administratorId: apiChannel.administrator?.id || currentUser.id,
+          isAdmin: true,
           announcement: apiChannel.announcement || "",
           members: apiChannel.memberCount || 1,
           posts: [],
@@ -762,6 +887,10 @@ export function App() {
           likes: apiPost.likeCount || 0,
           replies: apiPost.replyCount || 0,
           body: apiPost.content || body,
+          author: apiPost.authorName || currentUser.name,
+          authorId: apiPost.authorId || currentUser.id,
+          channelId: apiPost.channelId || Number(selectedChannel.id),
+          liked: apiPost.liked || false,
           tags: channelPostDraftTags,
           image: channelPostDraftImage,
         };
@@ -782,11 +911,159 @@ export function App() {
       .catch(() => {});
   }
 
+  function updateChannelPostInState(postId, patch) {
+    setChannels((items) =>
+      items.map((channel) => ({
+        ...channel,
+        posts: channel.posts.map((post) =>
+          String(post.id) === String(postId) ? { ...post, ...patch } : post,
+        ),
+      })),
+    );
+    setChannelPostDetail((detail) =>
+      detail && String(detail.post.id) === String(postId)
+        ? { ...detail, post: { ...detail.post, ...patch } }
+        : detail,
+    );
+  }
+
+  function saveChannelAnnouncement(channelId, announcement) {
+    const text = announcement.trim();
+    if (!text) return;
+    apiUpdateAnnouncement(Number(channelId), text)
+      .then((apiChannel) => {
+        setChannels((items) =>
+          items.map((channel) =>
+            channel.id === String(channelId)
+              ? {
+                  ...channel,
+                  announcement: apiChannel.announcement || text,
+                  admin: apiChannel.administrator?.nickname || channel.admin,
+                  administratorId:
+                    apiChannel.administrator?.id || channel.administratorId,
+                  isAdmin:
+                    (apiChannel.administrator?.id || channel.administratorId) ===
+                    currentUser.id,
+                }
+              : channel,
+          ),
+        );
+      })
+      .catch(() => {});
+  }
+
   // ── 用户操作 ──
-  function blockUser(name) {
-    if (!blockedUsers.includes(name))
-      setBlockedUsers((items) => [name, ...items]);
-    setProfileUser(null);
+  function refreshRelations() {
+    Promise.all([getRelations(), getBlockedUsers()])
+      .then(([relations, blocks]) => {
+        setRelationsData(relations || []);
+        const apiBlocked = blocks?.items || blocks || [];
+        setBlockedRelations(apiBlocked);
+        setBlockedUsers(apiBlocked.map((user) => user.nickname || "用户"));
+      })
+      .catch(() => {});
+  }
+
+  function changeRelation(userId, action) {
+    if (!userId) return;
+    const calls = {
+      follow: apiFollow,
+      unfollow: apiUnfollow,
+      block: apiBlock,
+      unblock: apiUnblock,
+    };
+    calls[action]?.(Number(userId))
+      .then((result) => {
+        const nextStatus =
+          action === "block"
+            ? "BLOCKED"
+            : action === "unblock"
+              ? "NONE"
+              : result?.status || (action === "follow" ? "FOLLOWING" : "NONE");
+        setProfileUser((user) =>
+          user &&
+          [user.id, user.authorId, user.userId].some((id) => String(id) === String(userId))
+            ? { ...user, relation: nextStatus }
+            : user,
+        );
+        refreshRelations();
+      })
+      .catch(() => {});
+  }
+
+  function blockUser(user) {
+    const userId = user?.id || user?.authorId || user?.userId;
+    if (!userId) {
+      const name = user?.author || user?.name || user;
+      if (name && !blockedUsers.includes(name))
+        setBlockedUsers((items) => [name, ...items]);
+      setProfileUser(null);
+      return;
+    }
+    apiBlock(Number(userId))
+      .then(() => {
+        refreshRelations();
+        setProfileUser(null);
+      })
+      .catch(() => {});
+  }
+
+  function openUserProfile(user) {
+    const userId = user?.authorId || user?.id || user?.userId;
+    if (!userId) {
+      setProfileUser(user);
+      return;
+    }
+    getUserProfile(Number(userId))
+      .then((profile) => {
+        setProfileUser({
+          ...user,
+          id: profile.id,
+          authorId: profile.id,
+          author: profile.nickname || user.author || user.name,
+          name: profile.nickname || user.name || user.author,
+          avatar: profile.avatarUrl || user.avatar || DEFAULT_AVATAR,
+          meta: `${profile.grade || ""} · ${profile.college || ""}`,
+          bio: profile.bio || "",
+          relation: profile.relation,
+        });
+      })
+      .catch(() => setProfileUser(user));
+  }
+
+  function startConversationWith(user) {
+    const userId = user?.id || user?.authorId || user?.userId;
+    if (!userId) return;
+    apiCreateConversation({
+      type: "PRIVATE",
+      participantIds: [Number(userId)],
+      name: user.name || user.author || user.nickname,
+    })
+      .then((conversation) => {
+        const mapped = mapChats([conversation], currentUser.id)[0];
+        setChats((items) => {
+          const exists = items.some((chat) => chat.id === mapped.id);
+          return exists
+            ? items.map((chat) => (chat.id === mapped.id ? { ...chat, ...mapped } : chat))
+            : [mapped, ...items];
+        });
+        setActiveChatId(mapped.id);
+        setActiveNav("聊天");
+        setProfileUser(null);
+      })
+      .catch(() => {});
+  }
+
+  function markNotificationRead(notificationId) {
+    apiMarkNotificationRead(notificationId)
+      .catch(() => {})
+      .finally(() =>
+        setNotifications((items) =>
+          items.map((item) =>
+            item.id === notificationId ? { ...item, unread: false } : item,
+          ),
+        ),
+      );
   }
 
   function updatePrivacyField(key, value) {
@@ -869,6 +1146,7 @@ export function App() {
 
   function openChannelPostDetail(payload) {
     setChannelPostDetail({ ...payload, replies: [] });
+    setChannelPostReply("");
     getPostDetail(Number(payload.post.id))
       .then((detail) => {
         setChannelPostDetail({
@@ -879,8 +1157,67 @@ export function App() {
             body: detail.post?.content || payload.post.body,
             likes: detail.post?.likeCount ?? payload.post.likes,
             replies: detail.post?.replyCount ?? payload.post.replies,
+            pinned: detail.post?.pinned ?? payload.post.pinned,
+            liked: detail.post?.liked ?? payload.post.liked,
+            author: detail.post?.authorName || payload.post.author,
+            authorId: detail.post?.authorId || payload.post.authorId,
+            channelId: detail.post?.channelId || payload.post.channelId,
           },
           replies: detail.replies || [],
+        });
+      })
+      .catch(() => {});
+  }
+
+  function submitChannelPostReply() {
+    const text = channelPostReply.trim();
+    if (!text || !channelPostDetail) return;
+    const postId = Number(channelPostDetail.post.id);
+    apiReplyToPost(postId, text)
+      .then((reply) => {
+        setChannelPostDetail((detail) =>
+          detail
+            ? {
+                ...detail,
+                replies: [...(detail.replies || []), reply],
+                post: {
+                  ...detail.post,
+                  replies: (detail.post.replies || 0) + 1,
+                },
+              }
+            : detail,
+        );
+        updateChannelPostInState(postId, {
+          replies: (channelPostDetail.post.replies || 0) + 1,
+        });
+        setChannelPostReply("");
+      })
+      .catch(() => {});
+  }
+
+  function toggleChannelPostLike() {
+    if (!channelPostDetail) return;
+    const postId = Number(channelPostDetail.post.id);
+    apiLikePost(postId)
+      .then((result) => {
+        updateChannelPostInState(postId, {
+          liked: result.active,
+          likes: result.count,
+        });
+      })
+      .catch(() => {});
+  }
+
+  function toggleChannelPostPinned() {
+    if (!channelPostDetail) return;
+    const postId = Number(channelPostDetail.post.id);
+    const pinned = !channelPostDetail.post.pinned;
+    apiSetPostPinned(postId, pinned)
+      .then((post) => {
+        updateChannelPostInState(postId, {
+          pinned: post.pinned,
+          likes: post.likeCount ?? channelPostDetail.post.likes,
+          replies: post.replyCount ?? channelPostDetail.post.replies,
         });
       })
       .catch(() => {});
@@ -926,12 +1263,14 @@ export function App() {
 
   // ── noteFeedProps（供各页面组件透传） ──
   const noteFeedProps = {
-    onOpenNote: setDetailNote,
-    onOpenProfile: setProfileUser,
+    currentUserId: currentUser.id,
+    onOpenNote: openNoteDetail,
+    onOpenProfile: openUserProfile,
     onReport: setReportTarget,
     onSelectTag: setActiveTag,
     onToggleLike: toggleLike,
     onToggleSave: toggleSave,
+    onDeleteNote: removeNote,
   };
 
   // ── 渲染主内容 ──
@@ -957,6 +1296,8 @@ export function App() {
             notes={socialNotes}
             friends={friendList}
             noteFeedProps={noteFeedProps}
+            onRelationAction={changeRelation}
+            onStartConversation={startConversationWith}
           />
         );
       case "频道":
@@ -969,6 +1310,7 @@ export function App() {
             onOpenPost={openChannelPostDetail}
             onReport={setReportTarget}
             onCreateChannel={() => setCreateChannelOpen(true)}
+            onUpdateAnnouncement={saveChannelAnnouncement}
           />
         );
       case "聊天":
@@ -1107,6 +1449,7 @@ export function App() {
                 ),
               )
           }
+          onMarkRead={markNotificationRead}
         />
 
         {/* 聊天页面需要 chatInput + sendChatMessage，所以单独处理 */}
@@ -1270,6 +1613,13 @@ export function App() {
         onSubmitJoin={submitJoinChannel}
         onBlockUser={blockUser}
         onReport={setReportTarget}
+        channelPostReply={channelPostReply}
+        onChannelPostReplyChange={setChannelPostReply}
+        onSubmitChannelPostReply={submitChannelPostReply}
+        onToggleChannelPostLike={toggleChannelPostLike}
+        onToggleChannelPostPinned={toggleChannelPostPinned}
+        onRelationAction={changeRelation}
+        onStartConversation={startConversationWith}
       />
 
       {/* ── 笔记详情弹窗（含评论功能，需独立处理） ── */}
@@ -1298,10 +1648,21 @@ export function App() {
                 <span className="muted">还没有评论。</span>
               ) : (
                 detailNote.comments.map((c) => (
-                  <p key={`${c.user}-${c.text}`}>
-                    <strong>{c.user}</strong>
-                    {c.text}
-                  </p>
+                  <div className="comment-row" key={c.id || `${c.user}-${c.text}`}>
+                    <p>
+                      <strong>{c.user}</strong>
+                      {c.text}
+                    </p>
+                    {c.id && (c.authorId === currentUser.id || detailNote.authorId === currentUser.id) && (
+                      <button
+                        className="icon-mini"
+                        title="删除评论"
+                        onClick={() => removeComment(detailNote.id, c.id)}
+                      >
+                        <Trash size={15} />
+                      </button>
+                    )}
+                  </div>
                 ))
               )}
               <div className="comment-input">
@@ -1323,6 +1684,15 @@ export function App() {
               </div>
             </div>
             <div className="modal-actions">
+              {detailNote.authorId === currentUser.id && (
+                <button
+                  title="删除笔记"
+                  onClick={() => removeNote(detailNote.id)}
+                >
+                  <Trash size={18} />
+                  删除
+                </button>
+              )}
               <button
                 title="举报"
                 onClick={() =>
