@@ -24,6 +24,14 @@ public class MySqlChatRepository implements ChatRepository {
     public MySqlChatRepository(JdbcClient jdbc){this.jdbc=jdbc;}
     @Override public List<Conversation> findByMember(Long userId){return jdbc.sql("SELECT c.* FROM conversations c JOIN conversation_members m ON m.conversation_id=c.id WHERE m.user_id=:id ORDER BY c.last_message_at DESC").param("id",userId).query(this::mapConversation).list();}
     @Override public Optional<Conversation> findConversationById(Long id){return jdbc.sql("SELECT * FROM conversations WHERE id=:id").param("id",id).query(this::mapConversation).optional();}
+    @Override public Optional<Conversation> findPrivateConversation(Long firstUserId, Long secondUserId){return jdbc.sql("""
+            SELECT c.* FROM conversations c
+            JOIN conversation_members m1 ON m1.conversation_id=c.id AND m1.user_id=:first
+            JOIN conversation_members m2 ON m2.conversation_id=c.id AND m2.user_id=:second
+            WHERE c.type='PRIVATE'
+              AND (SELECT COUNT(*) FROM conversation_members cm WHERE cm.conversation_id=c.id)=2
+            LIMIT 1
+            """).params(Map.of("first",firstUserId,"second",secondUserId)).query(this::mapConversation).optional();}
     @Override @Transactional public Conversation saveConversation(Conversation c){jdbc.sql("INSERT INTO conversations(id,type,name,last_message,last_message_at) VALUES(:id,:type,:name,:message,:at) ON DUPLICATE KEY UPDATE name=VALUES(name),last_message=VALUES(last_message),last_message_at=VALUES(last_message_at)").params(Map.of("id",c.id(),"type",c.type().name(),"name",c.name(),"message",c.lastMessage(),"at",c.lastMessageAt().toLocalDateTime())).update();for(Long user:c.memberIds())jdbc.sql("INSERT IGNORE INTO conversation_members(conversation_id,user_id) VALUES(:conversation,:user)").params(Map.of("conversation",c.id(),"user",user)).update();return findConversationById(c.id()).orElseThrow();}
     @Override public List<ChatMessage> findMessages(Long id){return jdbc.sql("SELECT * FROM messages WHERE conversation_id=:id ORDER BY sent_at").param("id",id).query(this::mapMessage).list();}
     @Override @Transactional public ChatMessage saveMessage(ChatMessage m){jdbc.sql("INSERT INTO messages(id,conversation_id,sender_id,content,sent_at) VALUES(:id,:conversation,:sender,:content,:at)").params(Map.of("id",m.id(),"conversation",m.conversationId(),"sender",m.senderId(),"content",m.content(),"at",m.sentAt().toLocalDateTime())).update();for(Long user:m.readBy())jdbc.sql("INSERT IGNORE INTO message_read_status(message_id,user_id) VALUES(:message,:user)").params(Map.of("message",m.id(),"user",user)).update();jdbc.sql("UPDATE conversations SET last_message=:content,last_message_at=:at WHERE id=:id").params(Map.of("content",m.content(),"at",m.sentAt().toLocalDateTime(),"id",m.conversationId())).update();return m;}

@@ -9,7 +9,7 @@ import jakarta.validation.constraints.Size;
 public final class UserDtos {
     private UserDtos() {}
 
-    public record UserProfile(Long id, String nickname, String avatarUrl, String college, String grade,
+    public record UserProfile(Long id, String email, String nickname, String avatarUrl, String college, String grade,
                               String bio, RelationStatus relation, UserRole role, AccountStatus status) {}
     public record CurrentUserProfile(Long id, String email, String nickname, String avatarUrl,
                                      String college, String grade, String bio,

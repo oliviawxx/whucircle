@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -39,6 +40,10 @@ public class UserController {
     }
     @GetMapping("/relations")
     public ApiResponse<List<RelationView>> relations() { return ApiResponse.success(userService.relations(CurrentUser.id())); }
+    @GetMapping("/users/search")
+    public ApiResponse<List<UserProfile>> search(@RequestParam(defaultValue = "") String keyword) {
+        return ApiResponse.success(userService.search(CurrentUser.id(), keyword));
+    }
     @GetMapping("/users/{userId}")
     public ApiResponse<UserProfile> profile(@PathVariable Long userId) { return ApiResponse.success(userService.profile(CurrentUser.id(), userId)); }
     @PostMapping("/users/{userId}/follow")

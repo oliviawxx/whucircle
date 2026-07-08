@@ -51,7 +51,10 @@ public class ChatService {
         }
         if (conversation.type() == ConversationType.PRIVATE) {
             conversation.memberIds().stream().filter(member -> !member.equals(currentUserId)).findFirst()
-                    .ifPresent(targetUserId -> requireDirectMessagePermission(currentUserId, targetUserId));
+                    .ifPresent(targetUserId -> {
+                        requireDirectMessagePermission(currentUserId, targetUserId);
+                        requirePrivateMessageQuota(currentUserId, targetUserId);
+                    });
         }
         Set<Long> readBy = ConcurrentHashMap.newKeySet();
         readBy.add(currentUserId);
@@ -81,8 +84,28 @@ public class ChatService {
             if (users.isBlockedEitherWay(currentUserId, memberId)) {
                 throw new BusinessException(ErrorCode.FORBIDDEN, "拉黑关系下不能创建会话");
             }
+            if (request.type() == ConversationType.GROUP
+                    && users.relation(currentUserId, memberId) != RelationStatus.FRIEND) {
+                throw new BusinessException(ErrorCode.FORBIDDEN, "只能邀请好友加入群聊");
+            }
         }
-        if (request.type() == ConversationType.PRIVATE) requireDirectMessagePermission(currentUserId, participantIds.get(0));
+        if (request.type() == ConversationType.PRIVATE) {
+            Long otherUserId = participantIds.get(0);
+            requireDirectMessagePermission(currentUserId, otherUserId);
+            return chats.findPrivateConversation(currentUserId, otherUserId)
+                    .map(conversation -> new ConversationView(conversation.id(), conversation.type(), conversation.name(),
+                            conversation.lastMessage(), conversation.lastMessageAt(),
+                            (int) chats.findMessages(conversation.id()).stream()
+                                    .filter(message -> !message.readBy().contains(currentUserId)).count()))
+                    .orElseGet(() -> createNewConversation(currentUserId, request, participantIds));
+        }
+        return createNewConversation(currentUserId, request, participantIds);
+    }
+
+    private ConversationView createNewConversation(Long currentUserId, CreateConversationRequest request, List<Long> participantIds) {
+        Set<Long> members = ConcurrentHashMap.newKeySet();
+        members.add(currentUserId);
+        members.addAll(participantIds);
         long conversationId = chats.nextConversationId();
         String name = request.name();
         if (name == null || name.isBlank()) {
@@ -104,9 +127,19 @@ public class ChatService {
         if (permission == DirectMessagePermission.NONE) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "对方不接收私信");
         }
-        if (permission == DirectMessagePermission.FRIENDS_ONLY
-                && users.relation(senderId, recipientId) != RelationStatus.FRIEND) {
-            throw new BusinessException(ErrorCode.FORBIDDEN, "对方仅接收好友私信");
+    }
+
+    private void requirePrivateMessageQuota(Long senderId, Long recipientId) {
+        RelationStatus relation = users.relation(senderId, recipientId);
+        if (relation == RelationStatus.FOLLOWER || relation == RelationStatus.FRIEND) return;
+        long sentCount = chats.findByMember(senderId).stream()
+                .filter(conversation -> conversation.type() == ConversationType.PRIVATE)
+                .filter(conversation -> conversation.memberIds().contains(recipientId))
+                .flatMap(conversation -> chats.findMessages(conversation.id()).stream())
+                .filter(message -> message.senderId().equals(senderId))
+                .count();
+        if (sentCount >= 1) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "对方关注你之前，只能发送一条私信");
         }
     }
 

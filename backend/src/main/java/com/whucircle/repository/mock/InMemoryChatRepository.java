@@ -55,6 +55,14 @@ public class InMemoryChatRepository implements ChatRepository {
     @Override public java.util.Optional<Conversation> findConversationById(Long conversationId) {
         return java.util.Optional.ofNullable(conversations.get(conversationId));
     }
+    @Override public java.util.Optional<Conversation> findPrivateConversation(Long firstUserId, Long secondUserId) {
+        return conversations.values().stream()
+                .filter(conversation -> conversation.type() == ConversationType.PRIVATE)
+                .filter(conversation -> conversation.memberIds().contains(firstUserId)
+                        && conversation.memberIds().contains(secondUserId)
+                        && conversation.memberIds().size() == 2)
+                .findFirst();
+    }
     @Override public Conversation saveConversation(Conversation conversation) {
         conversations.put(conversation.id(), conversation);
         return conversation;

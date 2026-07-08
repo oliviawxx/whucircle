@@ -18,7 +18,8 @@ public class InMemorySettingsRepository implements SettingsRepository {
 
     @Override public PrivacySettings findPrivacy(Long userId) {
         return settings.computeIfAbsent(userId, ignored -> new PrivacySettings(
-                Visibility.PUBLIC, JoinType.PUBLIC, DirectMessagePermission.FRIENDS_ONLY));
+                Visibility.PUBLIC, JoinType.PUBLIC, DirectMessagePermission.FRIENDS_ONLY,
+                true, false, true, true, true));
     }
     @Override public PrivacySettings savePrivacy(Long userId, PrivacySettings value) {
         settings.put(userId, value);

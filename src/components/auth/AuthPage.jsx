@@ -1,4 +1,4 @@
-import { ShieldCheck, Student } from "@phosphor-icons/react";
+﻿import { ShieldCheck, Student } from "@phosphor-icons/react";
 
 export function AuthPage({
   activeTheme,
@@ -137,7 +137,7 @@ export function AuthPage({
           )}
           <button className="auth-submit" onClick={onEnter} disabled={authLoading}>
             {authLoading
-              ? "请稍候"
+              ? "请稍等"
               : mode === "登录"
                 ? "登录"
                 : mode === "注册"

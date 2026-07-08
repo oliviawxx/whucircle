@@ -19,6 +19,11 @@ export function getUserProfile(userId) {
   return request(`/users/${userId}`);
 }
 
+export function searchUsers(keyword) {
+  const params = new URLSearchParams({ keyword });
+  return request(`/users/search?${params.toString()}`);
+}
+
 export function follow(userId) {
   return request(`/users/${userId}/follow`, { method: "POST" });
 }

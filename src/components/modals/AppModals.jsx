@@ -1,4 +1,4 @@
-import { ChatCircle, Flag, Heart, Image, PaperPlaneTilt, Prohibit, PushPin, UserMinus, UserPlus } from "@phosphor-icons/react";
+﻿import { ChatCircle, Flag, Heart, Image, PaperPlaneTilt, Prohibit, PushPin, UserMinus, UserPlus } from "@phosphor-icons/react";
 import { ModalHead } from "../common/ModalHead.jsx";
 
 export function AppModals({
@@ -28,6 +28,8 @@ export function AppModals({
   onToggleChannelPostPinned,
   onRelationAction,
   onStartConversation,
+  profileBackdropClassName = "modal-backdrop",
+  reportBackdropClassName = "modal-backdrop",
 }) {
   return (
     <>
@@ -83,7 +85,7 @@ export function AppModals({
                       disabled={draft.uploading}
                       onClick={() => onRemoveDraftImage(image.id)}
                     >
-                      ×
+                      脳
                     </button>
                   </figure>
                 ))}
@@ -188,12 +190,13 @@ export function AppModals({
       )}
 
       {profileUser && (
-        <div className="modal-backdrop" onClick={onCloseProfile}>
+        <div className={profileBackdropClassName} onClick={onCloseProfile}>
           <section className="small-modal" onClick={(event) => event.stopPropagation()}>
             <ModalHead title={profileUser.author} subtitle={profileUser.meta} onClose={onCloseProfile} />
             <div className="profile-preview">
               <img className="avatar large" src={profileUser.avatar} alt={`${profileUser.author}头像`} />
               <p>{profileUser.bio || "展示对方主页预览。拉黑后不能私信、评论、查看主页。"}</p>
+              {profileUser.email && <span className="profile-email">{profileUser.email}</span>}
             </div>
             {profileUser.id || profileUser.authorId ? (
               <div className="profile-action-row">
@@ -241,9 +244,9 @@ export function AppModals({
       )}
 
       {reportTarget && (
-        <div className="modal-backdrop" onClick={onCloseReport}>
+        <div className={reportBackdropClassName} onClick={onCloseReport}>
           <section className="small-modal" onClick={(event) => event.stopPropagation()}>
-            <ModalHead title="举报" subtitle={`${reportTarget.type} · ${reportTarget.title}`} onClose={onCloseReport} />
+            <ModalHead title="举报" subtitle={`${reportTarget.type} 路 ${reportTarget.title}`} onClose={onCloseReport} />
             <div className="report-reasons">
               {["广告", "骚扰", "不实信息", "其他"].map((reason) => (
                 <button key={reason} onClick={() => onSubmitReport(reason)}>
@@ -257,3 +260,4 @@ export function AppModals({
     </>
   );
 }
+

@@ -14,6 +14,7 @@ import com.whucircle.dto.RecommendationDtos.RecommendationFeedbackRequest;
 import com.whucircle.dto.RecommendationDtos.RecommendationFeedbackResponse;
 import com.whucircle.repository.ChannelRepository;
 import com.whucircle.repository.NoteRepository;
+import com.whucircle.repository.SettingsRepository;
 import com.whucircle.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.ObjectProvider;
@@ -33,14 +34,16 @@ public class RecommendationService {
     private final UserRepository users;
     private final NoteRepository notes;
     private final ChannelRepository channels;
+    private final SettingsRepository settings;
     private final AtomicLong feedbackIds = new AtomicLong(10000);
     private final JdbcClient jdbc;
     private final boolean mysql;
 
-    public RecommendationService(UserRepository users, NoteRepository notes, ChannelRepository channels, ObjectProvider<JdbcClient> jdbc, Environment environment) {
+    public RecommendationService(UserRepository users, NoteRepository notes, ChannelRepository channels, SettingsRepository settings, ObjectProvider<JdbcClient> jdbc, Environment environment) {
         this.users = users;
         this.notes = notes;
         this.channels = channels;
+        this.settings = settings;
         this.jdbc=jdbc.getIfAvailable();
         this.mysql=java.util.Arrays.asList(environment.getActiveProfiles()).contains("mysql");
     }
@@ -56,10 +59,11 @@ public class RecommendationService {
 
     public PageData<RecommendationCardView> notes(Long currentUserId, int page, int size) {
         User currentUser = requireUser(currentUserId);
-        Set<String> interestTags = interestTags(currentUserId);
+        boolean personalized = settings.findPrivacy(currentUserId).personalizedRecommendations();
+        Set<String> interestTags = personalized ? interestTags(currentUserId) : Set.of();
         List<RecommendationCardView> result = notes.findAll().stream()
                 .filter(note -> canRecommendNote(currentUserId, note))
-                .map(note -> toNoteCard(currentUser, note, interestTags))
+                .map(note -> toNoteCard(currentUser, note, interestTags, personalized))
                 .sorted(Comparator.comparingDouble(RecommendationCardView::score).reversed())
                 .toList();
         return PageData.of(result, page, size);
@@ -70,6 +74,7 @@ public class RecommendationService {
         List<RecommendationCardView> result = users.findAll().stream()
                 .filter(user -> !user.id().equals(currentUserId))
                 .filter(user -> !users.isBlockedEitherWay(currentUserId, user.id()))
+                .filter(user -> settings.findPrivacy(user.id()).searchableByUsers())
                 .filter(user -> users.relation(currentUserId, user.id()) != RelationStatus.FOLLOWING)
                 .filter(user -> users.relation(currentUserId, user.id()) != RelationStatus.FRIEND)
                 .map(user -> toUserCard(currentUser, user))
@@ -101,23 +106,23 @@ public class RecommendationService {
         return new RecommendationFeedbackResponse(feedbackIds.getAndIncrement(), "ACCEPTED", OffsetDateTime.now());
     }
 
-    private RecommendationCardView toNoteCard(User currentUser, Note note, Set<String> interestTags) {
+    private RecommendationCardView toNoteCard(User currentUser, Note note, Set<String> interestTags, boolean personalized) {
         User author = requireUser(note.authorId());
         RelationStatus relation = users.relation(currentUser.id(), author.id());
         double score = 35.0;
         List<String> reasons = new ArrayList<>();
-        if (author.college() != null && author.college().equals(currentUser.college())) {
+        if (personalized && author.college() != null && author.college().equals(currentUser.college())) {
             score += 18;
             reasons.add("同学院");
         }
-        if (author.grade() != null && author.grade().equals(currentUser.grade())) {
+        if (personalized && author.grade() != null && author.grade().equals(currentUser.grade())) {
             score += 8;
             reasons.add("同年级");
         }
-        if (relation == RelationStatus.FRIEND) {
+        if (personalized && relation == RelationStatus.FRIEND) {
             score += 22;
             reasons.add("好友圈层");
-        } else if (relation == RelationStatus.FOLLOWING) {
+        } else if (personalized && relation == RelationStatus.FOLLOWING) {
             score += 15;
             reasons.add("你关注的人");
         }

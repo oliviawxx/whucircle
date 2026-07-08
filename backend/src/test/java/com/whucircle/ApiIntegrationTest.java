@@ -209,10 +209,43 @@ class ApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.type").value("PRIVATE"));
 
-        mockMvc.perform(post("/api/v1/conversations")
+        String conversationBody = mockMvc.perform(post("/api/v1/conversations")
                         .header("Authorization", AUTH)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"type\":\"PRIVATE\",\"participantIds\":[3]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.type").value("PRIVATE"))
+                .andReturn().getResponse().getContentAsString();
+        long conversationId = objectMapper.readTree(conversationBody).path("data").path("id").asLong();
+
+        mockMvc.perform(post("/api/v1/conversations/{id}/messages", conversationId)
+                        .header("Authorization", AUTH)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\":\"你好，可以交流一下吗？\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/conversations/{id}/messages", conversationId)
+                        .header("Authorization", AUTH)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\":\"再补充一条消息\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(40300));
+    }
+
+    @Test
+    void groupConversationOnlyAllowsFriends() throws Exception {
+        mockMvc.perform(post("/api/v1/conversations")
+                        .header("Authorization", AUTH)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"type\":\"GROUP\",\"participantIds\":[2,6],\"name\":\"项目讨论组\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.type").value("GROUP"))
+                .andExpect(jsonPath("$.data.name").value("项目讨论组"));
+
+        mockMvc.perform(post("/api/v1/conversations")
+                        .header("Authorization", AUTH)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"type\":\"GROUP\",\"participantIds\":[3],\"name\":\"陌生人群聊\"}"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value(40300));
     }

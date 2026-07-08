@@ -10,5 +10,10 @@ public final class SettingsDtos {
 
     public record PrivacyRequest(@NotNull Visibility defaultNoteVisibility,
                                  @NotNull JoinType defaultChannelJoinType,
-                                 @NotNull DirectMessagePermission directMessagePermission) {}
+                                 @NotNull DirectMessagePermission directMessagePermission,
+                                 Boolean searchableByUsers,
+                                 Boolean showEmailOnProfile,
+                                 Boolean personalizedRecommendations,
+                                 Boolean activityNotifications,
+                                 Boolean loginAlerts) {}
 }

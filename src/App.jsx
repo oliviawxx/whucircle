@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
   BookmarkSimple,
@@ -24,6 +24,7 @@ import {
   Student,
   Trash,
   UserCircle,
+  UserPlus,
   UsersThree,
   X,
 } from "@phosphor-icons/react";
@@ -81,6 +82,7 @@ import {
   updateProfile,
   getRelations,
   getUserProfile,
+  searchUsers,
   follow as apiFollow,
   unfollow as apiUnfollow,
   block as apiBlock,
@@ -97,6 +99,7 @@ import {
   deleteAdminNote,
   deleteAdminChannelPost,
 } from "./api/admin.js";
+import { getRecommendedNotes } from "./api/recommendations.js";
 import { AuthPage } from "./components/auth/AuthPage.jsx";
 import { ModalHead } from "./components/common/ModalHead.jsx";
 import { Sidebar } from "./components/layout/Sidebar.jsx";
@@ -129,7 +132,7 @@ const DEFAULT_AVATAR =
 const DEMO_USER = { ...DEMO_USER_RAW, id: null };
 
 const VIS_MAP = { PUBLIC: "公开", FRIENDS: "好友可见", PRIVATE: "私密" };
-const VIS_REV = { "公开": "PUBLIC", "好友可见": "FRIENDS", "私密": "PRIVATE" };
+const VIS_REV = { 公开: "PUBLIC", 好友可见: "FRIENDS", 私密: "PRIVATE" };
 const CHANNEL_PERMISSION_MAP = { PUBLIC: "公开", PASSWORD: "密码" };
 const MESSAGE_PERMISSION_MAP = {
   EVERYONE: "允许所有人",
@@ -152,7 +155,6 @@ function toMessagePermission(value) {
   if (value === "不接收陌生人私信") return "NONE";
   return "FRIENDS_ONLY";
 }
-
 function toReportTarget(type) {
   if (type === "频道帖子") return "CHANNEL_POST";
   if (type === "聊天消息") return "MESSAGE";
@@ -168,7 +170,7 @@ function toReportReason(reason) {
 }
 
 export function App() {
-  // ── 认证状态 ──
+  // 认证状态
   const [loggedIn, setLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState(DEMO_USER);
   const [authMode, setAuthMode] = useState("登录");
@@ -181,7 +183,7 @@ export function App() {
   const [authError, setAuthError] = useState("");
   const [authNotice, setAuthNotice] = useState("");
 
-  // ── 数据状态 ──
+  // 数据状态
   const [notes, setNotes] = useState(initialNotes);
   const [socialFeedNotes, setSocialFeedNotes] = useState(
     getSocialNotes(initialNotes),
@@ -193,6 +195,7 @@ export function App() {
   const [profileData, setProfileData] = useState(null);
   const [relationsData, setRelationsData] = useState([]);
   const [blockedRelations, setBlockedRelations] = useState([]);
+  const [recommendedNoteCards, setRecommendedNoteCards] = useState([]);
   const [adminDashboard, setAdminDashboard] = useState(null);
   const [adminLoading, setAdminLoading] = useState(false);
   const [channelAdminDashboard, setChannelAdminDashboard] = useState(null);
@@ -201,7 +204,7 @@ export function App() {
   const [channelAdminAnnouncementDraft, setChannelAdminAnnouncementDraft] =
     useState("");
 
-  // ── UI 状态 ──
+  // UI 状态
   const [activeNav, setActiveNav] = useState("主页");
   const [activeChatId, setActiveChatId] = useState(null);
   const [selectedChannelId, setSelectedChannelId] = useState(null);
@@ -209,12 +212,16 @@ export function App() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [tagsExpanded, setTagsExpanded] = useState(false);
 
-  // ── 搜索/筛选状态 ──
+  // 搜索和筛选状态
   const [searchTerm, setSearchTerm] = useState("");
+  const [searchMode, setSearchMode] = useState("notes");
+  const [userSearchResults, setUserSearchResults] = useState([]);
+  const [userSearchLoading, setUserSearchLoading] = useState(false);
   const [savedSearch, setSavedSearch] = useState("");
   const [activeTag, setActiveTag] = useState("全部");
+  const [noteSort, setNoteSort] = useState("latest");
 
-  // ── 草稿状态 ──
+  // 草稿状态
   const [draftOpen, setDraftOpen] = useState(false);
   const [draftTitle, setDraftTitle] = useState("");
   const [draftText, setDraftText] = useState("");
@@ -224,7 +231,7 @@ export function App() {
   const [draftUploading, setDraftUploading] = useState(false);
   const [draftError, setDraftError] = useState("");
 
-  // ── 弹窗状态 ──
+  // 弹窗状态
   const [detailNote, setDetailNote] = useState(null);
   const [commentText, setCommentText] = useState("");
   const [profileUser, setProfileUser] = useState(null);
@@ -245,25 +252,37 @@ export function App() {
   const [channelPostReply, setChannelPostReply] = useState("");
   const [reportTarget, setReportTarget] = useState(null);
 
-  // ── 设置/个人资料状态 ──
+  // 设置和个人资料状态
   const [activeTheme, setActiveTheme] = useState("blue");
   const [profileEditOpen, setProfileEditOpen] = useState(false);
   const [profileName, setProfileName] = useState(currentUser.name);
   const [profileMeta, setProfileMeta] = useState(currentUser.meta);
   const [profileBio, setProfileBio] = useState("校园生活、课程项目、摄影记录");
   const [profileAvatar, setProfileAvatar] = useState(currentUser.avatar);
+  const [profileAvatarUploading, setProfileAvatarUploading] = useState(false);
+  const [profileAvatarError, setProfileAvatarError] = useState("");
   const [selectedRelation, setSelectedRelation] = useState("关注");
   const [privacy, setPrivacy] = useState({
     noteVisibility: "公开",
     channelPermission: "公开",
     messagePermission: "仅好友",
+    searchableByUsers: true,
+    showEmailOnProfile: false,
+    personalizedRecommendations: true,
+    activityNotifications: true,
+    loginAlerts: true,
   });
   const [blockedUsers, setBlockedUsers] = useState(["校外广告号"]);
 
-  // ── 聊天输入 ──
+  // 聊天输入
   const [chatInput, setChatInput] = useState("");
+  const [chatError, setChatError] = useState("");
+  const [groupChatOpen, setGroupChatOpen] = useState(false);
+  const [groupChatName, setGroupChatName] = useState("");
+  const [groupChatMemberIds, setGroupChatMemberIds] = useState([]);
+  const [groupChatError, setGroupChatError] = useState("");
 
-  // ── 派生值 ──
+  // 派生值
   const selectedChannel =
     channels.find((ch) => ch.id === selectedChannelId) ?? channels[0];
   const activeChat =
@@ -274,8 +293,29 @@ export function App() {
   );
 
   const publicNotes = useMemo(
-    () => filterNotes(notes, searchTerm, activeTag),
-    [notes, searchTerm, activeTag],
+    () => {
+      const searched = filterNotes(notes, searchTerm, activeTag, noteSort);
+      if (searchTerm.trim()) return searched;
+      const rank = new Map(
+        recommendedNoteCards
+          .filter((card) => card.type === "NOTE")
+          .map((card, index) => [card.targetId, { index, card }]),
+      );
+      return [...searched].sort((a, b) => {
+        const aRank = rank.get(a.id);
+        const bRank = rank.get(b.id);
+        if (aRank && bRank) return aRank.index - bRank.index;
+        if (aRank) return -1;
+        if (bRank) return 1;
+        return 0;
+      }).map((note) => {
+        const recommendation = rank.get(note.id)?.card;
+        return recommendation
+          ? { ...note, recommendationReason: recommendation.reason, recommendationScore: recommendation.score }
+          : note;
+      });
+    },
+    [notes, searchTerm, activeTag, noteSort, recommendedNoteCards],
   );
 
   const socialNotes = useMemo(() => socialFeedNotes, [socialFeedNotes]);
@@ -295,7 +335,7 @@ export function App() {
       const statusMap = {
         FRIEND: ["好友", "互相关注，可私信、评论好友可见内容"],
         FOLLOWING: ["关注中", "你关注了对方，但还不是好友"],
-        FOLLOWER: ["被关注", "对方关注了你，快去关注吧"],
+        FOLLOWER: ["被关注", "对方关注了你，可以回关成为好友"],
         NONE: ["未关注", "关注后内容会进入社交圈"],
         BLOCKED: ["已拉黑", "已限制对方与你互动"],
       };
@@ -311,9 +351,17 @@ export function App() {
     return friendRows;
   }, [relationsData]);
 
-  // ── 工具函数 ──
+  const groupChatFriends = useMemo(
+    () => friendList.filter((friend) => friend.id && friend.status === "FRIEND"),
+    [friendList],
+  );
+
+  // 工具函数
   function goTo(label) {
     if (label === "全站管理" && currentUser.role !== "ADMIN") return;
+    if (label === "聊天") {
+      refreshChats();
+    }
     setActiveNav(label);
     setUserMenuOpen(false);
   }
@@ -321,7 +369,7 @@ export function App() {
   function fromApiUser(user) {
     return {
       name: user.nickname || "新用户",
-      meta: `${user.grade || "待完善"} · ${user.college || "待完善"}`,
+      meta: `${user.grade || "待完善"} 路 ${user.college || "待完善"}`,
       avatar: user.avatarUrl || DEFAULT_AVATAR,
       id: user.id,
       role: user.role || "USER",
@@ -343,7 +391,7 @@ export function App() {
       id: apiNote.id,
       authorId: apiNote.author?.id,
       author: apiNote.author?.nickname || "未知",
-      meta: `${apiNote.author?.college || ""} · ${timeAgo(apiNote.createdAt)}`,
+      meta: `${apiNote.author?.college || ""} 路 ${timeAgo(apiNote.createdAt)}`,
       avatar: apiNote.author?.avatarUrl || DEFAULT_AVATAR,
       title: apiNote.title,
       body: apiNote.content,
@@ -353,6 +401,7 @@ export function App() {
       likes: apiNote.likeCount,
       saves: apiNote.saveCount ?? 0,
       commentCount: apiNote.commentCount,
+      createdAt: apiNote.createdAt,
       comments: [],
       liked: apiNote.liked,
       saved: apiNote.saved,
@@ -446,7 +495,39 @@ export function App() {
     };
   }
 
-  // ── 认证 Effect ──
+  async function refreshChats(preferredChatId = activeChatId) {
+    try {
+      const chatsData = await getConversations();
+      const mappedChats = mapChats(chatsData || [], currentUser.id);
+      const chatsWithMessages = await Promise.all(
+        mappedChats.map(async (chat) => {
+          try {
+            const messagesData = await getMessages(Number(chat.id), {
+              page: 1,
+              size: 30,
+            });
+            const messages = (messagesData?.items || []).map(mapChatMessage);
+            return {
+              ...chat,
+              messages: messages.length ? messages : chat.messages,
+            };
+          } catch {
+            return chat;
+          }
+        }),
+      );
+      setChats(chatsWithMessages);
+      if (preferredChatId && chatsWithMessages.some((chat) => chat.id === preferredChatId)) {
+        setActiveChatId(preferredChatId);
+      } else if (chatsWithMessages.length) {
+        setActiveChatId(chatsWithMessages[0].id);
+      }
+    } catch {
+      // 保留当前本地会话列表，避免短暂网络错误清空聊天栏。
+    }
+  }
+
+  // 认证 Effect
   useEffect(() => {
     const existingToken = getToken();
     if (!existingToken) return;
@@ -463,7 +544,7 @@ export function App() {
       .finally(() => setAuthLoading(false));
   }, []);
 
-  // ── 数据加载 ──
+  // 数据加载
   async function loadAllData() {
     try {
       const [
@@ -477,6 +558,7 @@ export function App() {
         notificationsData,
         privacyData,
         blockedData,
+        recommendedNotesData,
       ] = await Promise.all([
         getNotes({ scope: "PUBLIC" }),
         getSocialFeed(),
@@ -488,6 +570,7 @@ export function App() {
         apiGetNotifications(),
         getPrivacy(),
         getBlockedUsers(),
+        getRecommendedNotes({ page: 1, size: 30 }).catch(() => ({ items: [] })),
       ]);
       setNotes((notesData?.items || []).map(mapNote));
       setSocialFeedNotes((socialFeedData?.items || []).map(mapNote));
@@ -536,7 +619,7 @@ export function App() {
       setChats(chatsWithMessages);
       setCurrentUser({
         name: profileDataRes?.nickname || "新用户",
-        meta: `${profileDataRes?.grade || ""} · ${profileDataRes?.college || ""}`,
+        meta: `${profileDataRes?.grade || ""} 路 ${profileDataRes?.college || ""}`,
         avatar: profileDataRes?.avatarUrl || DEFAULT_AVATAR,
         id: profileDataRes?.id,
         role: profileDataRes?.role || currentUser.role || "USER",
@@ -544,6 +627,7 @@ export function App() {
       });
       setProfileData(profileDataRes);
       setRelationsData(relationsDataRes || []);
+      setRecommendedNoteCards(recommendedNotesData?.items || []);
       const apiBlocked = blockedData?.items || blockedData || [];
       setBlockedRelations(apiBlocked);
       if (apiBlocked.length > 0) {
@@ -552,7 +636,7 @@ export function App() {
       // 同步编辑表单状态
       if (profileDataRes) {
         setProfileName(profileDataRes.nickname || "");
-        setProfileMeta(`${profileDataRes.grade || ""} · ${profileDataRes.college || ""}`);
+        setProfileMeta(`${profileDataRes.grade || ""} 路 ${profileDataRes.college || ""}`);
         setProfileBio(profileDataRes.bio || "");
         setProfileAvatar(profileDataRes.avatarUrl || DEFAULT_AVATAR);
       }
@@ -563,11 +647,16 @@ export function App() {
             CHANNEL_PERMISSION_MAP[privacyData.defaultChannelJoinType] || "公开",
           messagePermission:
             MESSAGE_PERMISSION_MAP[privacyData.directMessagePermission] || "仅好友",
+          searchableByUsers: privacyData.searchableByUsers ?? true,
+          showEmailOnProfile: privacyData.showEmailOnProfile ?? false,
+          personalizedRecommendations: privacyData.personalizedRecommendations ?? true,
+          activityNotifications: privacyData.activityNotifications ?? true,
+          loginAlerts: privacyData.loginAlerts ?? true,
         };
         setPrivacy(nextPrivacy);
         setDraftVisibility(nextPrivacy.noteVisibility);
       }
-      // 映射通知数据
+      // 鏄犲皠閫氱煡鏁版嵁
       const apiNotifications = notificationsData?.items || notificationsData || [];
       if (apiNotifications.length > 0) {
         setNotifications(
@@ -581,7 +670,7 @@ export function App() {
                   ? "save"
                   : "like",
             rawType: n.type,
-            user: n.title || "系统",
+            user: n.title || "绯荤粺",
             action: n.content || "",
             target: n.targetId ? `#${n.targetId}` : "",
             targetId: n.targetId,
@@ -611,7 +700,7 @@ export function App() {
     );
   }, [channelAdminDashboard?.channel?.id, channelAdminDashboard?.channel?.announcement]);
 
-  // ── 初始化 activeChatId ──
+  // 初始化 activeChatId
   useEffect(() => {
     if (!chats.length) {
       setActiveChatId(null);
@@ -622,7 +711,31 @@ export function App() {
     }
   }, [activeChatId, chats]);
 
-  // ── 认证处理函数 ──
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setActiveTag("全部");
+      setTagsExpanded(false);
+    }
+  }, [searchTerm]);
+
+  useEffect(() => {
+    const keyword = searchTerm.trim();
+    if (searchMode !== "users" || !keyword) {
+      setUserSearchResults([]);
+      setUserSearchLoading(false);
+      return;
+    }
+    setUserSearchLoading(true);
+    const timer = window.setTimeout(() => {
+      searchUsers(keyword)
+        .then((items) => setUserSearchResults(items || []))
+        .catch(() => setUserSearchResults([]))
+        .finally(() => setUserSearchLoading(false));
+    }, 260);
+    return () => window.clearTimeout(timer);
+  }, [searchMode, searchTerm]);
+
+  // 认证处理函数
   function handleSendCode() {
     setAuthError("");
     setAuthNotice("");
@@ -730,7 +843,7 @@ export function App() {
     setAdminDashboard(null);
   }
 
-  // ── 笔记操作 ──
+  // 笔记操作
   function openNoteDetail(note) {
     setDetailNote(note);
     getComments(note.id)
@@ -754,6 +867,9 @@ export function App() {
           );
         setNotes(update);
         setSocialFeedNotes(update);
+        setDetailNote((note) =>
+          note && note.id === id ? { ...note, liked: res.active, likes: res.count } : note,
+        );
       })
       .catch(() => {});
   }
@@ -767,6 +883,9 @@ export function App() {
           );
         setNotes(update);
         setSocialFeedNotes(update);
+        setDetailNote((note) =>
+          note && note.id === id ? { ...note, saved: res.active, saves: res.count } : note,
+        );
       })
       .catch(() => {});
   }
@@ -932,7 +1051,7 @@ export function App() {
     }
   }
 
-  // ── 频道操作 ──
+  // 频道操作
   function submitJoinChannel() {
     if (!joinChannel) return;
     apiJoinChannel(Number(joinChannel.id), joinPassword || null)
@@ -1107,7 +1226,7 @@ export function App() {
                   ? "save"
                   : "like",
             rawType: n.type,
-            user: n.title || "系统",
+            user: n.title || "绯荤粺",
             action: n.content || "",
             target: n.targetId ? `#${n.targetId}` : "",
             targetId: n.targetId,
@@ -1258,7 +1377,7 @@ export function App() {
       .catch(() => {});
   }
 
-  // ── 用户操作 ──
+  // 用户操作
   function refreshRelations() {
     Promise.all([getRelations(), getBlockedUsers()])
       .then(([relations, blocks]) => {
@@ -1326,10 +1445,11 @@ export function App() {
           ...user,
           id: profile.id,
           authorId: profile.id,
-          author: profile.nickname || user.author || user.name,
-          name: profile.nickname || user.name || user.author,
-          avatar: profile.avatarUrl || user.avatar || DEFAULT_AVATAR,
-          meta: `${profile.grade || ""} · ${profile.college || ""}`,
+          author: profile.nickname || user.author || user.name || user.nickname,
+          name: profile.nickname || user.name || user.author || user.nickname,
+          avatar: profile.avatarUrl || user.avatar || user.avatarUrl || DEFAULT_AVATAR,
+          meta: `${profile.grade || ""} 路 ${profile.college || ""}`,
+          email: profile.email,
           bio: profile.bio || "",
           relation: profile.relation,
         });
@@ -1337,27 +1457,44 @@ export function App() {
       .catch(() => setProfileUser(user));
   }
 
+  function openDetailAuthorProfile(note) {
+    openUserProfile(note);
+  }
+
   function startConversationWith(user) {
     const userId = user?.id || user?.authorId || user?.userId;
     if (!userId) return;
+    setChatError("");
     apiCreateConversation({
       type: "PRIVATE",
       participantIds: [Number(userId)],
       name: user.name || user.author || user.nickname,
     })
-      .then((conversation) => {
+      .then(async (conversation) => {
         const mapped = mapChats([conversation], currentUser.id)[0];
+        let messages = mapped.messages;
+        try {
+          const messagesData = await getMessages(Number(mapped.id), {
+            page: 1,
+            size: 30,
+          });
+          messages = (messagesData?.items || []).map(mapChatMessage);
+        } catch {
+          messages = mapped.messages;
+        }
         setChats((items) => {
           const exists = items.some((chat) => chat.id === mapped.id);
           return exists
-            ? items.map((chat) => (chat.id === mapped.id ? { ...chat, ...mapped } : chat))
-            : [mapped, ...items];
+            ? items.map((chat) =>
+                chat.id === mapped.id ? { ...chat, ...mapped, messages } : chat,
+              )
+            : [{ ...mapped, messages }, ...items];
         });
         setActiveChatId(mapped.id);
         setActiveNav("聊天");
         setProfileUser(null);
       })
-      .catch(() => {});
+      .catch((error) => setChatError(error.message || "无法发起私聊"));
   }
 
   function markNotificationRead(notificationId) {
@@ -1432,12 +1569,17 @@ export function App() {
       noteVisibility: toVisibility(nextPrivacy.noteVisibility),
       channelPermission: toChannelPermission(nextPrivacy.channelPermission),
       messagePermission: toMessagePermission(nextPrivacy.messagePermission),
+      searchableByUsers: nextPrivacy.searchableByUsers,
+      showEmailOnProfile: nextPrivacy.showEmailOnProfile,
+      personalizedRecommendations: nextPrivacy.personalizedRecommendations,
+      activityNotifications: nextPrivacy.activityNotifications,
+      loginAlerts: nextPrivacy.loginAlerts,
     }).catch(() => {});
   }
 
   function saveProfile() {
-    // 解析 "2024级 · 新闻与传播学院" 格式
-    const parts = profileMeta.split("·").map((s) => s.trim()).filter(Boolean);
+    // 解析 "2024级 路 新闻与传播学院" 格式
+    const parts = profileMeta.split("路").map((s) => s.trim()).filter(Boolean);
     const grade = parts[0] || "";
     const college = parts[1] || "";
     updateProfile({
@@ -1459,9 +1601,24 @@ export function App() {
       .catch(() => {});
   }
 
-  // ── 聊天操作 ──
+  function uploadProfileAvatar(event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setProfileAvatarError("");
+    setProfileAvatarUploading(true);
+    uploadImage(file)
+      .then((data) => {
+        setProfileAvatar(data.url);
+      })
+      .catch((error) => setProfileAvatarError(error.message || "头像上传失败"))
+      .finally(() => setProfileAvatarUploading(false));
+  }
+
+  // 聊天操作
   function openChat(chatId) {
     setActiveChatId(chatId);
+    setChatError("");
     setChats((items) =>
       items.map((ch) => (ch.id === chatId ? { ...ch, unread: 0 } : ch)),
     );
@@ -1471,35 +1628,76 @@ export function App() {
   function sendChatMessage() {
     const text = chatInput.trim();
     if (!text || !activeChatId) return;
+    setChatError("");
     apiSendMessage(Number(activeChatId), text)
       .then((apiMessage) => {
         const message = mapChatMessage(apiMessage);
         setChats((items) =>
           items.map((ch) =>
             ch.id === activeChatId
-              ? { ...ch, messages: [...ch.messages, message], lastTime: "刚刚" }
+              ? {
+                  ...ch,
+                  messages: [...ch.messages, message],
+                  lastMessage: message.text,
+                  lastTime: "刚刚",
+                }
               : ch,
           ),
         );
         setChatInput("");
+        refreshChats(activeChatId);
       })
-      .catch(() => {
-        const now = new Date();
-        const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-        const message = { id: Date.now(), from: "我", text, time, mine: true, read: true };
-        setChats((items) =>
-          items.map((ch) =>
-            ch.id === activeChatId
-              ? { ...ch, messages: [...ch.messages, message], lastTime: "刚刚" }
-              : ch,
-          ),
-        );
-        setChatInput("");
-      });
+      .catch((error) => setChatError(error.message || "消息发送失败"));
   }
 
   function markAllChatsAsRead() {
     setChats((items) => items.map((ch) => ({ ...ch, unread: 0 })));
+  }
+
+  function toggleGroupChatMember(userId) {
+    setGroupChatError("");
+    setGroupChatMemberIds((ids) =>
+      ids.includes(userId) ? ids.filter((id) => id !== userId) : [...ids, userId],
+    );
+  }
+
+  function closeGroupChatModal() {
+    setGroupChatOpen(false);
+    setGroupChatName("");
+    setGroupChatMemberIds([]);
+    setGroupChatError("");
+  }
+
+  function submitGroupChat() {
+    if (groupChatMemberIds.length === 0) {
+      setGroupChatError("请选择至少一位好友");
+      return;
+    }
+    const selectedNames = groupChatFriends
+      .filter((friend) => groupChatMemberIds.includes(friend.id))
+      .map((friend) => friend.name);
+    const fallbackName = selectedNames.length
+      ? `${selectedNames.slice(0, 2).join("、")}${selectedNames.length > 2 ? "等" : ""}的群聊`
+      : "";
+    apiCreateConversation({
+      type: "GROUP",
+      participantIds: groupChatMemberIds.map(Number),
+      name: groupChatName.trim() || fallbackName,
+    })
+      .then(async (conversation) => {
+        const mapped = mapChats([conversation], currentUser.id)[0];
+        setChats((items) => {
+          const exists = items.some((chat) => chat.id === mapped.id);
+          return exists
+            ? items.map((chat) => (chat.id === mapped.id ? { ...chat, ...mapped } : chat))
+            : [mapped, ...items];
+        });
+        setActiveChatId(mapped.id);
+        setActiveNav("聊天");
+        closeGroupChatModal();
+        await refreshChats(mapped.id);
+      })
+      .catch((error) => setGroupChatError(error.message || "群聊创建失败"));
   }
 
   function openChannelPostDetail(payload) {
@@ -1593,7 +1791,7 @@ export function App() {
       .finally(() => setReportTarget(null));
   }
 
-  // ── Draft 对象（供 AppModals 使用） ──
+  // Draft 对象，供 AppModals 使用
   const draft = {
     open: draftOpen,
     title: draftTitle,
@@ -1622,7 +1820,7 @@ export function App() {
     }
   }
 
-  // ── noteFeedProps（供各页面组件透传） ──
+  // noteFeedProps，供各页面组件透传
   const noteFeedProps = {
     currentUserId: currentUser.id,
     onOpenNote: openNoteDetail,
@@ -1634,7 +1832,7 @@ export function App() {
     onDeleteNote: removeNote,
   };
 
-  // ── 渲染主内容 ──
+  // 渲染主内容
   function renderMainContent() {
     switch (activeNav) {
       case "主页":
@@ -1643,9 +1841,16 @@ export function App() {
             notes={publicNotes}
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
+            searchMode={searchMode}
+            onSearchModeChange={setSearchMode}
+            userResults={userSearchResults}
+            userSearchLoading={userSearchLoading}
+            onOpenProfile={openUserProfile}
             tags={tagsList}
             activeTag={activeTag}
             onSelectTag={setActiveTag}
+            sort={noteSort}
+            onSortChange={setNoteSort}
             tagsExpanded={tagsExpanded}
             onToggleTags={() => setTagsExpanded((v) => !v)}
             noteFeedProps={noteFeedProps}
@@ -1702,12 +1907,12 @@ export function App() {
               ...notes
                 .filter((n) => n.author === currentUser.name || n.visibility === "私密")
                 .slice(0, 2)
-                .map((n) => `发布了笔记「${n.title}」`),
-              ...savedNotes.slice(0, 2).map((n) => `收藏了「${n.title}」`),
+                .map((n) => `发布了笔记《${n.title}》`),
+              ...savedNotes.slice(0, 2).map((n) => `收藏了《${n.title}》`),
               ...channels
                 .filter((ch) => ch.joined)
                 .slice(0, 2)
-                .map((ch) => `加入了频道「${ch.name}」`),
+                .map((ch) => `加入了频道《${ch.name}》`),
             ]}
             profileData={profileData}
             noteFeedProps={noteFeedProps}
@@ -1754,7 +1959,7 @@ export function App() {
 
   const page = pageCopy[activeNav] ?? pageCopy["主页"];
 
-  // ── 未登录：渲染认证页面 ──
+  // 未登录：渲染认证页面
   if (!loggedIn) {
     return (
       <AuthPage
@@ -1795,7 +2000,7 @@ export function App() {
     );
   }
 
-  // ── 主界面 ──
+  // 主界面
   return (
     <div className={`app-shell theme-${activeTheme}`}>
       <Sidebar
@@ -1832,122 +2037,221 @@ export function App() {
 
         {/* 聊天页面需要 chatInput + sendChatMessage，所以单独处理 */}
         {activeNav === "聊天" ? (
-          <section className="chat-layout">
-            <aside className="chat-list">
-              <div className="chat-list-head">
-                <div>
-                  <h2>消息</h2>
-                </div>
-                <button
-                  className="ghost-button small"
-                  onClick={markAllChatsAsRead}
-                >
-                  全部已读
-                </button>
+          <section className="chat-page">
+            <section className="chat-friend-strip">
+              <div className="chat-friend-scroller">
+                {groupChatFriends.length ? (
+                  groupChatFriends.map((friend) => (
+                    <button
+                      className="chat-friend-chip"
+                      key={friend.id}
+                      onClick={() => openUserProfile(friend)}
+                    >
+                      <img
+                        className="avatar"
+                        src={friend.avatar || DEFAULT_AVATAR}
+                        alt={`${friend.name}头像`}
+                      />
+                      <span>{friend.name}</span>
+                    </button>
+                  ))
+                ) : (
+                  <span className="muted">暂无好友。</span>
+                )}
               </div>
-              {chats.map((chat) => (
-                <button
-                  className={
-                    activeChatId === chat.id
-                      ? "chat-preview active"
-                      : "chat-preview"
-                  }
-                  key={chat.id}
-                  onClick={() => openChat(chat.id)}
-                >
-                  <div className="chat-avatar">
-                    {chat.type === "群聊" ? (
-                      <ChatsCircle size={22} />
-                    ) : (
-                      <UserCircle size={22} />
-                    )}
-                  </div>
-                  <div>
-                    <strong>{chat.name}</strong>
-                    <span>{chat.messages.at(-1)?.text}</span>
-                  </div>
-                  <time>{chat.lastTime}</time>
-                  {chat.unread > 0 && <em>{chat.unread}</em>}
-                </button>
-              ))}
-            </aside>
+            </section>
 
-            <section className="chat-window">
-              {activeChat ? (
-                <>
-                  <div className="chat-window-head">
-                    <div>
-                      <p>{activeChat.type}</p>
-                      <h2>{activeChat.name}</h2>
-                    </div>
-                    <button className="icon-mini" title="更多">
-                      <DotsThree size={22} />
+            <section className="chat-layout">
+              <aside className="chat-side">
+                <div className="chat-list-head">
+                  <div>
+                    <h2>消息</h2>
+                  </div>
+                  <div className="chat-list-actions">
+                    <button
+                      className="ghost-button small"
+                      onClick={() => setGroupChatOpen(true)}
+                    >
+                      <UserPlus size={16} />
+                      群聊
+                    </button>
+                    <button
+                      className="ghost-button small"
+                      onClick={markAllChatsAsRead}
+                    >
+                      全部已读
                     </button>
                   </div>
-                  <div className="bubble-list">
-                    {activeChat.messages.map((msg, i) => (
-                      <div
-                        className={
-                          msg.mine ? "message-line mine" : "message-line"
-                        }
-                        key={`${msg.text}-${i}`}
-                      >
-                        <p
+                </div>
+                <div className="chat-list scrollable-list">
+                  {chats.map((chat) => (
+                    <button
+                      className={
+                        activeChatId === chat.id
+                          ? "chat-preview active"
+                          : "chat-preview"
+                      }
+                      key={chat.id}
+                      onClick={() => openChat(chat.id)}
+                    >
+                      <div className="chat-avatar">
+                        {chat.type === "群聊" ? (
+                          <ChatsCircle size={22} />
+                        ) : (
+                          <UserCircle size={22} />
+                        )}
+                      </div>
+                      <div>
+                        <strong>{chat.name}</strong>
+                        <span>{chat.messages.at(-1)?.text || chat.lastMessage || "暂无消息"}</span>
+                      </div>
+                      <time>{chat.lastTime}</time>
+                      {chat.unread > 0 && <em>{chat.unread}</em>}
+                    </button>
+                  ))}
+                </div>
+              </aside>
+
+              <section className="chat-window">
+                {activeChat ? (
+                  <>
+                    <div className="chat-window-head">
+                      <div>
+                        <p>{activeChat.type}</p>
+                        <h2>{activeChat.name}</h2>
+                      </div>
+                      <button className="icon-mini" title="更多">
+                        <DotsThree size={22} />
+                      </button>
+                    </div>
+                    <div className="bubble-list">
+                      {activeChat.messages.map((msg, i) => (
+                        <div
                           className={
-                            msg.mine ? "bubble mine" : "bubble other"
+                            msg.mine ? "message-line mine" : "message-line"
                           }
+                          key={`${msg.text}-${i}`}
                         >
-                          {msg.text}
-                        </p>
-                        <div className="message-meta">
-                          <span>{msg.time}</span>
-                          {msg.mine && (
-                            <span>{msg.read ? "已读" : "未读"}</span>
-                          )}
-                          <button
-                            className="icon-mini"
-                            title="举报消息"
-                            onClick={() =>
-                              setReportTarget({
-                                type: "聊天消息",
-                                title: msg.text,
-                                targetId: msg.id,
-                              })
+                          <p
+                            className={
+                              msg.mine ? "bubble mine" : "bubble other"
                             }
                           >
-                            <Flag size={15} />
-                          </button>
+                            {msg.text}
+                          </p>
+                          <div className="message-meta">
+                            <span>{msg.time}</span>
+                            {msg.mine && (
+                              <span>{msg.read ? "已读" : "未读"}</span>
+                            )}
+                            <button
+                              className="icon-mini"
+                              title="举报消息"
+                              onClick={() =>
+                                setReportTarget({
+                                  type: "聊天消息",
+                                  title: msg.text,
+                                  targetId: msg.id,
+                                })
+                              }
+                            >
+                              <Flag size={15} />
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="chat-input">
-                    <input
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          sendChatMessage();
-                        }
-                      }}
-                      placeholder="输入消息..."
-                    />
-                    <button title="发送" onClick={sendChatMessage}>
-                      <PaperPlaneTilt size={18} weight="fill" />
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <div className="empty-state">请选择一个会话开始聊天。</div>
-              )}
+                      ))}
+                    </div>
+                    <div className="chat-input">
+                      <input
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            sendChatMessage();
+                          }
+                        }}
+                        placeholder="输入消息..."
+                      />
+                      <button title="发送" onClick={sendChatMessage}>
+                        <PaperPlaneTilt size={18} weight="fill" />
+                      </button>
+                    </div>
+                    {chatError && <p className="form-error">{chatError}</p>}
+                  </>
+                ) : (
+                  <div className="empty-state">请选择一个会话开始聊天。</div>
+                )}
+              </section>
             </section>
           </section>
         ) : (
           renderMainContent()
         )}
 
-        {/* 频道页面额外按钮（发帖、加入频道提醒） */}
+        {groupChatOpen && (
+          <div className="modal-backdrop" onClick={closeGroupChatModal}>
+            <section
+              className="small-modal group-chat-modal"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <ModalHead
+                title="新建群聊"
+                subtitle="只可邀请互相关注的好友"
+                onClose={closeGroupChatModal}
+              />
+              <label className="auth-field">
+                <span>群聊名称</span>
+                <input
+                  className="title-input"
+                  value={groupChatName}
+                  onChange={(event) => setGroupChatName(event.target.value)}
+                  placeholder="不填则自动生成"
+                />
+              </label>
+              <div className="group-picker-head">
+                <strong>选择好友</strong>
+                <span>已选 {groupChatMemberIds.length} 人</span>
+              </div>
+              <div className="group-friend-list">
+                {groupChatFriends.length ? (
+                  groupChatFriends.map((friend) => {
+                    const selected = groupChatMemberIds.includes(friend.id);
+                    return (
+                      <button
+                        className={selected ? "group-friend-row active" : "group-friend-row"}
+                        key={friend.id}
+                        onClick={() => toggleGroupChatMember(friend.id)}
+                      >
+                        <img
+                          className="avatar"
+                          src={friend.avatar || DEFAULT_AVATAR}
+                          alt={`${friend.name}头像`}
+                        />
+                        <div>
+                          <strong>{friend.name}</strong>
+                          <span>{friend.detail || "互相关注，可加入群聊"}</span>
+                        </div>
+                        <span className="group-check">
+                          {selected && <CheckCircle size={20} weight="fill" />}
+                        </span>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="empty-state">暂无可邀请的好友。</div>
+                )}
+              </div>
+              {groupChatError && <p className="form-error">{groupChatError}</p>}
+              <button className="submit-note" onClick={submitGroupChat}>
+                <UsersThree size={18} />
+                创建群聊
+              </button>
+            </section>
+          </div>
+        )}
+
+        {/* 频道页面额外按钮 */}
         {activeNav === "频道" && selectedChannel && (
           <>
             {selectedChannel.joined && (
@@ -1965,7 +2269,7 @@ export function App() {
         )}
       </main>
 
-      {/* ── 弹窗：使用 AppModals ── */}
+      {/* 弹窗：使用 AppModals */}
       <AppModals
         draft={draft}
         joinChannel={
@@ -2000,94 +2304,129 @@ export function App() {
         onToggleChannelPostPinned={toggleChannelPostPinned}
         onRelationAction={changeRelation}
         onStartConversation={startConversationWith}
+        profileBackdropClassName={detailNote ? "modal-backdrop modal-backdrop-elevated" : "modal-backdrop"}
+        reportBackdropClassName={detailNote ? "modal-backdrop modal-backdrop-elevated" : "modal-backdrop"}
       />
 
-      {/* ── 笔记详情弹窗（含评论功能，需独立处理） ── */}
+      {/* 笔记详情弹窗 */}
       {detailNote && (
         <div className="modal-backdrop" onClick={() => setDetailNote(null)}>
           <section
-            className="detail-modal"
+            className="detail-modal note-detail-rich"
             onClick={(e) => e.stopPropagation()}
           >
-            <ModalHead
-              title={detailNote.title}
-              subtitle={`${detailNote.author} · ${detailNote.meta}`}
-              onClose={() => setDetailNote(null)}
-            />
-            {detailNote.images[0] && (
-              <img
-                className="detail-image"
-                src={detailNote.images[0]}
-                alt="笔记图片"
-              />
-            )}
-            <p className="detail-body">{detailNote.body}</p>
-            <div className="comment-panel">
-              <h3>评论</h3>
-              {detailNote.comments.length === 0 ? (
-                <span className="muted">还没有评论。</span>
-              ) : (
-                detailNote.comments.map((c) => (
-                  <div className="comment-row" key={c.id || `${c.user}-${c.text}`}>
-                    <p>
-                      <strong>{c.user}</strong>
-                      {c.text}
-                    </p>
-                    {c.id && (c.authorId === currentUser.id || detailNote.authorId === currentUser.id) && (
-                      <button
-                        className="icon-mini"
-                        title="删除评论"
-                        onClick={() => removeComment(detailNote.id, c.id)}
-                      >
-                        <Trash size={15} />
-                      </button>
-                    )}
-                  </div>
-                ))
-              )}
-              <div className="comment-input">
-                <input
-                  placeholder="写评论..."
-                  value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter")
-                      addComment(detailNote.id, commentText);
-                  }}
+            <button className="detail-close" title="关闭" onClick={() => setDetailNote(null)}>
+              <X size={20} />
+            </button>
+            <div className="detail-media-pane">
+              <button className="detail-author-strip" onClick={() => openDetailAuthorProfile(detailNote)}>
+                <img className="avatar" src={detailNote.avatar || DEFAULT_AVATAR} alt={`${detailNote.author}头像`} />
+                <div>
+                  <strong>{detailNote.author}</strong>
+                  <span>{detailNote.meta}</span>
+                </div>
+              </button>
+              {detailNote.images[0] ? (
+                <img
+                  className="detail-image"
+                  src={detailNote.images[0]}
+                  alt="笔记图片"
                 />
+              ) : (
+                <div className="detail-image-placeholder">
+                  <Image size={40} />
+                  <span>这条笔记没有配图</span>
+                </div>
+              )}
+            </div>
+            <div className="detail-content-pane">
+              <div className="detail-text-block">
+                <h2>{detailNote.title}</h2>
+                <p className="detail-body">{detailNote.body}</p>
+                {detailNote.tags?.length > 0 && (
+                  <div className="tag-row">
+                    {detailNote.tags.map((tag) => (
+                      <button key={tag} onClick={() => setActiveTag(tag)}>#{tag}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="detail-action-row">
+                <button className={detailNote.liked ? "active" : ""} onClick={() => toggleLike(detailNote.id)}>
+                  <Heart size={20} weight={detailNote.liked ? "fill" : "regular"} />
+                  {detailNote.likes}
+                </button>
+                <button onClick={() => toggleSave(detailNote.id)}>
+                  <BookmarkSimple size={20} weight={detailNote.saved ? "fill" : "regular"} />
+                  {detailNote.saves}
+                </button>
+                {detailNote.authorId === currentUser.id && (
+                  <button onClick={() => removeNote(detailNote.id)}>
+                    <Trash size={18} />
+                    删除
+                  </button>
+                )}
                 <button
-                  title="发送"
-                  onClick={() => addComment(detailNote.id, commentText)}
+                  onClick={() =>
+                    setReportTarget({ type: "笔记", title: detailNote.title, targetId: detailNote.id })
+                  }
                 >
-                  <PaperPlaneTilt size={17} weight="fill" />
+                  <Flag size={18} />
+                  举报
                 </button>
               </div>
-            </div>
-            <div className="modal-actions">
-              {detailNote.authorId === currentUser.id && (
-                <button
-                  title="删除笔记"
-                  onClick={() => removeNote(detailNote.id)}
-                >
-                  <Trash size={18} />
-                  删除
-                </button>
-              )}
-              <button
-                title="举报"
-                onClick={() =>
-                  setReportTarget({ type: "笔记", title: detailNote.title, targetId: detailNote.id })
-                }
-              >
-                <Flag size={18} />
-                举报
-              </button>
+              <div className="comment-panel">
+                <div className="comment-panel-head">
+                  <h3>评论</h3>
+                  <span>{detailNote.comments.length} 条</span>
+                </div>
+                <div className="comment-list">
+                  {detailNote.comments.length === 0 ? (
+                    <span className="muted">还没有评论。</span>
+                  ) : (
+                    detailNote.comments.map((c) => (
+                      <div className="comment-row" key={c.id || `${c.user}-${c.text}`}>
+                        <p>
+                          <strong>{c.user}</strong>
+                          {c.text}
+                        </p>
+                        {c.id && (c.authorId === currentUser.id || detailNote.authorId === currentUser.id) && (
+                          <button
+                            className="icon-mini"
+                            title="删除评论"
+                            onClick={() => removeComment(detailNote.id, c.id)}
+                          >
+                            <Trash size={15} />
+                          </button>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="comment-input">
+                  <input
+                    placeholder="写评论..."
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter")
+                        addComment(detailNote.id, commentText);
+                    }}
+                  />
+                  <button
+                    title="发送"
+                    onClick={() => addComment(detailNote.id, commentText)}
+                  >
+                    <PaperPlaneTilt size={17} weight="fill" />
+                  </button>
+                </div>
+              </div>
             </div>
           </section>
         </div>
       )}
 
-      {/* ── 编辑资料弹窗 ── */}
+      {/* 编辑资料弹窗 */}
       {profileEditOpen && (
         <div
           className="modal-backdrop"
@@ -2117,7 +2456,7 @@ export function App() {
                 className="title-input"
                 value={profileMeta}
                 onChange={(e) => setProfileMeta(e.target.value)}
-                placeholder="例如：2024级 · 计算机学院"
+                placeholder="例如：2024级 路 计算机学院"
               />
             </label>
             <label className="auth-field">
@@ -2129,23 +2468,36 @@ export function App() {
                 placeholder="一句话介绍自己"
               />
             </label>
-            <label className="auth-field">
-              <span>头像链接</span>
-              <input
-                className="title-input"
-                value={profileAvatar}
-                onChange={(e) => setProfileAvatar(e.target.value)}
-                placeholder="输入头像图片地址"
+            <div className="avatar-upload-panel">
+              <img
+                className="avatar large"
+                src={profileAvatar || DEFAULT_AVATAR}
+                alt="当前头像"
               />
-            </label>
-            <button className="submit-note" onClick={saveProfile}>
+              <div>
+                <strong>头像</strong>
+                <span>从本地选择图片上传</span>
+                <label className="avatar-upload-button">
+                  <Image size={17} />
+                  {profileAvatarUploading ? "上传中..." : "选择图片"}
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/gif,image/webp"
+                    disabled={profileAvatarUploading}
+                    onChange={uploadProfileAvatar}
+                  />
+                </label>
+              </div>
+            </div>
+            {profileAvatarError && <p className="form-error">{profileAvatarError}</p>}
+            <button className="submit-note" onClick={saveProfile} disabled={profileAvatarUploading}>
               保存
             </button>
           </section>
         </div>
       )}
 
-      {/* ── 频道初始管理员面板 ── */}
+      {/* 频道初始管理员面板 */}
       {channelAdminOpen && (
         <div
           className="modal-backdrop"
@@ -2173,7 +2525,7 @@ export function App() {
                     <span>{channelAdminDashboard.roleLabel}</span>
                     <strong>{channelAdminDashboard.channel.name}</strong>
                     <em>
-                      {channelAdminDashboard.channel.memberCount} 人 · 初始管理员：
+                      {channelAdminDashboard.channel.memberCount} 人 路 初始管理员：
                       {channelAdminDashboard.channel.administrator?.nickname}
                     </em>
                   </div>
@@ -2307,7 +2659,7 @@ export function App() {
                           <div>
                             <strong>{post.title}</strong>
                             <span>
-                              {post.authorName} · {post.replyCount} 回复 · {post.likeCount} 赞
+                              {post.authorName} 路 {post.replyCount} 回复 路 {post.likeCount} 赞
                             </span>
                           </div>
                           <em>{post.pinned ? "已置顶" : "普通"}</em>
@@ -2330,7 +2682,7 @@ export function App() {
         </div>
       )}
 
-      {/* ── 创建频道弹窗 ── */}
+      {/* 创建频道弹窗 */}
       {createChannelOpen && (
         <div
           className="modal-backdrop"
@@ -2392,7 +2744,7 @@ export function App() {
         </div>
       )}
 
-      {/* ── 发布频道帖子弹窗 ── */}
+      {/* 发布频道帖子弹窗 */}
       {channelPostDraftOpen && (
         <div
           className="modal-backdrop"
@@ -2475,3 +2827,5 @@ export function App() {
     </div>
   );
 }
+
+
