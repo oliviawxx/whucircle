@@ -131,7 +131,7 @@ export function AppModals({
                 <Heart size={17} weight={channelPostDetail.post.liked ? "fill" : "regular"} />
                 {channelPostDetail.post.likes || 0}
               </button>
-              {channelPostDetail.channel.isAdmin && (
+              {channelPostDetail.channel.isChannelAdmin && (
                 <button
                   className={channelPostDetail.post.pinned ? "active" : ""}
                   onClick={onToggleChannelPostPinned}

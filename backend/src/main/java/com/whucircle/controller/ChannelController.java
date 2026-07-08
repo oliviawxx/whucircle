@@ -3,9 +3,13 @@ package com.whucircle.controller;
 import com.whucircle.common.ApiResponse;
 import com.whucircle.common.PageData;
 import com.whucircle.dto.ChannelDtos.ChannelView;
+import com.whucircle.dto.ChannelDtos.AdminRequestAction;
+import com.whucircle.dto.ChannelDtos.AdminRequestView;
 import com.whucircle.dto.ChannelDtos.CreateChannelRequest;
 import com.whucircle.dto.ChannelDtos.CreatePostRequest;
 import com.whucircle.dto.ChannelDtos.CreateReplyRequest;
+import com.whucircle.dto.ChannelDtos.InitialAdminDashboard;
+import com.whucircle.dto.ChannelDtos.InviteAdminRequest;
 import com.whucircle.dto.ChannelDtos.JoinRequest;
 import com.whucircle.dto.ChannelDtos.JoinResponse;
 import com.whucircle.dto.ChannelDtos.PostDetail;
@@ -45,6 +49,30 @@ public class ChannelController {
     }
     @GetMapping("/channels/{channelId}")
     public ApiResponse<ChannelView> channel(@PathVariable Long channelId) { return ApiResponse.success(channelService.detail(CurrentUser.id(), channelId)); }
+    @GetMapping("/channels/managed")
+    public ApiResponse<PageData<ChannelView>> managedChannels(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ApiResponse.success(channelService.managedChannels(CurrentUser.id(), page, size));
+    }
+    @GetMapping("/channels/{channelId}/initial-admin")
+    public ApiResponse<InitialAdminDashboard> initialAdmin(@PathVariable Long channelId) {
+        return ApiResponse.success(channelService.initialAdminDashboard(CurrentUser.id(), channelId));
+    }
+    @PostMapping("/channels/{channelId}/admin-applications")
+    public ApiResponse<AdminRequestView> applyForAdmin(@PathVariable Long channelId) {
+        return ApiResponse.success(channelService.applyForAdmin(CurrentUser.id(), channelId));
+    }
+    @PostMapping("/channels/{channelId}/admin-invitations")
+    public ApiResponse<AdminRequestView> inviteAdmin(@PathVariable Long channelId,
+            @Valid @RequestBody InviteAdminRequest request) {
+        return ApiResponse.success(channelService.inviteAdmin(CurrentUser.id(), channelId, request.userId()));
+    }
+    @PutMapping("/channel-admin-requests/{requestId}")
+    public ApiResponse<AdminRequestView> handleAdminRequest(@PathVariable Long requestId,
+            @Valid @RequestBody AdminRequestAction request) {
+        return ApiResponse.success(channelService.handleAdminRequest(CurrentUser.id(), requestId, request.action()));
+    }
     @PostMapping("/channels")
     public ApiResponse<ChannelView> createChannel(@Valid @RequestBody CreateChannelRequest request) {
         return ApiResponse.success(channelService.create(CurrentUser.id(), request));
@@ -65,7 +93,7 @@ public class ChannelController {
     }
     @PostMapping("/channels/{channelId}/posts")
     public ApiResponse<PostView> createPost(@PathVariable Long channelId, @Valid @RequestBody CreatePostRequest request) {
-        return ApiResponse.success(channelService.createPost(CurrentUser.id(), channelId, request.title(), request.content()));
+        return ApiResponse.success(channelService.createPost(CurrentUser.id(), channelId, request.title(), request.content(), Boolean.TRUE.equals(request.pinned())));
     }
     @GetMapping("/channel-posts/{postId}")
     public ApiResponse<PostDetail> post(@PathVariable Long postId) { return ApiResponse.success(channelService.postDetail(CurrentUser.id(), postId)); }

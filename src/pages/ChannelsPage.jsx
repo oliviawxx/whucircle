@@ -1,4 +1,4 @@
-import { Check, CheckCircle, Flag, Hash, LockKey, Megaphone, PencilSimple, Plus, PushPin, X } from "@phosphor-icons/react";
+import { Check, CheckCircle, Flag, Hash, LockKey, Megaphone, PencilSimple, Plus, PushPin, ShieldCheck, X } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { IconButton } from "../components/common/IconButton.jsx";
 
@@ -11,6 +11,8 @@ export function ChannelsPage({
   onReport,
   onCreateChannel,
   onUpdateAnnouncement,
+  onOpenManagement,
+  onApplyAdmin,
 }) {
   const [editingAnnouncement, setEditingAnnouncement] = useState(false);
   const [announcementDraft, setAnnouncementDraft] = useState("");
@@ -48,7 +50,7 @@ export function ChannelsPage({
   }
 
   const previewPosts = selectedChannel.joined ? selectedChannel.posts : selectedChannel.posts.slice(0, 5);
-  const canEditAnnouncement = selectedChannel.joined && selectedChannel.isAdmin;
+  const canEditAnnouncement = selectedChannel.joined && selectedChannel.isChannelAdmin;
 
   function submitAnnouncement() {
     if (!announcementDraft.trim()) return;
@@ -81,15 +83,35 @@ export function ChannelsPage({
           <div>
             <p>{selectedChannel.type === "密码" ? "私密频道" : "公开频道"}</p>
             <h2>{selectedChannel.name}</h2>
-            <span>{selectedChannel.members} 人 · 管理员：{selectedChannel.admin}</span>
+            <span>{selectedChannel.members} 人 · 初始管理员：{selectedChannel.admin}</span>
+            {selectedChannel.isChannelAdmin && (
+              <em className="initial-admin-badge">
+                <ShieldCheck size={15} weight="fill" />
+                {selectedChannel.isInitialAdmin ? "初始管理员" : "频道管理员"}
+              </em>
+            )}
           </div>
-          {selectedChannel.joined ? (
-            <button className="ghost-button"><CheckCircle size={18} />已加入</button>
-          ) : (
-            <button onClick={() => onJoin(selectedChannel)}>
-              {selectedChannel.type === "密码" ? <LockKey size={18} /> : <Hash size={18} />}加入
-            </button>
-          )}
+          <div className="channel-cover-actions">
+            {selectedChannel.isChannelAdmin && (
+              <button className="ghost-button" onClick={() => onOpenManagement?.(selectedChannel.id)}>
+                <ShieldCheck size={18} />
+                频道管理
+              </button>
+            )}
+            {selectedChannel.joined && !selectedChannel.isChannelAdmin && (
+              <button className="ghost-button" onClick={() => onApplyAdmin?.(selectedChannel.id)}>
+                <ShieldCheck size={18} />
+                申请管理员
+              </button>
+            )}
+            {selectedChannel.joined ? (
+              <button className="ghost-button"><CheckCircle size={18} />已加入</button>
+            ) : (
+              <button onClick={() => onJoin(selectedChannel)}>
+                {selectedChannel.type === "密码" ? <LockKey size={18} /> : <Hash size={18} />}加入
+              </button>
+            )}
+          </div>
         </div>
         <div className="announcement">
           <Megaphone size={18} />

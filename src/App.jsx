@@ -56,6 +56,10 @@ import {
   createChannel as apiCreateChannel,
   createPost as apiCreatePost,
   updateAnnouncement as apiUpdateAnnouncement,
+  getInitialAdminDashboard,
+  applyForChannelAdmin,
+  inviteChannelAdmin,
+  handleChannelAdminRequest,
   replyToPost as apiReplyToPost,
   likePost as apiLikePost,
   setPostPinned as apiSetPostPinned,
@@ -191,6 +195,11 @@ export function App() {
   const [blockedRelations, setBlockedRelations] = useState([]);
   const [adminDashboard, setAdminDashboard] = useState(null);
   const [adminLoading, setAdminLoading] = useState(false);
+  const [channelAdminDashboard, setChannelAdminDashboard] = useState(null);
+  const [channelAdminOpen, setChannelAdminOpen] = useState(false);
+  const [channelAdminLoading, setChannelAdminLoading] = useState(false);
+  const [channelAdminAnnouncementDraft, setChannelAdminAnnouncementDraft] =
+    useState("");
 
   // ── UI 状态 ──
   const [activeNav, setActiveNav] = useState("主页");
@@ -370,7 +379,16 @@ export function App() {
       joined: ch.joined,
       admin: ch.administrator?.nickname || "管理员",
       administratorId: ch.administrator?.id,
-      isAdmin: ch.administrator?.id === myId,
+      isInitialAdmin:
+        ch.initialAdministrator ?? ch.administrator?.id === myId,
+      isChannelAdmin:
+        ch.channelAdministrator ??
+        ch.initialAdministrator ??
+        ch.administrator?.id === myId,
+      isAdmin:
+        ch.channelAdministrator ??
+        ch.initialAdministrator ??
+        ch.administrator?.id === myId,
       announcement: ch.announcement || "",
       members: ch.memberCount,
       posts: [],
@@ -555,15 +573,18 @@ export function App() {
         setNotifications(
           apiNotifications.map((n) => ({
             id: n.id,
-            type: String(n.type || "").includes("COMMENT") || String(n.type || "").includes("REPLY")
-              ? "comment"
-              : String(n.type || "").includes("SAVE")
-                ? "save"
-                : "like",
+            type: String(n.type || "").includes("CHANNEL_ADMIN")
+              ? "channel-admin"
+              : String(n.type || "").includes("COMMENT") || String(n.type || "").includes("REPLY")
+                ? "comment"
+                : String(n.type || "").includes("SAVE")
+                  ? "save"
+                  : "like",
             rawType: n.type,
             user: n.title || "系统",
             action: n.content || "",
             target: n.targetId ? `#${n.targetId}` : "",
+            targetId: n.targetId,
             time: timeAgo(n.createdAt),
             unread: !n.read,
           })),
@@ -583,6 +604,12 @@ export function App() {
       loadAdminDashboard();
     }
   }, [loggedIn, activeNav, currentUser.role]);
+
+  useEffect(() => {
+    setChannelAdminAnnouncementDraft(
+      channelAdminDashboard?.channel?.announcement || "",
+    );
+  }, [channelAdminDashboard?.channel?.id, channelAdminDashboard?.channel?.announcement]);
 
   // ── 初始化 activeChatId ──
   useEffect(() => {
@@ -941,6 +968,8 @@ export function App() {
           joined: true,
           admin: apiChannel.administrator?.nickname || currentUser.name,
           administratorId: apiChannel.administrator?.id || currentUser.id,
+          isInitialAdmin: true,
+          isChannelAdmin: true,
           isAdmin: true,
           announcement: apiChannel.announcement || "",
           members: apiChannel.memberCount || 1,
@@ -964,6 +993,7 @@ export function App() {
     apiCreatePost(Number(selectedChannel.id), {
       title: title || "新发布的讨论帖",
       content: body || "分享一个话题。",
+      pinned: selectedChannel.isChannelAdmin && channelPostDraftPinned,
     })
       .then((apiPost) => {
         const newPost = {
@@ -1028,12 +1058,202 @@ export function App() {
                   administratorId:
                     apiChannel.administrator?.id || channel.administratorId,
                   isAdmin:
+                    apiChannel.channelAdministrator ??
                     (apiChannel.administrator?.id || channel.administratorId) ===
                     currentUser.id,
+                  isChannelAdmin:
+                    apiChannel.channelAdministrator ??
+                    apiChannel.initialAdministrator ??
+                    (apiChannel.administrator?.id || channel.administratorId) ===
+                      currentUser.id,
+                  isInitialAdmin:
+                    apiChannel.initialAdministrator ??
+                    (apiChannel.administrator?.id || channel.administratorId) ===
+                      currentUser.id,
                 }
               : channel,
           ),
         );
+      })
+      .catch(() => {});
+  }
+
+  function openChannelAdmin(channelId) {
+    setChannelAdminOpen(true);
+    setChannelAdminLoading(true);
+    getInitialAdminDashboard(Number(channelId))
+      .then((dashboard) => {
+        setChannelAdminDashboard(dashboard);
+      })
+      .catch(() => {
+        setChannelAdminOpen(false);
+        setChannelAdminDashboard(null);
+      })
+      .finally(() => setChannelAdminLoading(false));
+  }
+
+  function reloadNotifications() {
+    apiGetNotifications()
+      .then((data) => {
+        const apiNotifications = data?.items || data || [];
+        setNotifications(
+          apiNotifications.map((n) => ({
+            id: n.id,
+            type: String(n.type || "").includes("CHANNEL_ADMIN")
+              ? "channel-admin"
+              : String(n.type || "").includes("COMMENT") || String(n.type || "").includes("REPLY")
+                ? "comment"
+                : String(n.type || "").includes("SAVE")
+                  ? "save"
+                  : "like",
+            rawType: n.type,
+            user: n.title || "系统",
+            action: n.content || "",
+            target: n.targetId ? `#${n.targetId}` : "",
+            targetId: n.targetId,
+            time: timeAgo(n.createdAt),
+            unread: !n.read,
+          })),
+        );
+      })
+      .catch(() => {});
+  }
+
+  function submitChannelAdminApplication(channelId) {
+    applyForChannelAdmin(Number(channelId))
+      .then(() => reloadNotifications())
+      .catch(() => {});
+  }
+
+  function saveChannelAdminAnnouncement() {
+    const channelId = channelAdminDashboard?.channel?.id;
+    const text = channelAdminAnnouncementDraft.trim();
+    if (!channelId || !text) return;
+    apiUpdateAnnouncement(Number(channelId), text)
+      .then((apiChannel) => {
+        setChannels((items) =>
+          items.map((channel) =>
+            channel.id === String(channelId)
+              ? {
+                  ...channel,
+                  announcement: apiChannel.announcement || text,
+                  admin: apiChannel.administrator?.nickname || channel.admin,
+                  administratorId:
+                    apiChannel.administrator?.id || channel.administratorId,
+                  isInitialAdmin:
+                    apiChannel.initialAdministrator ??
+                    (apiChannel.administrator?.id || channel.administratorId) ===
+                      currentUser.id,
+                  isChannelAdmin:
+                    apiChannel.channelAdministrator ??
+                    apiChannel.initialAdministrator ??
+                    (apiChannel.administrator?.id || channel.administratorId) ===
+                      currentUser.id,
+                  isAdmin:
+                    apiChannel.channelAdministrator ??
+                    apiChannel.initialAdministrator ??
+                    (apiChannel.administrator?.id || channel.administratorId) ===
+                      currentUser.id,
+                }
+              : channel,
+          ),
+        );
+        setChannelAdminDashboard((dashboard) =>
+          dashboard
+            ? {
+                ...dashboard,
+                channel: {
+                  ...dashboard.channel,
+                  announcement: apiChannel.announcement || text,
+                },
+              }
+            : dashboard,
+        );
+      })
+      .catch(() => {});
+  }
+
+  function toggleChannelAdminPostPinned(post) {
+    if (!post?.id) return;
+    const pinned = !post.pinned;
+    apiSetPostPinned(Number(post.id), pinned)
+      .then((apiPost) => {
+        const mappedPost = mapChannelPost(apiPost);
+        updateChannelPostInState(post.id, {
+          pinned: mappedPost.pinned,
+          likes: mappedPost.likes,
+          replies: mappedPost.replies,
+        });
+        setChannelAdminDashboard((dashboard) => {
+          if (!dashboard) return dashboard;
+          const wasPinned = Boolean(post.pinned);
+          const isPinned = Boolean(mappedPost.pinned);
+          return {
+            ...dashboard,
+            pinnedPostCount:
+              dashboard.pinnedPostCount + (isPinned ? 1 : 0) - (wasPinned ? 1 : 0),
+            recentPosts: dashboard.recentPosts.map((item) =>
+              String(item.id) === String(post.id)
+                ? { ...item, ...apiPost }
+                : item,
+            ),
+          };
+        });
+      })
+      .catch(() => {});
+  }
+
+  function submitChannelAdminInvite(userId) {
+    const channelId = channelAdminDashboard?.channel?.id;
+    if (!channelId || !userId) return;
+    inviteChannelAdmin(Number(channelId), Number(userId))
+      .then((request) => {
+        setChannelAdminDashboard((dashboard) =>
+          dashboard
+            ? {
+                ...dashboard,
+                adminRequests: [request, ...dashboard.adminRequests],
+              }
+            : dashboard,
+        );
+        reloadNotifications();
+      })
+      .catch(() => {});
+  }
+
+  function reviewChannelAdminRequest(requestId, action) {
+    handleChannelAdminRequest(Number(requestId), action)
+      .then((request) => {
+        setChannelAdminDashboard((dashboard) =>
+          dashboard
+            ? {
+                ...dashboard,
+                adminRequests: dashboard.adminRequests.map((item) =>
+                  String(item.id) === String(request.id) ? request : item,
+                ),
+                members: dashboard.members.map((member) =>
+                  String(member.id) === String(request.requesterId) &&
+                  ["APPROVED", "ACCEPTED"].includes(request.status)
+                    ? {
+                        ...member,
+                        roleLabel: "频道管理员",
+                        channelAdministrator: true,
+                      }
+                    : member,
+                ),
+              }
+            : dashboard,
+        );
+        reloadNotifications();
+      })
+      .catch(() => {});
+  }
+
+  function handleChannelAdminNotification(requestId, action) {
+    handleChannelAdminRequest(Number(requestId), action)
+      .then(() => {
+        reloadNotifications();
+        loadAllData();
       })
       .catch(() => {});
   }
@@ -1452,6 +1672,8 @@ export function App() {
             onReport={setReportTarget}
             onCreateChannel={() => setCreateChannelOpen(true)}
             onUpdateAnnouncement={saveChannelAnnouncement}
+            onOpenManagement={openChannelAdmin}
+            onApplyAdmin={submitChannelAdminApplication}
           />
         );
       case "聊天":
@@ -1605,6 +1827,7 @@ export function App() {
               )
           }
           onMarkRead={markNotificationRead}
+          onChannelAdminAction={handleChannelAdminNotification}
         />
 
         {/* 聊天页面需要 chatInput + sendChatMessage，所以单独处理 */}
@@ -1922,6 +2145,191 @@ export function App() {
         </div>
       )}
 
+      {/* ── 频道初始管理员面板 ── */}
+      {channelAdminOpen && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setChannelAdminOpen(false)}
+        >
+          <section
+            className="detail-modal channel-admin-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ModalHead
+              title="频道管理"
+              subtitle={
+                channelAdminDashboard?.channel?.name ||
+                selectedChannel?.name ||
+                "初始管理员"
+              }
+              onClose={() => setChannelAdminOpen(false)}
+            />
+            {channelAdminLoading ? (
+              <div className="empty-state">正在加载频道管理信息...</div>
+            ) : channelAdminDashboard ? (
+              <>
+                <div className="channel-admin-identity">
+                  <div>
+                    <span>{channelAdminDashboard.roleLabel}</span>
+                    <strong>{channelAdminDashboard.channel.name}</strong>
+                    <em>
+                      {channelAdminDashboard.channel.memberCount} 人 · 初始管理员：
+                      {channelAdminDashboard.channel.administrator?.nickname}
+                    </em>
+                  </div>
+                  <ShieldCheck size={28} weight="fill" />
+                </div>
+                <div className="admin-metrics compact-metrics">
+                  <article>
+                    <span>成员</span>
+                    <strong>{channelAdminDashboard.channel.memberCount}</strong>
+                  </article>
+                  <article>
+                    <span>帖子</span>
+                    <strong>{channelAdminDashboard.postCount}</strong>
+                  </article>
+                  <article>
+                    <span>置顶</span>
+                    <strong>{channelAdminDashboard.pinnedPostCount}</strong>
+                  </article>
+                  <article>
+                    <span>回复</span>
+                    <strong>{channelAdminDashboard.replyCount}</strong>
+                  </article>
+                </div>
+                <div className="channel-admin-section">
+                  <div className="panel-head">
+                    <h2>公告</h2>
+                    <span>频道管理员可修改</span>
+                  </div>
+                  <textarea
+                    className="title-input"
+                    value={channelAdminAnnouncementDraft}
+                    maxLength={500}
+                    onChange={(event) =>
+                      setChannelAdminAnnouncementDraft(event.target.value)
+                    }
+                  />
+                  <button
+                    className="submit-note"
+                    onClick={saveChannelAdminAnnouncement}
+                  >
+                    <Megaphone size={18} />
+                    保存公告
+                  </button>
+                </div>
+                <div className="channel-admin-section">
+                  <div className="panel-head">
+                    <h2>成员</h2>
+                    <span>
+                      {channelAdminDashboard.canInviteAdmins
+                        ? "可邀请成员成为管理员"
+                        : "普通管理员仅可查看"}
+                    </span>
+                  </div>
+                  <div className="admin-list">
+                    {channelAdminDashboard.members.map((member) => (
+                      <div className="admin-row" key={member.id}>
+                        <div>
+                          <strong>{member.nickname}</strong>
+                          <span>{member.roleLabel}</span>
+                        </div>
+                        <em>{member.channelAdministrator ? "管理员" : "成员"}</em>
+                        {channelAdminDashboard.canInviteAdmins &&
+                        !member.channelAdministrator ? (
+                          <button onClick={() => submitChannelAdminInvite(member.id)}>
+                            <ShieldCheck size={16} />
+                            邀请
+                          </button>
+                        ) : (
+                          <span className="admin-lock">-</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {channelAdminDashboard.canReviewAdminRequests && (
+                  <div className="channel-admin-section">
+                    <div className="panel-head">
+                      <h2>申请与邀请</h2>
+                      <span>仅初始管理员可审批申请</span>
+                    </div>
+                    <div className="admin-list">
+                      {channelAdminDashboard.adminRequests.length ? (
+                        channelAdminDashboard.adminRequests.map((request) => (
+                          <div className="admin-row" key={request.id}>
+                            <div>
+                              <strong>
+                                {request.type === "APPLY"
+                                  ? `${request.requesterName} 申请管理员`
+                                  : `邀请 ${request.requesterName}`}
+                              </strong>
+                              <span>
+                                {request.status === "PENDING"
+                                  ? "待处理"
+                                  : request.status}
+                              </span>
+                            </div>
+                            <em>{request.type === "APPLY" ? "申请" : "邀请"}</em>
+                            {request.type === "APPLY" &&
+                            request.status === "PENDING" ? (
+                              <div className="admin-inline-actions">
+                                <button onClick={() => reviewChannelAdminRequest(request.id, "APPROVE")}>
+                                  通过
+                                </button>
+                                <button
+                                  className="danger-button"
+                                  onClick={() => reviewChannelAdminRequest(request.id, "REJECT")}
+                                >
+                                  拒绝
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="admin-lock">-</span>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <span className="muted">暂无申请或邀请。</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+                <div className="channel-admin-section">
+                  <div className="panel-head">
+                    <h2>最近帖子</h2>
+                    <span>可切换置顶状态</span>
+                  </div>
+                  <div className="admin-list">
+                    {channelAdminDashboard.recentPosts.length ? (
+                      channelAdminDashboard.recentPosts.map((post) => (
+                        <div className="admin-row" key={post.id}>
+                          <div>
+                            <strong>{post.title}</strong>
+                            <span>
+                              {post.authorName} · {post.replyCount} 回复 · {post.likeCount} 赞
+                            </span>
+                          </div>
+                          <em>{post.pinned ? "已置顶" : "普通"}</em>
+                          <button onClick={() => toggleChannelAdminPostPinned(post)}>
+                            <PushPin size={16} />
+                            {post.pinned ? "取消置顶" : "置顶"}
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <span className="muted">暂无频道帖子。</span>
+                    )}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="empty-state">无法读取频道管理信息。</div>
+            )}
+          </section>
+        </div>
+      )}
+
       {/* ── 创建频道弹窗 ── */}
       {createChannelOpen && (
         <div
@@ -1934,7 +2342,7 @@ export function App() {
           >
             <ModalHead
               title="创建新频道"
-              subtitle="为校园话题建立一个专属空间"
+              subtitle="创建后你将成为该频道唯一初始管理员"
               onClose={() => setCreateChannelOpen(false)}
             />
             <label className="auth-field">
@@ -2044,15 +2452,17 @@ export function App() {
                 ))}
               </div>
             </div>
-            <label className="segmented compact">
-              <button
-                className={channelPostDraftPinned ? "active" : ""}
-                onClick={() => setChannelPostDraftPinned((v) => !v)}
-              >
-                <PushPin size={16} />
-                置顶此帖
-              </button>
-            </label>
+            {selectedChannel?.isChannelAdmin && (
+              <label className="segmented compact">
+                <button
+                  className={channelPostDraftPinned ? "active" : ""}
+                  onClick={() => setChannelPostDraftPinned((v) => !v)}
+                >
+                  <PushPin size={16} />
+                  置顶此帖
+                </button>
+              </label>
+            )}
             <button
               className="submit-note"
               onClick={submitCreateChannelPost}
