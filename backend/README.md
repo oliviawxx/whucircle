@@ -102,6 +102,8 @@ Controller、DTO 和 Service 在 mock/MySQL 两种模式下保持同一套接口
 sql/001_schema.sql  24 张业务表、索引、约束和外键
 sql/002_seed.sql    可重复执行的用户、笔记、频道、聊天示例数据
 sql/003_admin_migration.sql  已有数据库补充全站管理员所需字段和演示账号
+sql/004_channel_admin_requests.sql  频道管理员申请/邀请表
+sql/005_privacy_settings_expansion.sql  隐私设置扩展（5 个新字段）
 sql/README.md       初始化、检查和重建说明
 ```
 

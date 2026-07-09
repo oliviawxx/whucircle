@@ -20,7 +20,11 @@ export class ApiError extends Error {
 const BASE = "/api/v1";
 
 export async function request(path, options = {}) {
-  const headers = { "Content-Type": "application/json", ...options.headers };
+  const headers = {
+    "Content-Type": "application/json",
+    "ngrok-skip-browser-warning": "true",
+    ...options.headers,
+  };
   if (token) headers.Authorization = `Bearer ${token}`;
 
   let res;

@@ -182,6 +182,11 @@ GET /api/v1/channels/{channelId}
 POST /api/v1/channels
 POST /api/v1/channels/{channelId}/join
 PUT /api/v1/channels/{channelId}/announcement
+GET /api/v1/channels/managed
+GET /api/v1/channels/{channelId}/initial-admin
+POST /api/v1/channels/{channelId}/admin-applications
+POST /api/v1/channels/{channelId}/admin-invitations
+PUT /api/v1/channel-admin-requests/{requestId}
 GET /api/v1/channels/{channelId}/posts
 POST /api/v1/channels/{channelId}/posts
 GET /api/v1/channel-posts/{postId}
@@ -193,9 +198,14 @@ PUT /api/v1/channel-posts/{postId}/pin
 频道权限：
 
 - `PUBLIC`：公开频道，可直接加入。
-- `PRIVATE`：私密频道，需要密码。
+- `PASSWORD`：密码频道，需要密码。
 
-当前前端已接入频道列表、加入弹窗、密码频道、频道内发帖、帖子详情、回复、点赞、置顶和公告展示。
+频道管理员体系：
+- 初始管理员（频道创建者）可修改公告、置顶帖子、邀请成员成为管理员、审批管理员申请。
+- 频道管理员（被任命者）可修改公告、置顶帖子。
+- 成员可申请成为管理员。
+
+当前前端已接入频道列表、加入弹窗、密码频道、频道内发帖、帖子详情、回复、点赞、置顶、公告展示、管理员控制台和管理员申请。
 
 ## 7. 聊天接口
 
@@ -223,11 +233,16 @@ GET /api/v1/settings/privacy
 PUT /api/v1/settings/privacy
 ```
 
-字段：
+字段（8 项隐私设置）：
 
-- `defaultNoteVisibility`：默认笔记可见范围。
-- `defaultChannelJoinType`：默认频道加入权限。
-- `directMessagePermission`：私信权限。
+- `defaultNoteVisibility`：默认笔记可见范围（PUBLIC/FRIENDS/PRIVATE）。
+- `defaultChannelJoinType`：默认频道加入方式（PUBLIC/PASSWORD）。
+- `directMessagePermission`：私信权限（EVERYONE/FRIENDS_ONLY/NONE）。
+- `searchableByUsers`：允许其他用户通过搜索找到你。
+- `showEmailOnProfile`：在个人主页展示邮箱。
+- `personalizedRecommendations`：开启个性化内容推荐。
+- `activityNotifications`：活动通知。
+- `loginAlerts`：登录提醒。
 
 ### 8.2 通知
 
@@ -249,6 +264,7 @@ POST /api/v1/reports
 - `NOTE`
 - `CHANNEL_POST`
 - `MESSAGE`
+- `USER`
 
 ### 8.4 图片上传
 
@@ -256,19 +272,11 @@ POST /api/v1/reports
 POST /api/v1/files/images
 ```
 
-当前本地联调版本会把图片保存到后端本机 `uploads/images` 目录，并返回可访问地址，例如：
+当前图片上传支持两种方式：本地联调时将图片保存到后端本机 `uploads/images` 目录；团队联调时通过 MinIO 对象存储实现跨机器图片共享，图片统一上传到组长电脑的 MinIO bucket `whu-circle`。两种方式下接口返回格式一致，前端发布笔记时先上传图片，再把返回的 URL 放入 `imageUrls` 提交给 `/notes`。MySQL 只保存图片 URL 和排序信息，不保存图片二进制内容。`uploads` 目录已被 Git 忽略，不要提交本地上传文件。
 
-```json
-{
-  "url": "/uploads/images/2026/07/xxxx.png"
-}
-```
+## 9. 推荐与管理接口
 
-前端发布笔记时先上传图片，再把返回的 URL 放入 `imageUrls` 提交给 `/notes`。MySQL 只保存图片 URL 和排序信息，不保存图片二进制内容。`uploads` 目录已被 Git 忽略，不要提交本地上传文件。
-
-后续如果部署到线上，可把本地目录替换为对象存储，接口返回格式保持不变。
-
-## 9. 推荐接口
+### 9.1 推荐
 
 ```http
 GET /api/v1/recommendations/home
@@ -278,7 +286,19 @@ GET /api/v1/recommendations/channels
 POST /api/v1/recommendations/feedback
 ```
 
-当前页面主要使用笔记、频道和社交圈的直接接口，推荐接口作为后续扩展保留。
+推荐系统基于多因子评分（同学院、同年级、好友圈层、标签偏好、互动热度等维度），首页混合推荐笔记、用户和频道。
+
+### 9.2 全站管理
+
+```http
+GET /api/v1/admin/dashboard
+PUT /api/v1/admin/users/{userId}/status
+PUT /api/v1/admin/channels/{channelId}/status
+DELETE /api/v1/admin/notes/{noteId}
+DELETE /api/v1/admin/channel-posts/{postId}
+```
+
+仅 `role=ADMIN` 可访问，后端双重校验权限。管理面板提供用户、频道、笔记、帖子四项统计数据。
 
 ## 10. 数据库说明
 

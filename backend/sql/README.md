@@ -7,6 +7,8 @@
 - `001_schema.sql`：创建 `whu_circle` 数据库、业务表和应用账号。
 - `002_seed.sql`：写入演示用户、笔记、频道、聊天、通知等数据。
 - `003_admin_migration.sql`：为已经初始化过的旧库补充全站管理员字段和演示管理员账号。
+- `004_channel_admin_requests.sql`：创建频道管理员申请/邀请表。
+- `005_privacy_settings_expansion.sql`：扩展隐私设置表，新增 5 个布尔开关字段。
 
 ## 初始化顺序
 

@@ -6,7 +6,7 @@ export async function uploadImage(file) {
   const formData = new FormData();
   formData.append("file", file);
 
-  const headers = {};
+  const headers = { "ngrok-skip-browser-warning": "true" };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 

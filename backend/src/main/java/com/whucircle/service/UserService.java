@@ -1,4 +1,4 @@
-﻿package com.whucircle.service;
+package com.whucircle.service;
 
 import com.whucircle.common.BusinessException;
 import com.whucircle.common.ErrorCode;
