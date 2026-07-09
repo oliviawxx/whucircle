@@ -160,6 +160,14 @@ export function ChannelsPage({
               <IconButton title="举报频道帖子" onClick={() => onReport({ type: "频道帖子", title: post.title, targetId: post.id })}>
                 <Flag size={17} />
               </IconButton>
+              {post.imageUrls && post.imageUrls.length > 0 && (
+                <div className="channel-post-images">
+                  {post.imageUrls.slice(0, 3).map((url, i) => (
+                    <img key={i} className="channel-post-thumb" src={url} alt="" />
+                  ))}
+                  {post.imageUrls.length > 3 && <span>+{post.imageUrls.length - 3}</span>}
+                </div>
+              )}
             </article>
           ))}
         </div>
