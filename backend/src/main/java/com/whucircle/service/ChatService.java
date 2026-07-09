@@ -8,6 +8,7 @@ import com.whucircle.domain.Conversation;
 import com.whucircle.domain.Enums.ConversationType;
 import com.whucircle.domain.Enums.DirectMessagePermission;
 import com.whucircle.domain.Enums.RelationStatus;
+import com.whucircle.domain.User;
 import com.whucircle.dto.ChatDtos.ConversationView;
 import com.whucircle.dto.ChatDtos.CreateConversationRequest;
 import com.whucircle.dto.ChatDtos.MessageView;
@@ -35,7 +36,8 @@ public class ChatService {
 
     public List<ConversationView> conversations(Long currentUserId) {
         return chats.findByMember(currentUserId).stream().map(conversation -> new ConversationView(
-                conversation.id(), conversation.type(), conversation.name(), conversation.lastMessage(), conversation.lastMessageAt(),
+                conversation.id(), conversation.type(), displayName(conversation, currentUserId),
+                conversation.lastMessage(), conversation.lastMessageAt(),
                 (int) chats.findMessages(conversation.id()).stream().filter(message -> !message.readBy().contains(currentUserId)).count())).toList();
     }
 
@@ -93,8 +95,9 @@ public class ChatService {
             Long otherUserId = participantIds.get(0);
             requireDirectMessagePermission(currentUserId, otherUserId);
             return chats.findPrivateConversation(currentUserId, otherUserId)
-                    .map(conversation -> new ConversationView(conversation.id(), conversation.type(), conversation.name(),
-                            conversation.lastMessage(), conversation.lastMessageAt(),
+            .map(conversation -> new ConversationView(conversation.id(), conversation.type(), conversation.name(),
+            .map(conversation -> new ConversationView(conversation.id(), conversation.type(), displayName(conversation, currentUserId),
+                    conversation.lastMessage(), conversation.lastMessageAt(),
                             (int) chats.findMessages(conversation.id()).stream()
                                     .filter(message -> !message.readBy().contains(currentUserId)).count()))
                     .orElseGet(() -> createNewConversation(currentUserId, request, participantIds));
@@ -119,7 +122,19 @@ public class ChatService {
         Conversation conversation = new Conversation(conversationId, request.type(), name.trim(), members,
                 "", OffsetDateTime.now());
         return new ConversationView(chats.saveConversation(conversation).id(), conversation.type(), conversation.name(),
+        return new ConversationView(chats.saveConversation(conversation).id(), conversation.type(), displayName(conversation, currentUserId),
                 "", conversation.lastMessageAt(), 0);
+    }
+
+    private String displayName(Conversation conversation, Long currentUserId) {
+        if (conversation.type() == ConversationType.PRIVATE) {
+            return conversation.memberIds().stream()
+                    .filter(id -> !id.equals(currentUserId))
+                    .findFirst()
+                    .flatMap(id -> users.findById(id).map(User::nickname))
+                    .orElse("未知用户");
+        }
+        return conversation.name();
     }
 
     private void requireDirectMessagePermission(Long senderId, Long recipientId) {
