@@ -55,7 +55,7 @@ export function SettingsPage({ privacy, onPrivacyChange, blockedUsers, themes, a
         <div>
           <p>设置中心</p>
           <h2>隐私、安全与个性化</h2>
-          <span>控制别人如何找到你、看到你的资料，以及系统如何为你推荐内容。</span>
+          <span>决定谁能找到你、看到你、联系你。</span>
         </div>
         <ShieldCheck size={30} />
       </div>

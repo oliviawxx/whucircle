@@ -18,15 +18,17 @@ export function NotesFeed({
       {items.map((note) => (
         <article className="note-card" key={note.id}>
           {note.images.length > 0 && (
-            <img
-              className="note-cover"
-              src={note.images[0]}
-              alt="note image"
-              loading="lazy"
-              onError={(event) => {
-                event.currentTarget.hidden = true;
-              }}
-            />
+            <div className="note-cover-wrap">
+              <img
+                className="note-cover"
+                src={note.images[0]}
+                alt="note image"
+                loading="lazy"
+                onError={(event) => {
+                  event.currentTarget.hidden = true;
+                }}
+              />
+            </div>
           )}
           <div className="note-content">
             <div className="note-author">

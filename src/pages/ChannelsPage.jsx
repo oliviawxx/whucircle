@@ -1,196 +1,128 @@
-import { Check, CheckCircle, Flag, Hash, LockKey, Megaphone, PencilSimple, Plus, PushPin, ShieldCheck, Trash, X } from "@phosphor-icons/react";
-import { useEffect, useState } from "react";
-import { IconButton } from "../components/common/IconButton.jsx";
+import { useState } from "react";
+import { Hash, List, LockKey, Plus, Trophy, Users } from "@phosphor-icons/react";
 
 export function ChannelsPage({
   channels,
   selectedChannel,
   onSelectChannel,
   onJoin,
-  onOpenPost,
-  onReport,
-  currentUserId,
-  onDeletePost,
+  onEnterChannel,
   onCreateChannel,
-  onUpdateAnnouncement,
-  onOpenManagement,
-  onApplyAdmin,
 }) {
-  const [editingAnnouncement, setEditingAnnouncement] = useState(false);
-  const [announcementDraft, setAnnouncementDraft] = useState("");
+  const [viewTab, setViewTab] = useState("mine");
+  // 已加入 / 未加入
+  const joinedChannels = channels.filter((ch) => ch.joined);
+  const rankedChannels = [...channels].sort((a, b) => b.members - a.members);
 
-  useEffect(() => {
-    setEditingAnnouncement(false);
-    setAnnouncementDraft(selectedChannel?.announcement || "");
-  }, [selectedChannel?.id, selectedChannel?.announcement]);
+  return (
+    <section className="channel-entry-page">
+      {/* ---- 双 Tab 切换 ---- */}
+      <nav className="channel-entry-tabs">
+        <button
+          className={viewTab === "mine" ? "active" : ""}
+          onClick={() => setViewTab("mine")}
+        >
+          <List size={17} />
+          我的频道
+        </button>
+        <button
+          className={viewTab === "discover" ? "active" : ""}
+          onClick={() => setViewTab("discover")}
+        >
+          <Trophy size={17} />
+          发现频道
+        </button>
+      </nav>
 
-  if (!selectedChannel) {
-    return (
-      <section className="channel-layout">
-        <aside className="channel-list">
-          <div className="panel-head channel-list-head">
-            <div><h2>频道</h2><span>公开 / 密码</span></div>
+      {/* ---- 我的频道 ---- */}
+      {viewTab === "mine" && (
+        <section className="my-channels">
+          <div className="my-channels-head">
+            <div>
+              <h2>我的频道</h2>
+              <span>你加入的圈子</span>
+            </div>
             {onCreateChannel && (
               <button className="ghost-button small" onClick={onCreateChannel}>
                 <Plus size={16} />创建
               </button>
             )}
           </div>
-          {channels.map((channel) => (
-            <button className="channel-item" key={channel.id} onClick={() => onSelectChannel(channel.id)}>
-              {channel.type === "密码" ? <LockKey size={18} /> : <Hash size={18} />}
-              <span>{channel.name}</span>
-              {!channel.joined && <em>{channel.type}</em>}
-            </button>
-          ))}
-        </aside>
-        <section className="channel-board">
-          <div className="empty-state">请选择一个频道查看详情。</div>
-        </section>
-      </section>
-    );
-  }
-
-  const previewPosts = selectedChannel.joined ? selectedChannel.posts : selectedChannel.posts.slice(0, 5);
-  const canEditAnnouncement = selectedChannel.joined && selectedChannel.isChannelAdmin;
-
-  function submitAnnouncement() {
-    if (!announcementDraft.trim()) return;
-    onUpdateAnnouncement?.(selectedChannel.id, announcementDraft);
-    setEditingAnnouncement(false);
-  }
-
-  return (
-    <section className="channel-layout">
-      <aside className="channel-list">
-        <div className="panel-head channel-list-head">
-          <div><h2>频道</h2><span>公开 / 密码</span></div>
-          {onCreateChannel && (
-            <button className="ghost-button small" onClick={onCreateChannel}>
-              <Plus size={16} />创建
-            </button>
-          )}
-        </div>
-        {channels.map((channel) => (
-          <button className={selectedChannel.id === channel.id ? "channel-item active" : "channel-item"} key={channel.id} onClick={() => onSelectChannel(channel.id)}>
-            {channel.type === "密码" ? <LockKey size={18} /> : <Hash size={18} />}
-            <span>{channel.name}</span>
-            {!channel.joined && <em>{channel.type}</em>}
-          </button>
-        ))}
-      </aside>
-
-      <section className="channel-board">
-        <div className="channel-cover">
-          <div>
-            <p>{selectedChannel.type === "密码" ? "私密频道" : "公开频道"}</p>
-            <h2>{selectedChannel.name}</h2>
-            <span>{selectedChannel.members} 人 · 初始管理员：{selectedChannel.admin}</span>
-            {selectedChannel.isChannelAdmin && (
-              <em className="initial-admin-badge">
-                <ShieldCheck size={15} weight="fill" />
-                {selectedChannel.isInitialAdmin ? "初始管理员" : "频道管理员"}
-              </em>
-            )}
-          </div>
-          <div className="channel-cover-actions">
-            {selectedChannel.isChannelAdmin && (
-              <button className="ghost-button" onClick={() => onOpenManagement?.(selectedChannel.id)}>
-                <ShieldCheck size={18} />
-                频道管理
-              </button>
-            )}
-            {selectedChannel.joined && !selectedChannel.isChannelAdmin && (
-              <button className="ghost-button" onClick={() => onApplyAdmin?.(selectedChannel.id)}>
-                <ShieldCheck size={18} />
-                申请管理员
-              </button>
-            )}
-            {selectedChannel.joined ? (
-              <button className="ghost-button"><CheckCircle size={18} />已加入</button>
-            ) : (
-              <button onClick={() => onJoin(selectedChannel)}>
-                {selectedChannel.type === "密码" ? <LockKey size={18} /> : <Hash size={18} />}加入
-              </button>
-            )}
-          </div>
-        </div>
-        <div className="announcement">
-          <Megaphone size={18} />
-          {editingAnnouncement ? (
-            <div className="announcement-editor">
-              <textarea
-                value={announcementDraft}
-                onChange={(event) => setAnnouncementDraft(event.target.value)}
-                maxLength={500}
-                autoFocus
-              />
-              <div>
-                <IconButton title="保存公告" onClick={submitAnnouncement}>
-                  <Check size={17} />
-                </IconButton>
-                <IconButton
-                  title="取消编辑"
-                  onClick={() => {
-                    setAnnouncementDraft(selectedChannel.announcement || "");
-                    setEditingAnnouncement(false);
-                  }}
+          {joinedChannels.length ? (
+            <div className="channel-card-grid">
+              {joinedChannels.map((channel) => (
+                <button
+                  className="channel-entry-card"
+                  key={channel.id}
+                  onClick={() => onEnterChannel?.(channel.id)}
                 >
-                  <X size={17} />
-                </IconButton>
-              </div>
+                  <div className="channel-card-icon">
+                    {channel.type === "密码" ? <LockKey size={22} /> : <Hash size={22} />}
+                  </div>
+                  <div className="channel-card-body">
+                    <strong>{channel.name}</strong>
+                    <span>
+                      <Users size={14} />
+                      {channel.members} 人
+                    </span>
+                    {channel.announcement && <p>{channel.announcement}</p>}
+                  </div>
+                </button>
+              ))}
             </div>
           ) : (
-            <>
-              <span>{selectedChannel.announcement}</span>
-              {canEditAnnouncement && (
-                <IconButton title="编辑公告" onClick={() => setEditingAnnouncement(true)}>
-                  <PencilSimple size={17} />
-                </IconButton>
-              )}
-            </>
-          )}
-        </div>
-        <div className="channel-posts">
-          {previewPosts.map((post) => (
-            <article className="channel-post" key={post.id}>
-              <button className="post-title-button" onClick={() => onOpenPost({ channel: selectedChannel, post })}>
-                {post.pinned && <PushPin size={16} weight="fill" />}
-                <strong>{post.title}</strong>
-                <span>{post.replies} 回复 · {post.likes} 赞</span>
+            <div className="empty-state">
+              <Hash size={36} />
+              <p>还没有加入任何频道</p>
+              <span>去发现频道看看有什么好玩的圈子</span>
+              <button className="ghost-button small" onClick={() => setViewTab("discover")}>
+                <Trophy size={15} />
+                去看看
               </button>
-              <IconButton title="举报频道帖子" onClick={() => onReport({ type: "频道帖子", title: post.title, targetId: post.id })}>
-                <Flag size={17} />
-              </IconButton>
-              {Number(post.authorId) === Number(currentUserId) && (
-                <IconButton title="删除帖子" onClick={() => onDeletePost(post.id)}>
-                  <Trash size={17} />
-                </IconButton>
-              )}
-              {post.imageUrls && post.imageUrls.length > 0 && (
-                <div className="channel-post-images">
-                  {post.imageUrls.slice(0, 3).map((url, i) => (
-                    <img key={i} className="channel-post-thumb" src={url} alt="" />
-                  ))}
-                  {post.imageUrls.length > 3 && <span>+{post.imageUrls.length - 3}</span>}
-                </div>
-              )}
-            </article>
-          ))}
-        </div>
-        {!selectedChannel.joined && (
-          <div className="join-reminder"><LockKey size={22} /><span>未加入时仅预览前 5 条帖子。加入后可发帖、回复、点赞。</span></div>
-        )}
-      </section>
+            </div>
+          )}
+        </section>
+      )}
 
-      <aside className="compact-panel ranking-panel">
-        <div className="panel-head"><h2>频道榜单</h2><span>按成员数展示</span></div>
-        {[...channels].sort((a, b) => b.members - a.members).map((channel, index) => (
-          <button className="rank-row" key={channel.id} onClick={() => onSelectChannel(channel.id)}>
-            <strong>{index + 1}</strong><span>{channel.name}</span><em>{channel.members} 人</em>
-          </button>
-        ))}
-      </aside>
+      {/* ---- 发现频道（排行榜） ---- */}
+      {viewTab === "discover" && (
+        <section className="discover-channels">
+          <div className="panel-head">
+            <div>
+              <h2>发现频道</h2>
+              <span>按成员数排序，找到你感兴趣的圈子</span>
+            </div>
+          </div>
+          {rankedChannels.length ? (
+            <div className="discover-channel-list">
+              {rankedChannels.map((channel, index) => (
+                <div className="discover-channel-row" key={channel.id}>
+                  <strong className="discover-rank">{index + 1}</strong>
+                  <div className="discover-channel-icon">
+                    {channel.type === "密码" ? <LockKey size={20} /> : <Hash size={20} />}
+                  </div>
+                  <div className="discover-channel-info">
+                    <span className="discover-channel-name">{channel.name}</span>
+                    <em>{channel.type === "密码" ? "私密频道" : "公开频道"} · {channel.members} 人</em>
+                  </div>
+                  {channel.joined ? (
+                    <button className="ghost-button small" onClick={() => onEnterChannel?.(channel.id)}>
+                      进入
+                    </button>
+                  ) : (
+                    <button className="ghost-button small" onClick={() => onJoin?.(channel)}>
+                      <Plus size={14} />
+                      加入
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state compact">暂无可用频道。</div>
+          )}
+        </section>
+      )}
     </section>
   );
 }

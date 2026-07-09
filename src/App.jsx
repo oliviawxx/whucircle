@@ -111,6 +111,7 @@ import { AppModals } from "./components/modals/AppModals.jsx";
 import { HomePage } from "./pages/HomePage.jsx";
 import { SocialCirclePage } from "./pages/SocialCirclePage.jsx";
 import { ChannelsPage } from "./pages/ChannelsPage.jsx";
+import { ChannelDetailPage } from "./pages/ChannelDetailPage.jsx";
 import { ChatsPage } from "./pages/ChatsPage.jsx";
 import { ProfilePage } from "./pages/ProfilePage.jsx";
 import { VisitedProfilePage } from "./pages/VisitedProfilePage.jsx";
@@ -276,9 +277,12 @@ export function App() {
     useState("");
 
   // UI 状态
-  const [activeNav, setActiveNav] = useState("主页");
+  const [activeNav, setActiveNav] = useState(() => {
+    try { return sessionStorage.getItem("whu-last-nav") || "主页"; } catch { return "主页"; }
+  });
   const [activeChatId, setActiveChatId] = useState(null);
   const [selectedChannelId, setSelectedChannelId] = useState(null);
+  const [detailChannel, setDetailChannel] = useState(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [tagsExpanded, setTagsExpanded] = useState(false);
@@ -440,6 +444,7 @@ export function App() {
     setActiveNav(label);
     setUserMenuOpen(false);
     setNotificationsOpen(false);
+    try { sessionStorage.setItem("whu-last-nav", label); } catch {}
   }
 
   function fromApiUser(user) {
@@ -771,6 +776,11 @@ export function App() {
     if (loggedIn) loadAllData();
   }, [loggedIn]);
 
+  // 刷新後恢復上次頁面
+  useEffect(() => {
+    try { sessionStorage.setItem("whu-last-nav", activeNav); } catch {}
+  }, [activeNav]);
+
   useEffect(() => {
     if (loggedIn && activeNav === "全站管理" && currentUser.role === "ADMIN") {
       loadAdminDashboard();
@@ -885,12 +895,15 @@ export function App() {
     setAuthLoading(true);
     apiResetPassword(authEmail, authCode, authPassword)
       .then(() => {
-        setAuthMode("登录");
-        setAuthPassword("");
-        setAuthPasswordConfirm("");
-        setAuthCode("");
-        setCodeSent(false);
-        setAuthNotice("密码已重置，请使用新密码登录。");
+        setAuthNotice("密码已重置");
+        setTimeout(() => {
+          setAuthMode("登录");
+          setAuthPassword("");
+          setAuthPasswordConfirm("");
+          setAuthCode("");
+          setCodeSent(false);
+          setAuthNotice("");
+        }, 2000);
       })
       .catch((err) => setAuthError(err.message))
       .finally(() => setAuthLoading(false));
@@ -1314,6 +1327,17 @@ function resetDraft() {
         );
       })
       .catch(() => {});
+  }
+
+  function openChannelDetail(channelId) {
+    setSelectedChannelId(channelId);
+    setDetailChannel(String(channelId));
+    setActiveNav("频道详情");
+  }
+
+  function closeChannelDetail() {
+    setDetailChannel(null);
+    setActiveNav("频道");
   }
 
   function openChannelAdmin(channelId) {
@@ -2048,6 +2072,7 @@ function resetDraft() {
             noteFeedProps={noteFeedProps}
             onRelationAction={changeRelation}
             onStartConversation={startConversationWith}
+            onNavigate={goTo}
           />
         );
       case "频道":
@@ -2065,6 +2090,7 @@ function resetDraft() {
            onApplyAdmin={submitChannelAdminApplication}
             currentUserId={currentUser.id}
             onDeletePost={removeChannelPost}
+            onEnterChannel={openChannelDetail}
           />
         );
       case "聊天":
@@ -2126,6 +2152,30 @@ function resetDraft() {
             onThemeChange={setActiveTheme}
           />
         );
+      case "频道详情": {
+        const dc = channels.find((ch) => String(ch.id) === String(detailChannel));
+        if (!dc) { setActiveNav("频道"); return null; }
+        return (
+          <ChannelDetailPage
+            channel={dc}
+            currentUserId={currentUser.id}
+            onBack={closeChannelDetail}
+            onJoin={() => setJoinChannel(dc)}
+            onOpenPost={(post) => onOpenPost && openChannelPostDetail(post)}
+            onReport={setReportTarget}
+            onUpdateAnnouncement={saveChannelAnnouncement}
+            onOpenManagement={() => openChannelAdmin(dc.id)}
+            onApplyAdmin={() => submitChannelAdminApplication(dc.id)}
+            onDeletePost={removeChannelPost}
+            onOpenDraft={() => setChannelPostDraftOpen(true)}
+            onToggleLike={(postId) => {
+              apiLikePost(Number(postId))
+                .then((result) => updateChannelPostInState(postId, { liked: result.active, likes: result.count }))
+                .catch(() => {});
+            }}
+          />
+        );
+      }
       case "全站管理":
         if (currentUser.role !== "ADMIN") return <div className="empty-state">仅全站管理员可访问。</div>;
         return (
@@ -2140,7 +2190,7 @@ function resetDraft() {
           />
         );
       case "用户主页":
-        if (!visitedUser) return null;
+        if (!visitedUser) { setActiveNav("主页"); return null; }
         return (
           <VisitedProfilePage
             user={visitedUser}
@@ -2450,23 +2500,6 @@ function resetDraft() {
               </button>
             </section>
           </div>
-        )}
-
-        {/* 频道页面额外按钮 */}
-        {activeNav === "频道" && selectedChannel && (
-          <>
-            {selectedChannel.joined && (
-              <div className="channel-actions-bar">
-                <button
-                  className="submit-note"
-                  onClick={() => setChannelPostDraftOpen(true)}
-                >
-                  <PaperPlaneTilt size={18} weight="fill" />
-                  发帖
-                </button>
-              </div>
-            )}
-          </>
         )}
         </div>
       </main>

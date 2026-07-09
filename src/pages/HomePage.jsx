@@ -110,6 +110,12 @@ export function HomePage({
             <div className="empty-state compact">没有找到可搜索的用户</div>
           )}
         </section>
+      ) : hasSearch && notes.length === 0 ? (
+        <div className="empty-state">
+          <MagnifyingGlass size={36} />
+          <p>没有找到相关笔记</p>
+          <span>试试其他关键词或切换标签筛选</span>
+        </div>
       ) : (
         <NotesFeed items={notes} {...noteFeedProps} />
       )}
