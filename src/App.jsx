@@ -1,8 +1,10 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
   BookmarkSimple,
   CaretDown,
+  CaretLeft,
+  CaretRight,
   ChatCircle,
   ChatsCircle,
   CheckCircle,
@@ -102,6 +104,7 @@ import {
 import { getRecommendedNotes } from "./api/recommendations.js";
 import { AuthPage } from "./components/auth/AuthPage.jsx";
 import { ModalHead } from "./components/common/ModalHead.jsx";
+import { NoteCardSkeleton } from "./components/common/Skeleton.jsx";
 import { Sidebar } from "./components/layout/Sidebar.jsx";
 import { Topbar } from "./components/layout/Topbar.jsx";
 import { AppModals } from "./components/modals/AppModals.jsx";
@@ -110,6 +113,7 @@ import { SocialCirclePage } from "./pages/SocialCirclePage.jsx";
 import { ChannelsPage } from "./pages/ChannelsPage.jsx";
 import { ChatsPage } from "./pages/ChatsPage.jsx";
 import { ProfilePage } from "./pages/ProfilePage.jsx";
+import { VisitedProfilePage } from "./pages/VisitedProfilePage.jsx";
 import { SavedPage } from "./pages/SavedPage.jsx";
 import { SettingsPage } from "./pages/SettingsPage.jsx";
 import { AdminPage } from "./pages/AdminPage.jsx";
@@ -170,6 +174,49 @@ function toReportReason(reason) {
 }
 
 const postImageCache = JSON.parse(localStorage.getItem("whu-channel-images") || "{}");
+
+function uniqueWords(value) {
+  return (value || "")
+    .split(/\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .filter((part, index, parts) => parts.indexOf(part) === index);
+}
+
+function formatUserMeta(grade, college, fallback = "\u8d44\u6599\u5f85\u5b8c\u5584") {
+  const parts = [...uniqueWords(grade), ...uniqueWords(college)]
+    .filter((part, index, all) => all.indexOf(part) === index)
+    .filter((part) => part !== "\u5f85\u5b8c\u5584");
+  return parts.join(" ") || fallback;
+}
+
+function splitProfileMeta(meta) {
+  const parts = uniqueWords(meta);
+  const gradeIndex = parts.findIndex((part) => {
+    const normalized = part.replace(/\s+/g, "");
+    return normalized.includes("\u7ea7")
+      || normalized.startsWith("\u51c6\u5927")
+      || normalized.startsWith("\u5927")
+      || normalized.startsWith("\u7814")
+      || normalized.startsWith("\u535a");
+  });
+  const grade = gradeIndex >= 0 ? parts[gradeIndex] : "";
+  const college = parts.filter((_, index) => index !== gradeIndex).join(" ");
+  return { grade, college };
+}
+
+function normalizeMediaUrl(url) {
+  if (!url) return "";
+  try {
+    const parsed = new URL(url);
+    if (parsed.pathname.startsWith("/api/v1/files/")) {
+      return `${parsed.pathname}${parsed.search}`;
+    }
+  } catch {
+    // Keep relative and object URLs unchanged.
+  }
+  return url;
+}
 
 export function App() {
   // 认证状态
@@ -235,6 +282,7 @@ export function App() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [tagsExpanded, setTagsExpanded] = useState(false);
+  const [dataReady, setDataReady] = useState(false);
 
   // 搜索和筛选状态
   const [searchTerm, setSearchTerm] = useState("");
@@ -258,8 +306,10 @@ export function App() {
 
   // 弹窗状态
   const [detailNote, setDetailNote] = useState(null);
+  const [detailImageIndex, setDetailImageIndex] = useState(0);
   const [commentText, setCommentText] = useState("");
   const [profileUser, setProfileUser] = useState(null);
+  const [visitedUser, setVisitedUser] = useState(null);
   const [joinChannel, setJoinChannel] = useState(null);
   const [joinPassword, setJoinPassword] = useState("");
   const [createChannelOpen, setCreateChannelOpen] = useState(false);
@@ -367,7 +417,7 @@ export function App() {
       return relationsData.map((r) => ({
         id: r.userId,
         name: r.nickname || "用户",
-        avatar: r.avatarUrl || DEFAULT_AVATAR,
+        avatar: normalizeMediaUrl(r.avatarUrl) || DEFAULT_AVATAR,
         status: r.status,
         state: statusMap[r.status]?.[0] || r.status,
         detail: statusMap[r.status]?.[1] || "",
@@ -389,13 +439,14 @@ export function App() {
     }
     setActiveNav(label);
     setUserMenuOpen(false);
+    setNotificationsOpen(false);
   }
 
   function fromApiUser(user) {
     return {
       name: user.nickname || "新用户",
-      meta: `${user.grade || "待完善"} 路 ${user.college || "待完善"}`,
-      avatar: user.avatarUrl || DEFAULT_AVATAR,
+      meta: formatUserMeta(user.grade, user.college),
+      avatar: normalizeMediaUrl(user.avatarUrl) || DEFAULT_AVATAR,
       id: user.id,
       role: user.role || "USER",
       status: user.status || "ACTIVE",
@@ -416,11 +467,11 @@ export function App() {
       id: apiNote.id,
       authorId: apiNote.author?.id,
       author: apiNote.author?.nickname || "未知",
-      meta: `${apiNote.author?.college || ""} 路 ${timeAgo(apiNote.createdAt)}`,
-      avatar: apiNote.author?.avatarUrl || DEFAULT_AVATAR,
+      meta: `${formatUserMeta("", apiNote.author?.college, "")} ${timeAgo(apiNote.createdAt)}`.trim(),
+      avatar: normalizeMediaUrl(apiNote.author?.avatarUrl) || DEFAULT_AVATAR,
       title: apiNote.title,
       body: apiNote.content,
-      images: apiNote.imageUrls || [],
+      images: (apiNote.imageUrls || []).map(normalizeMediaUrl),
       tags: apiNote.tags || [],
       visibility: VIS_MAP[apiNote.visibility] || "公开",
       likes: apiNote.likeCount,
@@ -484,7 +535,7 @@ export function App() {
       time: apiPost.createdAt ? timeAgo(apiPost.createdAt) : "",
       tags: [],
       image: false,
-      imageUrls: postImageCache[apiPost.id] || apiPost.imageUrls || [],
+      imageUrls: (postImageCache[apiPost.id] || apiPost.imageUrls || []).map(normalizeMediaUrl),
     };
   }
 
@@ -649,8 +700,8 @@ export function App() {
       setChats(chatsWithMessages);
       setCurrentUser({
         name: profileDataRes?.nickname || "新用户",
-        meta: `${profileDataRes?.grade || ""} 路 ${profileDataRes?.college || ""}`,
-        avatar: profileDataRes?.avatarUrl || DEFAULT_AVATAR,
+        meta: formatUserMeta(profileDataRes?.grade, profileDataRes?.college),
+        avatar: normalizeMediaUrl(profileDataRes?.avatarUrl) || DEFAULT_AVATAR,
         id: profileDataRes?.id,
         role: profileDataRes?.role || currentUser.role || "USER",
         status: profileDataRes?.status || currentUser.status || "ACTIVE",
@@ -666,9 +717,9 @@ export function App() {
       // 同步编辑表单状态
       if (profileDataRes) {
         setProfileName(profileDataRes.nickname || "");
-        setProfileMeta(`${profileDataRes.grade || ""} 路 ${profileDataRes.college || ""}`);
+        setProfileMeta(formatUserMeta(profileDataRes.grade, profileDataRes.college, ""));
         setProfileBio(profileDataRes.bio || "");
-        setProfileAvatar(profileDataRes.avatarUrl || DEFAULT_AVATAR);
+        setProfileAvatar(normalizeMediaUrl(profileDataRes.avatarUrl) || DEFAULT_AVATAR);
       }
       if (privacyData) {
         const nextPrivacy = {
@@ -711,6 +762,8 @@ export function App() {
       }
     } catch {
       // 静默失败，保留 mock 数据兜底
+    } finally {
+      setDataReady(true);
     }
   }
 
@@ -876,6 +929,7 @@ export function App() {
   // 笔记操作
   function openNoteDetail(note) {
     setDetailNote(note);
+    setDetailImageIndex(0);
     getComments(note.id)
       .then((comments) => {
         const mappedComments = (comments?.items || comments || []).map(mapComment);
@@ -1512,8 +1566,8 @@ function resetDraft() {
           authorId: profile.id,
           author: profile.nickname || user.author || user.name || user.nickname,
           name: profile.nickname || user.name || user.author || user.nickname,
-          avatar: profile.avatarUrl || user.avatar || user.avatarUrl || DEFAULT_AVATAR,
-          meta: `${profile.grade || ""} 路 ${profile.college || ""}`,
+          avatar: normalizeMediaUrl(profile.avatarUrl || user.avatar || user.avatarUrl) || DEFAULT_AVATAR,
+          meta: formatUserMeta(profile.grade, profile.college, ""),
           email: profile.email,
           bio: profile.bio || "",
           relation: profile.relation,
@@ -1565,6 +1619,53 @@ function resetDraft() {
         setProfileUser(null);
       })
       .catch((error) => setChatError(error.message || "无法发起私聊"));
+  }
+
+  function handleEnterProfile(user) {
+    const userId = user?.id || user?.authorId || user?.userId;
+    if (!userId) return;
+    const fallback = {
+      id: userId,
+      author: user.author || user.name,
+      name: user.name || user.author,
+      avatar: user.avatar || DEFAULT_AVATAR,
+      meta: user.meta || "",
+      email: user.email,
+      bio: user.bio || "",
+      relation: user.relation,
+      noteCount: 0,
+      followingCount: 0,
+      followerCount: 0,
+      friendCount: 0,
+    };
+    setProfileUser(null);
+    getUserProfile(Number(userId))
+      .then((profile) => {
+        setVisitedUser({
+          id: profile.id,
+          author: profile.nickname || user.author || user.name,
+          name: profile.nickname || user.author || user.name,
+          avatar: normalizeMediaUrl(profile.avatarUrl || user.avatar) || DEFAULT_AVATAR,
+          meta: formatUserMeta(profile.grade, profile.college, ""),
+          email: profile.email,
+          bio: profile.bio || "",
+          relation: profile.relation,
+          noteCount: profile.noteCount ?? 0,
+          followingCount: profile.followingCount ?? 0,
+          followerCount: profile.followerCount ?? 0,
+          friendCount: profile.friendCount ?? 0,
+        });
+        setActiveNav("用户主页");
+      })
+      .catch(() => {
+        setVisitedUser(fallback);
+        setActiveNav("用户主页");
+      });
+  }
+
+  function leaveVisitedProfile() {
+    setVisitedUser(null);
+    setActiveNav("主页");
   }
 
   function markNotificationRead(notificationId) {
@@ -1648,13 +1749,11 @@ function resetDraft() {
   }
 
   function saveProfile() {
-    // 解析 "2024级 路 新闻与传播学院" 格式
-    const parts = profileMeta.split("路").map((s) => s.trim()).filter(Boolean);
-    const grade = parts[0] || "";
-    const college = parts[1] || "";
+    // 解析 "2024级 新闻与传播学院" 格式
+    const { grade, college } = splitProfileMeta(profileMeta);
     updateProfile({
       nickname: profileName,
-      college: college || profileMeta,
+      college,
       grade: grade || "",
       bio: profileBio,
       avatarUrl: profileAvatar,
@@ -1679,7 +1778,7 @@ function resetDraft() {
     setProfileAvatarUploading(true);
     uploadImage(file)
       .then((data) => {
-        setProfileAvatar(data.url);
+        setProfileAvatar(normalizeMediaUrl(data.url));
       })
       .catch((error) => setProfileAvatarError(error.message || "头像上传失败"))
       .finally(() => setProfileAvatarUploading(false));
@@ -1788,7 +1887,7 @@ function resetDraft() {
             author: detail.post?.authorName || payload.post.author,
             authorId: detail.post?.authorId || payload.post.authorId,
             channelId: detail.post?.channelId || payload.post.channelId,
-            imageUrls: detail.post?.imageUrls || postImageCache[detail.post?.id || payload.post.id] || payload.post.imageUrls || [],
+            imageUrls: (detail.post?.imageUrls || postImageCache[detail.post?.id || payload.post.id] || payload.post.imageUrls || []).map(normalizeMediaUrl),
           },
           replies: detail.replies || [],
         });
@@ -1910,6 +2009,15 @@ function resetDraft() {
 
   // 渲染主内容
   function renderMainContent() {
+    if (!dataReady) {
+      return (
+        <section className="masonry-feed">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <NoteCardSkeleton key={i} />
+          ))}
+        </section>
+      );
+    }
     switch (activeNav) {
       case "主页":
         return (
@@ -2031,6 +2139,19 @@ function resetDraft() {
             onDeletePost={removeAdminChannelPost}
           />
         );
+      case "用户主页":
+        if (!visitedUser) return null;
+        return (
+          <VisitedProfilePage
+            user={visitedUser}
+            notes={notes.filter((n) => n.author === visitedUser.author || n.author === visitedUser.name)}
+            onBack={leaveVisitedProfile}
+            onRelationAction={changeRelation}
+            onStartConversation={startConversationWith}
+            onBlockUser={blockUser}
+            noteFeedProps={noteFeedProps}
+          />
+        );
       default:
         return null;
     }
@@ -2115,6 +2236,7 @@ function resetDraft() {
         />
 
         {/* 聊天页面需要 chatInput + sendChatMessage，所以单独处理 */}
+        <div className="page-fade" key={activeNav}>
         {activeNav === "聊天" ? (
           <section className="chat-page">
             <section className="chat-friend-strip">
@@ -2346,6 +2468,7 @@ function resetDraft() {
             )}
           </>
         )}
+        </div>
       </main>
 
       {/* 弹窗：使用 AppModals */}
@@ -2383,6 +2506,7 @@ function resetDraft() {
         onToggleChannelPostPinned={toggleChannelPostPinned}
         onRelationAction={changeRelation}
         onStartConversation={startConversationWith}
+        onEnterProfile={handleEnterProfile}
         profileBackdropClassName={detailNote ? "modal-backdrop modal-backdrop-elevated" : "modal-backdrop"}
         reportBackdropClassName={detailNote ? "modal-backdrop modal-backdrop-elevated" : "modal-backdrop"}
       />
@@ -2406,11 +2530,40 @@ function resetDraft() {
                 </div>
               </button>
               {detailNote.images[0] ? (
-                <img
-                  className="detail-image"
-                  src={detailNote.images[0]}
-                  alt="笔记图片"
-                />
+                <div className="detail-image-stage">
+                  <img
+                    className="detail-image"
+                    src={detailNote.images[detailImageIndex % detailNote.images.length]}
+                    alt="note image"
+                  />
+                  {detailNote.images.length > 1 && (
+                    <>
+                      <button
+                        className="detail-image-nav detail-image-nav-left"
+                        title="Previous image"
+                        onClick={() =>
+                          setDetailImageIndex((index) =>
+                            (index - 1 + detailNote.images.length) % detailNote.images.length,
+                          )
+                        }
+                      >
+                        <CaretLeft size={22} />
+                      </button>
+                      <button
+                        className="detail-image-nav detail-image-nav-right"
+                        title="Next image"
+                        onClick={() =>
+                          setDetailImageIndex((index) => (index + 1) % detailNote.images.length)
+                        }
+                      >
+                        <CaretRight size={22} />
+                      </button>
+                      <span className="detail-image-count">
+                        {(detailImageIndex % detailNote.images.length) + 1} / {detailNote.images.length}
+                      </span>
+                    </>
+                  )}
+                </div>
               ) : (
                 <div className="detail-image-placeholder">
                   <Image size={40} />
@@ -2535,7 +2688,7 @@ function resetDraft() {
                 className="title-input"
                 value={profileMeta}
                 onChange={(e) => setProfileMeta(e.target.value)}
-                placeholder="例如：2024级 路 计算机学院"
+                placeholder="例如：2024级 计算机学院"
               />
             </label>
             <label className="auth-field">
@@ -2604,7 +2757,7 @@ function resetDraft() {
                     <span>{channelAdminDashboard.roleLabel}</span>
                     <strong>{channelAdminDashboard.channel.name}</strong>
                     <em>
-                      {channelAdminDashboard.channel.memberCount} 人 路 初始管理员：
+                      {channelAdminDashboard.channel.memberCount} 人 初始管理员：
                       {channelAdminDashboard.channel.administrator?.nickname}
                     </em>
                   </div>
@@ -2738,7 +2891,7 @@ function resetDraft() {
                           <div>
                             <strong>{post.title}</strong>
                             <span>
-                              {post.authorName} 路 {post.replyCount} 回复 路 {post.likeCount} 赞
+                              {post.authorName} {post.replyCount} 回复 {post.likeCount} 赞
                             </span>
                           </div>
                           <em>{post.pinned ? "已置顶" : "普通"}</em>

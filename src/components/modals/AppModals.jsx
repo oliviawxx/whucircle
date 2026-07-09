@@ -1,4 +1,4 @@
-﻿import { ChatCircle, Flag, Heart, Image, PaperPlaneTilt, Prohibit, PushPin, UserMinus, UserPlus } from "@phosphor-icons/react";
+﻿import { ChatCircle, Door, Flag, Heart, Image, PaperPlaneTilt, Prohibit, PushPin, UserMinus, UserPlus } from "@phosphor-icons/react";
 import { ModalHead } from "../common/ModalHead.jsx";
 import { Hash } from "@phosphor-icons/react";
 
@@ -29,6 +29,7 @@ export function AppModals({
   onToggleChannelPostPinned,
   onRelationAction,
   onStartConversation,
+  onEnterProfile,
   profileBackdropClassName = "modal-backdrop",
   reportBackdropClassName = "modal-backdrop",
 }) {
@@ -256,6 +257,12 @@ export function AppModals({
                       )}
                       {profileUser.relation === "FOLLOWING" || profileUser.relation === "FRIEND" ? "取消关注" : "关注"}
                     </button>
+                    {(profileUser.relation === "FOLLOWING" || profileUser.relation === "FRIEND") && (
+                      <button className="enter-profile-button" onClick={() => onEnterProfile(profileUser)} title="进入主页">
+                        <Door size={18} />
+                        进入主页
+                      </button>
+                    )}
                     <button onClick={() => onStartConversation(profileUser)}>
                       <ChatCircle size={18} />
                       私聊

@@ -1,4 +1,4 @@
-﻿import { CaretDown, Hash, MagnifyingGlass, UserCircle } from "@phosphor-icons/react";
+﻿import { CaretDown, Hash, MagnifyingGlass, Note, User, UserCircle } from "@phosphor-icons/react";
 import { NotesFeed } from "../components/notes/NotesFeed.jsx";
 
 export function HomePage({
@@ -21,24 +21,39 @@ export function HomePage({
 }) {
   const hasSearch = searchTerm.trim().length > 0;
   const searchingUsers = searchMode === "users";
+  const showFilterToggle = !searchingUsers && hasSearch;
 
   return (
     <>
       <section className="filter-bar">
         <div className="filter-main-row">
-          <div className="search wide search-with-mode">
+          <div className="search-mode-segmented">
+            <button
+              className={!searchingUsers ? "active" : ""}
+              onClick={() => onSearchModeChange("notes")}
+              title="搜索笔记"
+            >
+              <Note size={18} />
+              <span>笔记</span>
+            </button>
+            <button
+              className={searchingUsers ? "active" : ""}
+              onClick={() => onSearchModeChange("users")}
+              title="搜索用户"
+            >
+              <User size={18} />
+              <span>用户</span>
+            </button>
+          </div>
+          <div className="search wide">
             <MagnifyingGlass size={18} />
             <input
               value={searchTerm}
               onChange={(event) => onSearchChange(event.target.value)}
               placeholder={searchingUsers ? "搜索用户昵称、学院、年级或简介" : "搜索笔记、作者、内容、标签"}
             />
-            <div className="search-mode-tabs">
-              <button className={!searchingUsers ? "active" : ""} onClick={() => onSearchModeChange("notes")}>笔记</button>
-              <button className={searchingUsers ? "active" : ""} onClick={() => onSearchModeChange("users")}>用户</button>
-            </div>
           </div>
-          {!searchingUsers && (
+          {showFilterToggle && (
             <button
               className={tagsExpanded ? "tag-toggle active" : "tag-toggle"}
               aria-expanded={tagsExpanded}
@@ -51,7 +66,7 @@ export function HomePage({
             </button>
           )}
         </div>
-        {!searchingUsers && tagsExpanded && (
+        {showFilterToggle && tagsExpanded && (
           <div className="search-filter-panel">
             <div className="filter-section">
               <span>排序</span>

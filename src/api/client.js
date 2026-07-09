@@ -17,7 +17,7 @@ export class ApiError extends Error {
   }
 }
 
-const BASE = "/api/v1";
+const BASE = import.meta.env.VITE_API_BASE_URL || "/api/v1";
 
 export async function request(path, options = {}) {
   const headers = {

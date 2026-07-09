@@ -95,8 +95,7 @@ public class ChatService {
             Long otherUserId = participantIds.get(0);
             requireDirectMessagePermission(currentUserId, otherUserId);
             return chats.findPrivateConversation(currentUserId, otherUserId)
-            .map(conversation -> new ConversationView(conversation.id(), conversation.type(), conversation.name(),
-            .map(conversation -> new ConversationView(conversation.id(), conversation.type(), displayName(conversation, currentUserId),
+                    .map(conversation -> new ConversationView(conversation.id(), conversation.type(), displayName(conversation, currentUserId),
                     conversation.lastMessage(), conversation.lastMessageAt(),
                             (int) chats.findMessages(conversation.id()).stream()
                                     .filter(message -> !message.readBy().contains(currentUserId)).count()))
@@ -121,7 +120,6 @@ public class ChatService {
         }
         Conversation conversation = new Conversation(conversationId, request.type(), name.trim(), members,
                 "", OffsetDateTime.now());
-        return new ConversationView(chats.saveConversation(conversation).id(), conversation.type(), conversation.name(),
         return new ConversationView(chats.saveConversation(conversation).id(), conversation.type(), displayName(conversation, currentUserId),
                 "", conversation.lastMessageAt(), 0);
     }
