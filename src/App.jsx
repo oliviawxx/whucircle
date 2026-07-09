@@ -249,7 +249,7 @@ export function App() {
   const [channelPostDraftBody, setChannelPostDraftBody] = useState("");
   const [channelPostDraftTags, setChannelPostDraftTags] = useState([]);
   const [channelPostDraftPinned, setChannelPostDraftPinned] = useState(false);
-  const [channelPostDraftImage, setChannelPostDraftImage] = useState(false);
+  const [channelPostDraftImages, setChannelPostDraftImages] = useState([]);
   const [channelPostDetail, setChannelPostDetail] = useState(null);
   const [channelPostReply, setChannelPostReply] = useState("");
   const [reportTarget, setReportTarget] = useState(null);
@@ -461,6 +461,7 @@ export function App() {
       time: apiPost.createdAt ? timeAgo(apiPost.createdAt) : "",
       tags: [],
       image: false,
+      imageUrls: apiPost.imageUrls || [],
     };
   }
 
@@ -1014,13 +1015,37 @@ function resetDraft() {
     setImageCount((count) => count + valid.length);
   }
 
-  function removeDraftImage(imageId) {
+ function removeDraftImage(imageId) {
     setDraftImages((items) => {
       const target = items.find((image) => image.id === imageId);
       if (target) URL.revokeObjectURL(target.previewUrl);
       const next = items.filter((image) => image.id !== imageId);
       setImageCount(next.length);
       return next;
+    });
+  }
+
+  function addChannelPostImages(files) {
+    const selected = Array.from(files || []);
+    if (!selected.length) return;
+    const slots = Math.max(9 - channelPostDraftImages.length, 0);
+    const valid = selected
+      .filter((file) => file.type.startsWith("image/"))
+      .slice(0, slots)
+      .map((file) => ({
+        id: `${Date.now()}-${file.name}-${Math.random()}`,
+        file,
+        name: file.name,
+        previewUrl: URL.createObjectURL(file),
+      }));
+    setChannelPostDraftImages((items) => [...items, ...valid]);
+  }
+
+  function removeChannelPostImage(imageId) {
+    setChannelPostDraftImages((items) => {
+      const target = items.find((image) => image.id === imageId);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return items.filter((image) => image.id !== imageId);
     });
   }
 
@@ -1113,11 +1138,17 @@ function resetDraft() {
     const title = channelPostDraftTitle.trim();
     const body = channelPostDraftBody.trim();
     if (!title && !body) return;
-    apiCreatePost(Number(selectedChannel.id), {
-      title: title || "新发布的讨论帖",
-      content: body || "分享一个话题。",
-      pinned: selectedChannel.isChannelAdmin && channelPostDraftPinned,
-    })
+    const run = async () => {
+      const uploaded = await Promise.all(
+        channelPostDraftImages.map((img) => uploadImage(img.file)),
+      );
+      const imageUrls = uploaded.map((img) => img.url);
+      apiCreatePost(Number(selectedChannel.id), {
+        title: title || "新发布的讨论帖",
+        content: body || "分享一个话题。",
+        pinned: selectedChannel.isChannelAdmin && channelPostDraftPinned,
+        imageUrls,
+      })
       .then((apiPost) => {
         const newPost = {
           id: String(apiPost.id),
@@ -1131,7 +1162,7 @@ function resetDraft() {
           channelId: apiPost.channelId || Number(selectedChannel.id),
           liked: apiPost.liked || false,
           tags: channelPostDraftTags,
-          image: channelPostDraftImage,
+          imageUrls,
         };
         setChannels((items) =>
           items.map((ch) =>
@@ -1144,10 +1175,12 @@ function resetDraft() {
         setChannelPostDraftTitle("");
         setChannelPostDraftBody("");
         setChannelPostDraftTags([]);
-        setChannelPostDraftPinned(false);
-        setChannelPostDraftImage(false);
+       setChannelPostDraftPinned(false);
+       setChannelPostDraftImages([]);
       })
       .catch(() => {});
+    };
+    run();
   }
 
   function updateChannelPostInState(postId, patch) {
@@ -1727,6 +1760,7 @@ function resetDraft() {
             author: detail.post?.authorName || payload.post.author,
             authorId: detail.post?.authorId || payload.post.authorId,
             channelId: detail.post?.channelId || payload.post.channelId,
+            imageUrls: detail.post?.imageUrls || payload.post.imageUrls || [],
           },
           replies: detail.replies || [],
         });
@@ -2793,12 +2827,20 @@ function resetDraft() {
               />
             </label>
             <div className="draft-tools">
-              <button
-                onClick={() => setChannelPostDraftImage((v) => !v)}
-              >
+              <label className={channelPostDraftImages.length >= 9 ? "disabled" : ""}>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif,image/webp"
+                  multiple
+                  disabled={channelPostDraftImages.length >= 9}
+                  onChange={(e) => {
+                    addChannelPostImages(e.target.files);
+                    e.target.value = "";
+                  }}
+                />
                 <Image size={18} />
-                {channelPostDraftImage ? "已附图" : "附图"}
-              </button>
+                图片 {channelPostDraftImages.length > 0 ? channelPostDraftImages.length : ""}
+              </label>
               <div className="segmented compact">
                 {["学习", "活动", "求助", "闲聊"].map((tag) => (
                   <button
@@ -2819,6 +2861,21 @@ function resetDraft() {
                 ))}
               </div>
             </div>
+            {channelPostDraftImages.length > 0 && (
+              <div className="draft-image-grid">
+                {channelPostDraftImages.map((image) => (
+                  <figure key={image.id}>
+                    <img src={image.previewUrl} alt={image.name} />
+                    <button
+                      title="移除图片"
+                      onClick={() => removeChannelPostImage(image.id)}
+                    >
+                      ×
+                    </button>
+                  </figure>
+                ))}
+              </div>
+            )}
             {selectedChannel?.isChannelAdmin && (
               <label className="segmented compact">
                 <button

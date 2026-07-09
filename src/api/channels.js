@@ -64,10 +64,10 @@ export function getPosts(channelId, { page = 1, size = 20 } = {}) {
   return request(`/channels/${channelId}/posts?page=${page}&size=${size}`);
 }
 
-export function createPost(channelId, { title, content, pinned }) {
+export function createPost(channelId, { title, content, pinned, imageUrls = [] }) {
   return request(`/channels/${channelId}/posts`, {
     method: "POST",
-    body: JSON.stringify({ title, content, pinned }),
+    body: JSON.stringify({ title, content, pinned, imageUrls }),
   });
 }
 

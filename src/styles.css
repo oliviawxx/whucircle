@@ -1227,7 +1227,33 @@ button {
   padding: 14px;
   background: #fff;
   border: 1px solid #edf1f6;
-  border-radius: 8px;
+ border-radius: 8px;
+}
+
+.channel-post-images {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+  grid-column: 1 / -1;
+}
+.channel-post-thumb {
+  width: 60px;
+  height: 60px;
+  border-radius: 6px;
+  object-fit: cover;
+  border: 1px solid #edf1f6;
+}
+.channel-post-images span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  font-size: 13px;
+  color: var(--muted);
+  background: #f8fafc;
+  border: 1px solid #edf1f6;
+  border-radius: 6px;
 }
 
 .post-title-button {
@@ -2744,6 +2770,18 @@ button {
   margin: 0;
   color: #344258;
   line-height: 1.75;
+}
+
+.detail-images {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+.small-modal .detail-images .detail-image {
+  max-height: 400px;
+  object-fit: contain;
+  border-radius: 8px;
 }
 
 .detail-action-row {

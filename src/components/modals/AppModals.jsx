@@ -152,6 +152,13 @@ export function AppModals({
               onClose={onClosePost}
             />
             <p className="detail-body">{channelPostDetail.post.body || "频道内部交流帖。"}</p>
+            {channelPostDetail.post.imageUrls && channelPostDetail.post.imageUrls.length > 0 && (
+              <div className="detail-images">
+                {channelPostDetail.post.imageUrls.map((url, i) => (
+                  <img key={i} className="detail-image" src={url} alt={`帖子图片${i + 1}`} />
+                ))}
+              </div>
+            )}
             <div className="post-action-row">
               <button
                 className={channelPostDetail.post.liked ? "active" : ""}
