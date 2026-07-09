@@ -17,6 +17,7 @@ spring:
       max-request-size: 45MB
 
 whu-circle:
+  public-base-url: ${APP_PUBLIC_BASE_URL:http://127.0.0.1:8080}
   auth:
     allowed-email-domains: whu.edu.cn
     code-expires-in: 300

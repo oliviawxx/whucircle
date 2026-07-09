@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -22,7 +23,7 @@ public class LocalImageStorageService implements ImageStorageService {
 
     @Override
     public String store(MultipartFile file, String objectKey, String contentType) {
-        Path target = imageRoot.resolve(objectKey).normalize();
+        Path target = resolveObjectKey(objectKey);
         if (!target.startsWith(imageRoot)) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "文件路径异常");
         }
@@ -32,6 +33,30 @@ public class LocalImageStorageService implements ImageStorageService {
         } catch (IOException ex) {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "图片保存失败");
         }
-        return "/uploads/images/" + objectKey.replace('\\', '/');
+        return objectKey.replace('\\', '/');
+    }
+
+    @Override
+    public StoredImage load(String objectKey) {
+        Path target = resolveObjectKey(objectKey);
+        if (!target.startsWith(imageRoot) || !Files.isRegularFile(target)) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "图片不存在");
+        }
+        try {
+            InputStream inputStream = Files.newInputStream(target);
+            String contentType = Files.probeContentType(target);
+            long size = Files.size(target);
+            return new StoredImage(inputStream, contentType == null ? "application/octet-stream" : contentType, size);
+        } catch (IOException ex) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "图片读取失败");
+        }
+    }
+
+    private Path resolveObjectKey(String objectKey) {
+        String normalized = objectKey.replace('\\', '/');
+        if (normalized.startsWith("images/")) {
+            normalized = normalized.substring("images/".length());
+        }
+        return imageRoot.resolve(normalized).normalize();
     }
 }
