@@ -2635,6 +2635,44 @@ button {
   display: none;
 }
 
+.draft-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.draft-tags span {
+  font-size: 13px;
+  font-weight: 600;
+  color: #3f4d63;
+  margin-right: 4px;
+}
+.draft-tags .tag-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.draft-tags .tag-filter button {
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 13px;
+  color: #3f4d63;
+  background: #f8fafc;
+  border: 1px solid #edf1f6;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.draft-tags .tag-filter button.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: #cfe0ff;
+}
+.draft-tags .tag-filter button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .draft-image-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));

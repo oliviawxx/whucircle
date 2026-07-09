@@ -59,7 +59,7 @@ export function filterNotes(items, keyword, tag = "全部", sort = "latest") {
 
   return items
     .filter((note) => {
-      const tagEnabled = hasSearch && tag !== "全部";
+      const tagEnabled = tag !== "全部";
       const matchesTag = !tagEnabled || note.tags.includes(tag);
       return matchesKeyword(note, keyword) && matchesTag;
     })

@@ -38,7 +38,7 @@ export function HomePage({
               <button className={searchingUsers ? "active" : ""} onClick={() => onSearchModeChange("users")}>用户</button>
             </div>
           </div>
-          {hasSearch && !searchingUsers && (
+          {!searchingUsers && (
             <button
               className={tagsExpanded ? "tag-toggle active" : "tag-toggle"}
               aria-expanded={tagsExpanded}
@@ -51,7 +51,7 @@ export function HomePage({
             </button>
           )}
         </div>
-        {hasSearch && !searchingUsers && tagsExpanded && (
+        {!searchingUsers && tagsExpanded && (
           <div className="search-filter-panel">
             <div className="filter-section">
               <span>排序</span>

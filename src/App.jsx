@@ -192,6 +192,7 @@ export function App() {
   const [chats, setChats] = useState(initialChats);
   const [tagsList, setTagsList] = useState(tags);
   const [notifications, setNotifications] = useState(initialNotifications);
+  const MERGED_TAGS = ["全部", "校园生活", "学习", "摄影", "互助", "美食", "出行", "项目", "音乐", "阅读", "电影", "科技", "运动"];
   const [profileData, setProfileData] = useState(null);
   const [relationsData, setRelationsData] = useState([]);
   const [blockedRelations, setBlockedRelations] = useState([]);
@@ -228,8 +229,9 @@ export function App() {
   const [draftVisibility, setDraftVisibility] = useState("公开");
   const [imageCount, setImageCount] = useState(0);
   const [draftImages, setDraftImages] = useState([]);
-  const [draftUploading, setDraftUploading] = useState(false);
-  const [draftError, setDraftError] = useState("");
+ const [draftUploading, setDraftUploading] = useState(false);
+ const [draftError, setDraftError] = useState("");
+  const [draftTags, setDraftTags] = useState([]);
 
   // 弹窗状态
   const [detailNote, setDetailNote] = useState(null);
@@ -295,7 +297,7 @@ export function App() {
   const publicNotes = useMemo(
     () => {
       const searched = filterNotes(notes, searchTerm, activeTag, noteSort);
-      if (searchTerm.trim()) return searched;
+      if (searchTerm.trim() || activeTag !== "全部") return searched;
       const rank = new Map(
         recommendedNoteCards
           .filter((card) => card.type === "NOTE")
@@ -577,6 +579,7 @@ export function App() {
       if (tagsData?.length) {
         setTagsList(["全部", ...tagsData]);
       }
+      setTagsList(MERGED_TAGS);
       const mappedChannels = mapChannels(
         channelsData?.items || [],
         profileDataRes?.id,
@@ -972,7 +975,7 @@ export function App() {
       .catch(() => {});
   }
 
-  function resetDraft() {
+function resetDraft() {
     draftImages.forEach((image) => URL.revokeObjectURL(image.previewUrl));
     setDraftTitle("");
     setDraftText("");
@@ -980,6 +983,7 @@ export function App() {
     setDraftImages([]);
     setDraftError("");
     setDraftUploading(false);
+    setDraftTags([]);
   }
 
   function closeDraft() {
@@ -1035,7 +1039,7 @@ export function App() {
         content: draftText.trim() || (imageUrls.length ? "分享了一组校园图片。" : "分享了一张校园图片。"),
         visibility: VIS_REV[draftVisibility] || "PUBLIC",
         imageUrls,
-        tags: ["校园生活"],
+        tags: draftTags.length > 0 ? draftTags : ["校园生活"],
       });
       setNotes((items) => [mapNote(apiNote), ...items]);
       if (apiNote.visibility === "FRIENDS") {
@@ -1806,6 +1810,8 @@ export function App() {
     uploading: draftUploading,
     error: draftError,
     visibility: draftVisibility,
+    tags: draftTags,
+    tagOptions: tagsList.filter((t) => t !== "全部"),
   };
 
   function handleDraftChange(field, value) {
@@ -1821,6 +1827,9 @@ export function App() {
         break;
       case "visibility":
         setDraftVisibility(value);
+        break;
+      case "tags":
+        setDraftTags(value);
         break;
     }
   }

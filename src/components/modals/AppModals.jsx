@@ -1,5 +1,6 @@
 ﻿import { ChatCircle, Flag, Heart, Image, PaperPlaneTilt, Prohibit, PushPin, UserMinus, UserPlus } from "@phosphor-icons/react";
 import { ModalHead } from "../common/ModalHead.jsx";
+import { Hash } from "@phosphor-icons/react";
 
 export function AppModals({
   draft,
@@ -75,6 +76,32 @@ export function AppModals({
                 ))}
               </div>
             </div>
+            {(draft.tagOptions || []).length > 0 && (
+              <div className="draft-tags">
+                <span>标签</span>
+                <div className="tag-filter">
+                  {draft.tagOptions.map((tag) => {
+                    const active = (draft.tags || []).includes(tag);
+                    return (
+                      <button
+                        className={active ? "active" : ""}
+                        key={tag}
+                        disabled={draft.uploading}
+                        onClick={() => {
+                          const current = draft.tags || [];
+                          const next = active
+                            ? current.filter((t) => t !== tag)
+                            : [...current, tag];
+                          onDraftChange("tags", next);
+                        }}
+                      >
+                        {tag}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             {draft.images.length > 0 && (
               <div className="draft-image-grid">
                 {draft.images.map((image) => (
