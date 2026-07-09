@@ -1,7 +1,18 @@
 import { ChatsCircle, DotsThree, Flag, PaperPlaneTilt, UserCircle } from "@phosphor-icons/react";
+import { useEffect, useRef } from "react";
 import { IconButton } from "../components/common/IconButton.jsx";
 
 export function ChatsPage({ chats, activeChat, onSelectChat, onReport }) {
+  const bubbleListRef = useRef(null);
+
+  // Auto-scroll to bottom when switching chats or receiving new messages
+  useEffect(() => {
+    const el = bubbleListRef.current;
+    if (el) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [activeChat.id, activeChat.messages]);
+
   return (
     <section className="chat-layout">
       <aside className="chat-list">
@@ -20,7 +31,7 @@ export function ChatsPage({ chats, activeChat, onSelectChat, onReport }) {
           <div><p>{activeChat.type}</p><h2>{activeChat.name}</h2></div>
           <IconButton title="更多"><DotsThree size={22} /></IconButton>
         </div>
-        <div className="bubble-list">
+        <div className="bubble-list" ref={bubbleListRef}>
           {activeChat.messages.map((message, index) => (
             <div className={message.mine ? "message-line mine" : "message-line"} key={`${message.text}-${index}`}>
               <p className={message.mine ? "bubble mine" : "bubble other"}>{message.text}</p>

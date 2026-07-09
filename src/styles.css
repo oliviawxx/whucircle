@@ -1528,15 +1528,21 @@ button {
 .bubble-list {
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
   gap: 12px;
   padding: 20px 0;
-  overflow-y: scroll;
+  overflow-y: auto;
   min-height: 0;
   scrollbar-width: thin;
   height: 100%;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
+}
+
+/* Push messages to bottom when content is shorter than container */
+.bubble-list::before {
+  content: "";
+  flex: 1 0 0;
+  min-height: 0;
 }
 .bubble-list::-webkit-scrollbar {
   width: 6px;
