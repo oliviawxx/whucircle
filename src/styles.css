@@ -2377,6 +2377,52 @@ button {
   border-radius: 999px;
 }
 
+.block-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 4px;
+  color: #5b1b25;
+  background: #fff0f2;
+  border: 1px solid #ffd7dd;
+  border-radius: 999px;
+}
+.block-row .avatar.tiny {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.block-row span {
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+.block-row button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  color: #5b1b25;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.block-row button:hover {
+  background: rgba(91,27,37,0.1);
+}
+.avatar.tiny {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 .saved-search {
   margin-bottom: 16px;
 }

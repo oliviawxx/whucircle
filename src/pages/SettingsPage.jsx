@@ -1,4 +1,5 @@
 ﻿import { Bell, Eye, LockKey, MagnifyingGlass, Palette, ShieldCheck, Sparkle } from "@phosphor-icons/react";
+import { UserPlus } from "@phosphor-icons/react";
 
 function SettingSegment({ label, description, value, options, onChange }) {
   return (
@@ -47,7 +48,7 @@ function SettingGroup({ icon: Icon, title, subtitle, children }) {
   );
 }
 
-export function SettingsPage({ privacy, onPrivacyChange, blockedUsers, themes, activeTheme, onThemeChange }) {
+export function SettingsPage({ privacy, onPrivacyChange, blockedUsers, themes, activeTheme, onThemeChange, onRelationAction }) {
   return (
     <section className="settings-page">
       <div className="section-head settings-hero">
@@ -124,8 +125,31 @@ export function SettingsPage({ privacy, onPrivacyChange, blockedUsers, themes, a
         </SettingGroup>
 
         <SettingGroup icon={ShieldCheck} title="黑名单" subtitle="被拉黑后，对方不能私信、评论或查看你的主页。">
-          <div className="block-list">
-            {blockedUsers.length ? blockedUsers.map((name) => <span key={name}>{name}</span>) : <span>暂无拉黑用户</span>}
+         <div className="block-list">
+            {blockedUsers.length === 0 ? (
+              <span>暂无拉黑用户</span>
+            ) : (
+              blockedUsers.map((user) => {
+                const userId = user.id || user.userId;
+                return (
+                  <div className="block-row" key={userId ?? user.nickname ?? user.name}>
+                    {user.avatarUrl || user.avatar ? (
+                      <img className="avatar tiny" src={user.avatarUrl || user.avatar} alt="" />
+                    ) : null}
+                    <span>{user.nickname || user.name || "用户"}</span>
+                    {userId && onRelationAction ? (
+                      <button
+                        className="icon-mini"
+                        title="取消拉黑"
+                        onClick={() => onRelationAction(userId, "unblock")}
+                      >
+                        <UserPlus size={15} />
+                      </button>
+                    ) : null}
+                  </div>
+                );
+              })
+            )}
           </div>
         </SettingGroup>
 

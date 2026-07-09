@@ -36,7 +36,7 @@ public class UserService {
     }
 
     public UserProfile profile(Long currentUserId, Long targetUserId) {
-        if (users.isBlockedEitherWay(currentUserId, targetUserId)) {
+        if (users.relation(targetUserId, currentUserId) == RelationStatus.BLOCKED) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "拉黑关系下不能查看主页");
         }
         User user = requireUser(targetUserId);

@@ -1454,7 +1454,12 @@ export function App() {
           relation: profile.relation,
         });
       })
-      .catch(() => setProfileUser(user));
+      .catch(() => {
+        const found = blockedRelations.find(
+          (b) => b.id === Number(userId) || b.userId === Number(userId)
+        );
+        setProfileUser(found ? { ...user, id: Number(userId), authorId: Number(userId), relation: "BLOCKED" } : user);
+      });
   }
 
   function openDetailAuthorProfile(note) {
@@ -1931,9 +1936,10 @@ export function App() {
       case "设置":
         return (
           <SettingsPage
-            privacy={privacy}
-            onPrivacyChange={updatePrivacyField}
-            blockedUsers={blockedUsers}
+           privacy={privacy}
+           onPrivacyChange={updatePrivacyField}
+            blockedUsers={blockedRelations}
+            onRelationAction={changeRelation}
             themes={themeOptions}
             activeTheme={activeTheme}
             onThemeChange={setActiveTheme}
