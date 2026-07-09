@@ -242,6 +242,14 @@ public class ChannelService {
                 request.type(), request.status(), request.createdAt());
     }
 
+    public void deletePost(Long currentUserId, Long postId) {
+        ChannelPost post = requirePost(postId);
+        if (!post.authorId().equals(currentUserId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "只能删除自己的帖子");
+        }
+        channels.deletePost(postId);
+    }
+
     private PostView toPostView(ChannelPost post, Long currentUserId) {
         User author = users.findById(post.authorId()).orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "发帖用户不存在"));
         return new PostView(post.id(), post.channelId(), post.authorId(), author.nickname(), post.title(), post.content(), post.pinned(),

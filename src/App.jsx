@@ -55,7 +55,7 @@ import {
   getPostDetail,
   joinChannel as apiJoinChannel,
   createChannel as apiCreateChannel,
-  createPost as apiCreatePost,
+  createPost as apiCreatePost, deletePost as apiDeletePost,
   updateAnnouncement as apiUpdateAnnouncement,
   getInitialAdminDashboard,
   applyForChannelAdmin,
@@ -169,6 +169,8 @@ function toReportReason(reason) {
   return "OTHER";
 }
 
+const postImageCache = JSON.parse(localStorage.getItem("whu-channel-images") || "{}");
+
 export function App() {
   // 认证状态
   const [loggedIn, setLoggedIn] = useState(false);
@@ -192,6 +194,22 @@ export function App() {
   const [chats, setChats] = useState(initialChats);
   const [tagsList, setTagsList] = useState(tags);
   const [notifications, setNotifications] = useState(initialNotifications);
+  function removeChannelPost(postId) {
+    const channelId = selectedChannel?.id;
+    if (!channelId || !postId) return;
+    setChannels((items) =>
+      items.map((ch) =>
+        ch.id === channelId
+          ? { ...ch, posts: ch.posts.filter((p) => p.id !== String(postId)) }
+          : ch,
+      ),
+    );
+    const cache = JSON.parse(localStorage.getItem("whu-channel-images") || "{}");
+    delete cache[postId];
+    localStorage.setItem("whu-channel-images", JSON.stringify(cache));
+    apiDeletePost(Number(channelId), Number(postId))
+      .catch(() => {});
+  }
   const MERGED_TAGS = ["全部", "校园生活", "学习", "摄影", "互助", "美食", "出行", "项目", "音乐", "阅读", "电影", "科技", "运动"];
   const [profileData, setProfileData] = useState(null);
   const [relationsData, setRelationsData] = useState([]);
@@ -255,7 +273,7 @@ export function App() {
   const [reportTarget, setReportTarget] = useState(null);
 
   // 设置和个人资料状态
-  const [activeTheme, setActiveTheme] = useState("blue");
+  const [activeTheme, setActiveTheme] = useState("rose");
   const [profileEditOpen, setProfileEditOpen] = useState(false);
   const [profileName, setProfileName] = useState(currentUser.name);
   const [profileMeta, setProfileMeta] = useState(currentUser.meta);
@@ -461,7 +479,7 @@ export function App() {
       time: apiPost.createdAt ? timeAgo(apiPost.createdAt) : "",
       tags: [],
       image: false,
-      imageUrls: apiPost.imageUrls || [],
+      imageUrls: postImageCache[apiPost.id] || apiPost.imageUrls || [],
     };
   }
 
@@ -1150,6 +1168,8 @@ function resetDraft() {
         imageUrls,
       })
       .then((apiPost) => {
+        postImageCache[apiPost.id] = imageUrls;
+        localStorage.setItem("whu-channel-images", JSON.stringify(postImageCache));
         const newPost = {
           id: String(apiPost.id),
           title: apiPost.title,
@@ -1760,7 +1780,7 @@ function resetDraft() {
             author: detail.post?.authorName || payload.post.author,
             authorId: detail.post?.authorId || payload.post.authorId,
             channelId: detail.post?.channelId || payload.post.channelId,
-            imageUrls: detail.post?.imageUrls || payload.post.imageUrls || [],
+            imageUrls: detail.post?.imageUrls || postImageCache[detail.post?.id || payload.post.id] || payload.post.imageUrls || [],
           },
           replies: detail.replies || [],
         });
@@ -1924,9 +1944,11 @@ function resetDraft() {
             onOpenPost={openChannelPostDetail}
             onReport={setReportTarget}
             onCreateChannel={() => setCreateChannelOpen(true)}
-            onUpdateAnnouncement={saveChannelAnnouncement}
-            onOpenManagement={openChannelAdmin}
-            onApplyAdmin={submitChannelAdminApplication}
+           onUpdateAnnouncement={saveChannelAnnouncement}
+           onOpenManagement={openChannelAdmin}
+           onApplyAdmin={submitChannelAdminApplication}
+            currentUserId={currentUser.id}
+            onDeletePost={removeChannelPost}
           />
         );
       case "聊天":

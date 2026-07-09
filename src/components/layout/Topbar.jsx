@@ -6,7 +6,6 @@ export function Topbar({ activeNav, page, notifications, open, onToggle, onMarkA
   return (
     <header className="topbar">
       <div>
-        <p>{activeNav}</p>
         <h1>{page[0]}</h1>
         <span>{page[1]}</span>
       </div>

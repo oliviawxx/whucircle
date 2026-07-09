@@ -22,6 +22,7 @@ import com.whucircle.security.CurrentUser;
 import com.whucircle.service.ChannelService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -94,6 +95,11 @@ public class ChannelController {
     @PostMapping("/channels/{channelId}/posts")
     public ApiResponse<PostView> createPost(@PathVariable Long channelId, @Valid @RequestBody CreatePostRequest request) {
         return ApiResponse.success(channelService.createPost(CurrentUser.id(), channelId, request.title(), request.content(), Boolean.TRUE.equals(request.pinned())));
+    }
+    @DeleteMapping("/channels/{channelId}/posts/{postId}")
+    public ApiResponse<Void> deletePost(@PathVariable Long channelId, @PathVariable Long postId) {
+        channelService.deletePost(CurrentUser.id(), postId);
+        return ApiResponse.success();
     }
     @GetMapping("/channel-posts/{postId}")
     public ApiResponse<PostDetail> post(@PathVariable Long postId) { return ApiResponse.success(channelService.postDetail(CurrentUser.id(), postId)); }

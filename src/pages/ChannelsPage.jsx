@@ -1,4 +1,4 @@
-import { Check, CheckCircle, Flag, Hash, LockKey, Megaphone, PencilSimple, Plus, PushPin, ShieldCheck, X } from "@phosphor-icons/react";
+import { Check, CheckCircle, Flag, Hash, LockKey, Megaphone, PencilSimple, Plus, PushPin, ShieldCheck, Trash, X } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { IconButton } from "../components/common/IconButton.jsx";
 
@@ -9,6 +9,8 @@ export function ChannelsPage({
   onJoin,
   onOpenPost,
   onReport,
+  currentUserId,
+  onDeletePost,
   onCreateChannel,
   onUpdateAnnouncement,
   onOpenManagement,
@@ -160,6 +162,11 @@ export function ChannelsPage({
               <IconButton title="举报频道帖子" onClick={() => onReport({ type: "频道帖子", title: post.title, targetId: post.id })}>
                 <Flag size={17} />
               </IconButton>
+              {Number(post.authorId) === Number(currentUserId) && (
+                <IconButton title="删除帖子" onClick={() => onDeletePost(post.id)}>
+                  <Trash size={17} />
+                </IconButton>
+              )}
               {post.imageUrls && post.imageUrls.length > 0 && (
                 <div className="channel-post-images">
                   {post.imageUrls.slice(0, 3).map((url, i) => (
