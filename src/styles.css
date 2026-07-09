@@ -767,6 +767,12 @@ button {
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 999px;
+  outline: none;
+}
+
+.search:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .search input,
@@ -788,25 +794,81 @@ button {
 .search-mode-tabs {
   display: inline-flex;
   gap: 4px;
-  padding: 3px;
-  background: #eef3f8;
-  border: 1px solid #dbe5f2;
-  border-radius: 8px;
+  padding: 0;
+  background: transparent;
+  border: none;
 }
 
 .search-mode-tabs button {
-  min-height: 28px;
-  padding: 0 10px;
-  color: #5c6a80;
+  position: relative;
+  min-height: 30px;
+  padding: 0 13px;
+  color: var(--muted);
   font-size: 13px;
-  font-weight: 700;
-  border-radius: 6px;
+  font-weight: 600;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  transition: color 0.2s, background 0.2s;
+}
+
+.search-mode-tabs button:focus,
+.search-mode-tabs button:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.search-mode-tabs button:hover {
+  color: var(--accent);
 }
 
 .search-mode-tabs button.active {
   color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.search-mode-tabs button.active:focus,
+.search-mode-tabs button.active:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+/* ── tag-toggle / hashtag expand button ── */
+
+.tag-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 42px;
+  padding: 0 14px;
+  color: var(--muted);
   background: #fff;
-  box-shadow: 0 4px 12px rgba(25, 52, 95, 0.08);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  transition: color 0.2s, background 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.tag-toggle:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.tag-toggle.active {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.tag-toggle.active:hover {
+  color: #fff;
+  background: var(--accent-dark);
+  border-color: var(--accent-dark);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.tag-toggle svg {
+  flex-shrink: 0;
 }
 
 .tag-filter,
