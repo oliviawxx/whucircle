@@ -1514,6 +1514,7 @@ button {
   min-height: 620px;
   max-height: 620px;
   padding: 18px 0 18px 18px;
+  overflow: hidden;
 }
 
 .chat-window-head {
@@ -1525,23 +1526,43 @@ button {
 }
 
 .bubble-list {
-  display: grid;
-  align-content: end;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
   gap: 12px;
   padding: 20px 0;
+  overflow-y: scroll;
+  min-height: 0;
+  scrollbar-width: thin;
+  height: 100%;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.bubble-list::-webkit-scrollbar {
+  width: 6px;
+}
+.bubble-list::-webkit-scrollbar-thumb {
+  background: #cdd3de;
+  border-radius: 3px;
+}
+.bubble-list::-webkit-scrollbar-thumb:hover {
+  background: #b0b8c6;
 }
 
 .message-line {
   display: grid;
   justify-items: start;
   gap: 5px;
+  padding-left: 4px;
 }
 
 .message-line.mine {
   justify-items: end;
+  padding-right: 6px;
 }
 
 .bubble {
+  flex-shrink: 0;
   max-width: 72%;
   margin: 0;
   padding: 11px 13px;
@@ -3020,6 +3041,7 @@ button {
   .chat-window {
     min-height: 420px;
     max-height: none;
+    max-height: calc(100vh - 200px);
   }
 
   .note-detail-rich {
