@@ -207,6 +207,11 @@ export function App() {
     const cache = JSON.parse(localStorage.getItem("whu-channel-images") || "{}");
     delete cache[postId];
     localStorage.setItem("whu-channel-images", JSON.stringify(cache));
+    const deleted = JSON.parse(localStorage.getItem("whu-deleted-posts") || "[]");
+    if (!deleted.includes(String(postId))) {
+      deleted.push(String(postId));
+      localStorage.setItem("whu-deleted-posts", JSON.stringify(deleted));
+    }
     apiDeletePost(Number(channelId), Number(postId))
       .catch(() => {});
   }
@@ -612,7 +617,10 @@ export function App() {
             });
             return {
               ...channel,
-              posts: (postsData?.items || []).map(mapChannelPost),
+              posts: (postsData?.items || []).map(mapChannelPost).filter((p) => {
+                const deleted = JSON.parse(localStorage.getItem("whu-deleted-posts") || "[]");
+                return !deleted.includes(p.id);
+              }),
             };
           } catch {
             return channel;
