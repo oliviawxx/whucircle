@@ -327,10 +327,31 @@ export function ChannelDetailPage({
         )}
 
         {activeTab === "members" && (
-          <div className="empty-state compact">
-            <Users size={32} />
-            <p>成员列表即将上线</p>
-          </div>
+          !channel.joined ? (
+            <div className="empty-state compact">
+              <Users size={32} />
+              <p>加入频道后可查看成员</p>
+            </div>
+          ) : membersLoading ? (
+            <div className="empty-state compact">加载成员列表...</div>
+          ) : members.length === 0 ? (
+            <div className="empty-state compact">
+              <Users size={32} />
+              <p>暂无成员</p>
+            </div>
+          ) : (
+            <div className="channel-members-list">
+              {members.map((member) => (
+                <div className="member-row" key={member.id}>
+                  <img className="avatar tiny" src={member.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.nickname)}&background=2563eb&color=fff`} alt={member.nickname} />
+                  <div>
+                    <strong>{member.nickname}</strong>
+                    <span>{member.role === "ADMIN" ? "管理员" : member.college || member.grade ? [member.college, member.grade].filter(Boolean).join(" ") : "成员"}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
         )}
       </section>
     </section>
