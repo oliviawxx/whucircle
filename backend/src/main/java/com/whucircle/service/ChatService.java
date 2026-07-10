@@ -240,8 +240,11 @@ public class ChatService {
     }
 
     private MessageView toView(ChatMessage message, Long currentUserId) {
-        String senderName = users.findById(message.senderId()).map(user -> user.nickname()).orElse("未知用户");
-        return new MessageView(message.id(), message.senderId(), senderName, message.content(), message.sentAt(),
+        User sender = users.findById(message.senderId()).orElse(null);
+        String senderName = sender == null ? "未知用户" : sender.nickname();
+        String senderAvatarUrl = sender == null ? null : sender.avatarUrl();
+        String senderCollege = sender == null ? null : sender.college();
+        return new MessageView(message.id(), message.senderId(), senderName, senderAvatarUrl, senderCollege, message.content(), message.sentAt(),
                 message.readBy().size() > 1, message.senderId().equals(currentUserId));
     }
 }

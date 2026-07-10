@@ -19,7 +19,7 @@ public final class ChatDtos {
                                   boolean owner, boolean mine) {}
     public record GroupDetailView(Long id, String name, Long ownerId, ConversationStatus status,
                                   int memberCount, boolean mineOwner, List<GroupMemberView> members) {}
-    public record MessageView(Long id, Long senderId, String senderName, String content,
+    public record MessageView(Long id, Long senderId, String senderName, String senderAvatarUrl, String senderCollege, String content,
                               OffsetDateTime sentAt, boolean read, boolean mine) {}
     public record SendMessageRequest(@NotBlank @Size(max = 2000) String content) {}
     public record CreateConversationRequest(@NotNull ConversationType type,

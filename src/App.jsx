@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Component, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
   BookmarkSimple,
@@ -138,6 +138,34 @@ import { VisitedProfilePage } from "./pages/VisitedProfilePage.jsx";
 import { SavedPage } from "./pages/SavedPage.jsx";
 import { SettingsPage } from "./pages/SettingsPage.jsx";
 import { AdminPage } from "./pages/AdminPage.jsx";
+
+class ChatWindowBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { failed: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error) {
+    console.error("Chat window render failed", error);
+  }
+
+  render() {
+    if (this.state.failed) {
+      return (
+        <section className="chat-window chat-window-failed">
+          <ChatsCircle size={34} />
+          <p>这个会话暂时无法显示。</p>
+          <button className="ghost-button small" onClick={this.props.onRetry}>重新加载</button>
+        </section>
+      );
+    }
+    return this.props.children;
+  }
+}
 import {
   currentUser as DEMO_USER_RAW,
   initialNotes,
@@ -300,7 +328,14 @@ export function App() {
   const [activeNav, setActiveNav] = useState(() => {
     try { return sessionStorage.getItem("whu-last-nav") || "主页"; } catch { return "主页"; }
   });
-  const [activeChatId, setActiveChatId] = useState(null);
+  const [activeChatId, setActiveChatId] = useState(() => {
+    try { return sessionStorage.getItem("whu-last-chat-id") || null; } catch { return null; }
+  });
+  const [chatListReady, setChatListReady] = useState(false);
+  const [chatMessageLoading, setChatMessageLoading] = useState(false);
+  const [chatLoadError, setChatLoadError] = useState("");
+  const chatBubbleListRef = useRef(null);
+  const [chatProfileTarget, setChatProfileTarget] = useState(null);
   const [groupPanelOpen, setGroupPanelOpen] = useState(false);
   const [groupDetail, setGroupDetail] = useState(null);
   const [groupNameDraft, setGroupNameDraft] = useState("");
@@ -670,9 +705,13 @@ export function App() {
   }
 
   function mapChatMessage(apiMessage) {
+    if (!apiMessage || typeof apiMessage !== "object") return null;
     return {
       id: apiMessage.id,
+      userId: apiMessage.senderId,
       from: apiMessage.mine ? "我" : apiMessage.senderName || "用户",
+      avatar: apiMessage.senderAvatarUrl || "",
+      college: apiMessage.senderCollege || "",
       text: apiMessage.content || "",
       time: apiMessage.sentAt ? timeAgo(apiMessage.sentAt) : "",
       mine: apiMessage.mine,
@@ -680,35 +719,44 @@ export function App() {
     };
   }
 
+  function normalizeChatMessages(messages) {
+    return (Array.isArray(messages) ? messages : [])
+      .filter((message) => message && typeof message === "object");
+  }
+
+  async function loadChatMessages(chatId) {
+    if (!chatId) return;
+    setChatMessageLoading(true);
+    setChatLoadError("");
+    try {
+      const messagesData = await getMessages(Number(chatId), { page: 1, size: 30 });
+      const messages = normalizeChatMessages((messagesData?.items || []).map(mapChatMessage));
+      setChats((items) => items.map((chat) => chat.id === String(chatId) || chat.id === chatId
+        ? { ...chat, messages }
+        : chat));
+    } catch (error) {
+      setChatLoadError(error.message || "消息加载失败");
+    } finally {
+      setChatMessageLoading(false);
+    }
+  }
+
   async function refreshChats(preferredChatId = activeChatId) {
+    setChatListReady(false);
+    setChatLoadError("");
     try {
       const chatsData = await getConversations();
       const mappedChats = mapChats(chatsData || [], currentUser.id);
-      const chatsWithMessages = await Promise.all(
-        mappedChats.map(async (chat) => {
-          try {
-            const messagesData = await getMessages(Number(chat.id), {
-              page: 1,
-              size: 30,
-            });
-            const messages = (messagesData?.items || []).map(mapChatMessage);
-            return {
-              ...chat,
-              messages: messages.length ? messages : chat.messages,
-            };
-          } catch {
-            return chat;
-          }
-        }),
-      );
-      setChats(chatsWithMessages);
-      if (preferredChatId && chatsWithMessages.some((chat) => chat.id === preferredChatId)) {
-        setActiveChatId(preferredChatId);
-      } else if (chatsWithMessages.length) {
-        setActiveChatId(chatsWithMessages[0].id);
-      }
-    } catch {
-      // 保留当前本地会话列表，避免短暂网络错误清空聊天栏。
+      setChats(mappedChats);
+      const targetId = preferredChatId && mappedChats.some((chat) => String(chat.id) === String(preferredChatId))
+        ? String(preferredChatId)
+        : mappedChats[0]?.id || null;
+      setActiveChatId(targetId);
+      if (targetId) await loadChatMessages(targetId);
+    } catch (error) {
+      setChatLoadError(error.message || "会话加载失败");
+    } finally {
+      setChatListReady(true);
     }
   }
 
@@ -736,7 +784,6 @@ export function App() {
         notesData,
         socialFeedData,
         channelsData,
-        chatsData,
         profileDataRes,
         tagsData,
         relationsDataRes,
@@ -746,16 +793,15 @@ export function App() {
         recommendedNotesData,
         calendarData,
       ] = await Promise.all([
-        getNotes({ scope: "PUBLIC" }),
-        getSocialFeed(),
-        getChannels({ joined: null }),
-        getConversations(),
-        getMyProfile(),
-        getTags(),
-        getRelations(),
-        apiGetNotifications(),
-        getPrivacy(),
-        getBlockedUsers(),
+        getNotes({ scope: "PUBLIC" }).catch(() => ({ items: [] })),
+        getSocialFeed().catch(() => ({ items: [] })),
+        getChannels({ joined: null }).catch(() => ({ items: [] })),
+        getMyProfile().catch(() => null),
+        getTags().catch(() => []),
+        getRelations().catch(() => []),
+        apiGetNotifications().catch(() => ({ items: [] })),
+        getPrivacy().catch(() => null),
+        getBlockedUsers().catch(() => []),
         getRecommendedNotes({ page: 1, size: 30 }).catch(() => ({ items: [] })),
         apiGetCalendarEvents().catch(() => []),
       ]);
@@ -769,7 +815,8 @@ export function App() {
         channelsData?.items || [],
         profileDataRes?.id,
       );
-      const channelsWithPosts = await Promise.all(
+      setChannels(mappedChannels);
+      void Promise.all(
         mappedChannels.map(async (channel) => {
           let posts = channel.posts;
           let events = channel.events;
@@ -792,35 +839,15 @@ export function App() {
           } catch {}
           return { ...channel, posts, events };
         }),
-      );
-      setChannels(channelsWithPosts);
+      ).then((channelsWithPosts) => setChannels(channelsWithPosts));
       setCalendarEvents((calendarData || []).map(mapChannelEvent));
-      const mappedChats = mapChats(chatsData || [], profileDataRes?.id);
-      const chatsWithMessages = await Promise.all(
-        mappedChats.map(async (chat) => {
-          try {
-            const messagesData = await getMessages(Number(chat.id), {
-              page: 1,
-              size: 30,
-            });
-            const messages = (messagesData?.items || []).map(mapChatMessage);
-            return {
-              ...chat,
-              messages: messages.length ? messages : chat.messages,
-            };
-          } catch {
-            return chat;
-          }
-        }),
-      );
-      setChats(chatsWithMessages);
-      setCurrentUser({
-        name: profileDataRes?.nickname || "新用户",
-        meta: formatUserMeta(profileDataRes?.grade, profileDataRes?.college),
-        avatar: normalizeMediaUrl(profileDataRes?.avatarUrl) || DEFAULT_AVATAR,
-        id: profileDataRes?.id,
-        role: profileDataRes?.role || currentUser.role || "USER",
-        status: profileDataRes?.status || currentUser.status || "ACTIVE",
+      if (profileDataRes) setCurrentUser({
+        name: profileDataRes.nickname || "新用户",
+        meta: formatUserMeta(profileDataRes.grade, profileDataRes.college),
+        avatar: normalizeMediaUrl(profileDataRes.avatarUrl) || DEFAULT_AVATAR,
+        id: profileDataRes.id,
+        role: profileDataRes.role || currentUser.role || "USER",
+        status: profileDataRes.status || currentUser.status || "ACTIVE",
       });
       setProfileData(profileDataRes);
       setRelationsData(relationsDataRes || []);
@@ -884,13 +911,23 @@ export function App() {
   }
 
   useEffect(() => {
-    if (loggedIn) loadAllData();
+    if (loggedIn) {
+      loadAllData();
+      refreshChats();
+    }
   }, [loggedIn]);
 
   // 刷新後恢復上次頁面
   useEffect(() => {
     try { sessionStorage.setItem("whu-last-nav", activeNav); } catch {}
   }, [activeNav]);
+
+  useEffect(() => {
+    try {
+      if (activeChatId) sessionStorage.setItem("whu-last-chat-id", activeChatId);
+      else sessionStorage.removeItem("whu-last-chat-id");
+    } catch {}
+  }, [activeChatId]);
 
   useEffect(() => {
     if (loggedIn && activeNav === "全站管理" && currentUser.role === "ADMIN") {
@@ -914,6 +951,11 @@ export function App() {
       setActiveChatId(chats[0].id);
     }
   }, [activeChatId, chats]);
+
+  useEffect(() => {
+    const list = chatBubbleListRef.current;
+    if (list) list.scrollTop = list.scrollHeight;
+  }, [activeChatId, activeChat?.messages]);
 
   useEffect(() => {
     if (!searchTerm.trim()) {
@@ -1921,7 +1963,7 @@ function resetDraft() {
             page: 1,
             size: 30,
           });
-          messages = (messagesData?.items || []).map(mapChatMessage);
+          messages = normalizeChatMessages((messagesData?.items || []).map(mapChatMessage));
         } catch {
           messages = mapped.messages;
         }
@@ -2110,10 +2152,18 @@ function resetDraft() {
     setGroupPanelOpen(false);
     setGroupDetail(null);
     setGroupManageError("");
+    setChatProfileTarget(null);
+    loadChatMessages(chatId);
     setChats((items) =>
       items.map((ch) => (ch.id === chatId ? { ...ch, unread: 0 } : ch)),
     );
     apiMarkChatRead(Number(chatId)).catch(() => {});
+  }
+
+  function openChatMessageProfile(target) {
+    if (!target || target.mine || !target.userId) return;
+    setChatProfileTarget(null);
+    openUserProfile({ id: target.userId, authorId: target.userId, name: target.name, avatar: target.avatar });
   }
 
   function openGroupManagement(chatId = activeChatId) {
@@ -2180,7 +2230,7 @@ function resetDraft() {
             ch.id === activeChatId
               ? {
                   ...ch,
-                  messages: [...ch.messages, message],
+                  messages: [...normalizeChatMessages(ch.messages), message].filter(Boolean),
                   lastMessage: message.text,
                   lastTime: "刚刚",
                 }
@@ -2714,7 +2764,14 @@ function resetDraft() {
 
         {/* 聊天页面需要 chatInput + sendChatMessage，所以单独处理 */}
         <div className="page-fade" key={activeNav}>
-        {activeNav === "聊天" ? (
+        {activeNav === "聊天" && !chatListReady ? (
+          <section className="chat-page chat-page-loading" aria-busy="true">
+            <div className="chat-loading-panel">
+              <ChatsCircle size={30} />
+              <span>正在恢复会话…</span>
+            </div>
+          </section>
+        ) : activeNav === "聊天" ? (
           <section className="chat-page">
             <section className="chat-friend-strip">
               <div className="chat-friend-scroller">
@@ -2781,7 +2838,7 @@ function resetDraft() {
                       </div>
                       <div>
                         <strong>{chat.name}</strong>
-                        <span>{chat.messages.at(-1)?.text || chat.lastMessage || "暂无消息"}</span>
+                        <span>{normalizeChatMessages(chat.messages).at(-1)?.text || chat.lastMessage || "暂无消息"}</span>
                       </div>
                       <time>{chat.lastTime}</time>
                       {chat.unread > 0 && <em>{chat.unread}</em>}
@@ -2790,7 +2847,8 @@ function resetDraft() {
                 </div>
               </aside>
 
-              <section className="chat-window">
+              <ChatWindowBoundary key={activeChatId || "empty"} onRetry={() => loadChatMessages(activeChatId)}>
+              <section className="chat-window" onClick={() => setChatProfileTarget(null)}>
                 {activeChat ? (
                   <>
                     <div className="chat-window-head">
@@ -2808,42 +2866,67 @@ function resetDraft() {
                         </button>
                       )}
                     </div>
-                    <div className="bubble-list">
-                      {activeChat.messages.map((msg, i) => (
+                    <div className="bubble-list" ref={chatBubbleListRef}>
+                      {chatMessageLoading && <p className="chat-message-loading">正在加载消息…</p>}
+                      {normalizeChatMessages(activeChat.messages).map((msg, i) => {
+                        const isMine = Boolean(msg?.mine);
+                        return (
                         <div
                           className={
-                            msg.mine ? "message-line mine" : "message-line"
+                            isMine ? "message-line mine" : "message-line"
                           }
-                          key={`${msg.text}-${i}`}
+                          key={`${msg?.id || msg?.text || "message"}-${i}`}
                         >
-                          <p
-                            className={
-                              msg.mine ? "bubble mine" : "bubble other"
-                            }
+                          <button
+                            className="message-avatar-button"
+                            title="查看基本信息"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setChatProfileTarget((target) => target?.messageId === msg?.id ? null : {
+                                messageId: msg?.id,
+                                name: isMine ? currentUser.name : msg?.from,
+                                avatar: isMine ? currentUser.avatar : msg?.avatar,
+                                college: isMine ? currentUser.meta : msg?.college,
+                                userId: isMine ? currentUser.id : msg?.userId,
+                                mine: isMine,
+                              });
+                            }}
+                            onDoubleClick={(event) => {
+                              event.stopPropagation();
+                              openChatMessageProfile({ userId: msg?.userId, name: msg?.from, avatar: msg?.avatar, mine: isMine });
+                            }}
                           >
-                            {msg.text}
-                          </p>
-                          <div className="message-meta">
-                            <span>{msg.time}</span>
-                            {msg.mine && (
-                              <span>{msg.read ? "已读" : "未读"}</span>
-                            )}
-                            <button
-                              className="icon-mini"
-                              title="举报消息"
-                              onClick={() =>
-                                setReportTarget({
-                                  type: "聊天消息",
-                                  title: msg.text,
-                                  targetId: msg.id,
-                                })
-                              }
-                            >
-                              <Flag size={15} />
-                            </button>
+                            <img className="message-avatar" src={isMine ? (currentUser.avatar || DEFAULT_AVATAR) : (normalizeMediaUrl(msg?.avatar) || DEFAULT_AVATAR)} alt="" />
+                          </button>
+                          <div className="message-content">
+                            <p className={isMine ? "bubble mine" : "bubble other"}>{msg?.text || ""}</p>
+                            <div className="message-meta">
+                              <span>{msg?.time || ""}</span>
+                              {isMine && <span>{msg?.read ? "已读" : "未读"}</span>}
+                              <button
+                                className="icon-mini"
+                                title="举报消息"
+                                onClick={() => setReportTarget({ type: "聊天消息", title: msg?.text || "", targetId: msg?.id })}
+                              ><Flag size={15} /></button>
+                            </div>
                           </div>
+                          {chatProfileTarget && chatProfileTarget.messageId === msg?.id && (
+                            <aside className="message-profile-card" onClick={(event) => event.stopPropagation()}>
+                              <button
+                                className="message-profile-avatar"
+                                disabled={chatProfileTarget.mine}
+                                title={chatProfileTarget.mine ? "我的资料" : "进入对方主页"}
+                                onClick={() => openChatMessageProfile(chatProfileTarget)}
+                              ><img src={normalizeMediaUrl(chatProfileTarget.avatar) || DEFAULT_AVATAR} alt="" /></button>
+                              <div>
+                                <strong>{chatProfileTarget.name}</strong>
+                                <span>{chatProfileTarget.mine ? "我" : (chatProfileTarget.college || "WHU Circle 用户")}</span>
+                              </div>
+                            </aside>
+                          )}
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                     <div className="chat-input">
                       <input
@@ -2856,17 +2939,24 @@ function resetDraft() {
                           }
                         }}
                         placeholder="输入消息..."
+                        disabled={chatMessageLoading}
                       />
                       <button title="发送" onClick={sendChatMessage}>
                         <PaperPlaneTilt size={18} weight="fill" />
                       </button>
                     </div>
                     {chatError && <p className="form-error">{chatError}</p>}
+                    {chatLoadError && <p className="form-error">{chatLoadError}</p>}
                   </>
                 ) : (
-                  <div className="empty-state">请选择一个会话开始聊天。</div>
+                  <div className="empty-state">
+                    <ChatsCircle size={34} />
+                    <p>{chatLoadError || "还没有可用会话"}</p>
+                    <button className="ghost-button small" onClick={() => refreshChats()}>重新加载</button>
+                  </div>
                 )}
               </section>
+              </ChatWindowBoundary>
               {groupPanelOpen && activeChat?.type === "群聊" && (
                 <aside className="group-manage-panel">
                   <div className="group-manage-head">
