@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { ArrowLeft, Calendar, CaretDown, CaretUp, ChatCircle, Check, Flag, Hash, Heart, LockKey, Megaphone, PaperPlaneTilt, PencilSimple, PushPin, ShieldCheck, Trash, Users, X } from "@phosphor-icons/react";
+import { useEffect } from "react";
+import { getChannelMembers } from "../api/channels.js";
 import { IconButton } from "../components/common/IconButton.jsx";
 
 const DETAIL_TABS = [
@@ -33,6 +35,18 @@ export function ChannelDetailPage({
   const [editingAnnouncement, setEditingAnnouncement] = useState(false);
   const [announcementDraft, setAnnouncementDraft] = useState(channel.announcement || "");
   const [expandedPosts, setExpandedPosts] = useState({});
+  const [members, setMembers] = useState([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === "members" && channel.joined && members.length === 0 && !membersLoading) {
+      setMembersLoading(true);
+      getChannelMembers(Number(channel.id))
+        .then((data) => setMembers(data || []))
+        .catch(() => {})
+        .finally(() => setMembersLoading(false));
+    }
+  }, [activeTab, channel.id, channel.joined]);
 
   const isJoined = channel.joined;
   const isAdmin = channel.isChannelAdmin;

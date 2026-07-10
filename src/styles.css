@@ -1698,6 +1698,41 @@ button {
   box-shadow: 0 8px 24px rgba(24, 32, 51, 0.06);
 }
 
+.channel-members-list {
+  display: grid;
+  gap: 12px;
+}
+.member-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(24, 32, 51, 0.03);
+}
+.member-row .avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.member-row strong {
+  display: block;
+  font-size: 15px;
+  color: #172033;
+}
+.member-row div span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.member-row .member-role {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .post-pin-badge {
   display: inline-flex;
   align-items: center;

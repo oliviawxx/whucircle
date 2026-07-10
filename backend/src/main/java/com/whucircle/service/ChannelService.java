@@ -223,8 +223,8 @@ public class ChannelService {
     private ChannelView toView(Channel channel, Long currentUserId) {
         User admin = users.findById(channel.administratorId()).orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "管理员不存在"));
         return new ChannelView(channel.id(), channel.name(), channel.joinType(), channel.memberIds().contains(currentUserId),
-                channel.administratorId().equals(currentUserId), isChannelAdministrator(currentUserId, channel), channel.memberCount(),
-                channel.memberIds(), new AdminView(admin.id(), admin.nickname()), channel.announcement(), channel.status());
+                channel.memberIds(), channel.administratorId().equals(currentUserId), isChannelAdministrator(currentUserId, channel), channel.memberCount(),
+                new AdminView(admin.id(), admin.nickname()), channel.announcement(), channel.status());
     }
 
     private AdminMemberView toAdminMemberView(Channel channel, Long userId) {
