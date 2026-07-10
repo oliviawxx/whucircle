@@ -1027,6 +1027,25 @@ export function App() {
     return () => clearInterval(interval);
   }, [loggedIn]);
 
+  function refreshNotifications() {
+    apiGetNotifications()
+      .then((data) => {
+        const items = data?.items || data || [];
+        setNotifications(items.map((n) => ({
+          id: n.id,
+          type: String(n.type || "").includes("CHANNEL_ADMIN") ? "channel-admin" : String(n.type || "").includes("COMMENT") || String(n.type || "").includes("REPLY") ? "comment" : String(n.type || "").includes("SAVE") ? "save" : "like",
+          rawType: n.type,
+          user: n.title || "系统",
+          action: n.content || "",
+          target: n.targetId ? "#" + n.targetId : "",
+          targetId: n.targetId,
+          time: timeAgo(n.createdAt),
+          unread: !n.read,
+        })));
+      })
+      .catch(() => {});
+  }
+
   // 认证处理函数
   function handleSendCode() {
     setAuthError("");
@@ -2679,6 +2698,7 @@ function resetDraft() {
                 <span>点赞、评论、收藏、频道管理相关通知</span>
               </div>
               <button className="ghost-button small" disabled={!notifications.some(n => n.unread)} onClick={() => apiMarkAllNotificationsRead().catch(() => {}).finally(() => setNotifications(items => items.map(item => ({ ...item, unread: false }))))}>全部已读</button>
+              <button className="ghost-button small" onClick={refreshNotifications} style={{ marginRight: 8 }}>刷新</button>
             </div>
             <div className="settings-grid" style={{ marginTop: 0 }}>
               <div className="notification-list page-mode">
