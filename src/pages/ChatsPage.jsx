@@ -34,6 +34,9 @@ export function ChatsPage({ chats, activeChat, onSelectChat, onReport }) {
         <div className="bubble-list" ref={bubbleListRef}>
           {activeChat.messages.map((message, index) => (
             <div className={message.mine ? "message-line mine" : "message-line"} key={`${message.text}-${index}`}>
+              {activeChat.type === "群聊" && !message.mine && (
+                <span className="message-sender">{message.from}</span>
+              )}
               <p className={message.mine ? "bubble mine" : "bubble other"}>{message.text}</p>
               <div className="message-meta">
                 <span>{message.time}</span>

@@ -2555,6 +2555,13 @@ button {
   background: var(--accent);
 }
 
+.message-sender {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  padding-left: 2px;
+}
+
 .message-meta {
   display: flex;
   align-items: center;
