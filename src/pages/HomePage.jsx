@@ -23,7 +23,7 @@ export function HomePage({
 }) {
   const hasSearch = searchTerm.trim().length > 0;
   const searchingUsers = searchMode === "users";
-  const showFilterToggle = !searchingUsers && hasSearch;
+  const showFilterToggle = !searchingUsers && (hasSearch || activeTag !== "全部");
 
   return (
     <>
