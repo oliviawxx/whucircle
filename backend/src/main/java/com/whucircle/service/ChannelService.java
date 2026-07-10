@@ -249,6 +249,12 @@ public class ChannelService {
         }
         channels.deletePost(postId);
     }
+    public void deleteChannel(Long currentUserId, Long channelId) {
+        Channel channel = requireChannel(channelId);
+        requireInitialAdministrator(currentUserId, channel);
+        channels.deleteChannel(channelId);
+    }
+
 
     private PostView toPostView(ChannelPost post, Long currentUserId) {
         User author = users.findById(post.authorId()).orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "发帖用户不存在"));

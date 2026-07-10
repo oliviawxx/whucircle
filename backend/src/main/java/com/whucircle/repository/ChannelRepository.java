@@ -12,6 +12,7 @@ public interface ChannelRepository {
     List<Channel> findAll();
     Optional<Channel> findById(Long id);
     Channel save(Channel channel);
+    void deleteChannel(Long channelId);
     Channel addMember(Long channelId, Long userId);
     Optional<String> findMemberRole(Long channelId, Long userId);
     void setMemberRole(Long channelId, Long userId, String role);

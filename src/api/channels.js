@@ -75,6 +75,10 @@ export function deletePost(channelId, postId) {
   return request(`/channels/${channelId}/posts/${postId}`, { method: "DELETE" });
 }
 
+export function deleteChannel(channelId) {
+  return request(`/channels/${channelId}`, { method: "DELETE" });
+}
+
 export function getPostDetail(postId) {
   return request(`/channel-posts/${postId}`);
 }
