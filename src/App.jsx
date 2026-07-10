@@ -2662,7 +2662,7 @@ function resetDraft() {
             currentUserId={currentUser.id}
             onBack={closeChannelDetail}
             onJoin={() => setJoinChannel(dc)}
-            onOpenPost={(post) => onOpenPost && openChannelPostDetail(post)}
+            onOpenPost={(post) => openChannelPostDetail(post)}
             onReport={setReportTarget}
             onUpdateAnnouncement={saveChannelAnnouncement}
             onOpenManagement={() => openChannelAdmin(dc.id)}
