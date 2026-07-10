@@ -3074,11 +3074,26 @@ button {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 14px;
-  align-items: center;
+  align-items: start;
   padding: 12px;
   background: #f8fafc;
   border: 1px solid #edf1f6;
   border-radius: 8px;
+}
+
+.setting-row.switch-row {
+  align-items: start;
+}
+
+.setting-row.switch-row > div {
+  width: 100%;
+}
+
+.switch-label-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
 }
 
 .setting-row strong,
@@ -3098,6 +3113,7 @@ button {
   width: 46px;
   height: 26px;
   padding: 0;
+  border: 0;
   background: #d9e2ee;
   border-radius: 999px;
   transition: background 0.18s ease;
@@ -3105,7 +3121,7 @@ button {
 
 .switch-control span {
   position: absolute;
-  top: 3px;
+  top: 50%;
   left: 3px;
   width: 20px;
   height: 20px;
@@ -3113,6 +3129,7 @@ button {
   background: #fff;
   border-radius: 50%;
   box-shadow: 0 2px 8px rgba(25, 40, 70, 0.18);
+  transform: translateY(-50%);
   transition: transform 0.18s ease;
 }
 
@@ -3121,7 +3138,7 @@ button {
 }
 
 .switch-control.active span {
-  transform: translateX(20px);
+  transform: translate(20px, -50%);
 }
 
 .user-search-panel {

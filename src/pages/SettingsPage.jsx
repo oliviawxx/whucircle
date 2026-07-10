@@ -23,12 +23,14 @@ function SettingSwitch({ label, description, checked, onChange }) {
   return (
     <section className="setting-row switch-row">
       <div>
-        <strong>{label}</strong>
+        <div className="switch-label-line">
+          <strong>{label}</strong>
+          <button className={checked ? "switch-control active" : "switch-control"} onClick={() => onChange(!checked)}>
+            <span />
+          </button>
+        </div>
         <span>{description}</span>
       </div>
-      <button className={checked ? "switch-control active" : "switch-control"} onClick={() => onChange(!checked)}>
-        <span />
-      </button>
     </section>
   );
 }
