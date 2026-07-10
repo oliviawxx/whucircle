@@ -604,8 +604,9 @@ export function App() {
         ch.channelAdministrator ??
         ch.initialAdministrator ??
         ch.administrator?.id === myId,
-      announcement: ch.announcement || "",
-      members: ch.memberCount,
+     announcement: ch.announcement || "",
+     members: ch.memberCount,
+      memberIds: ch.memberIds || [],
       posts: [],
       events: [],
     }));
@@ -999,6 +1000,32 @@ export function App() {
       .catch(() => setRecommendedUsers([]))
       .finally(() => setRecommendedUsersLoading(false));
   }, [searchMode]);
+
+  // 通知轮询
+  useEffect(() => {
+    if (!loggedIn) return;
+    const interval = setInterval(() => {
+      apiGetNotifications()
+        .then((data) => {
+          const items = data?.items || data || [];
+          if (items.length) {
+            setNotifications(items.map((n) => ({
+              id: n.id,
+              type: String(n.type || "").includes("CHANNEL_ADMIN") ? "channel-admin" : String(n.type || "").includes("COMMENT") || String(n.type || "").includes("REPLY") ? "comment" : String(n.type || "").includes("SAVE") ? "save" : "like",
+              rawType: n.type,
+              user: n.title || "系统",
+              action: n.content || "",
+              target: n.targetId ? "#" + n.targetId : "",
+              targetId: n.targetId,
+              time: timeAgo(n.createdAt),
+              unread: !n.read,
+            })));
+          }
+        })
+        .catch(() => {});
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [loggedIn]);
 
   // 认证处理函数
   function handleSendCode() {

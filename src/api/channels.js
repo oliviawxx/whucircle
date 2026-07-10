@@ -71,6 +71,10 @@ export function createPost(channelId, { title, content, pinned, imageUrls = [] }
   });
 }
 
+export function getChannelMembers(channelId) {
+  return request(`/channels/${channelId}/members`);
+}
+
 export function deletePost(channelId, postId) {
   return request(`/channels/${channelId}/posts/${postId}`, { method: "DELETE" });
 }

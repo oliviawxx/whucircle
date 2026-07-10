@@ -13,11 +13,12 @@ public final class ChannelDtos {
     private ChannelDtos() {}
 
     public record AdminView(Long id, String nickname) {}
-    public record ChannelView(Long id, String name, JoinType joinType, boolean joined,
+    public record ChannelView(Long id, String name, JoinType joinType, boolean joined, java.util.Set<Long> memberIds,
                               boolean initialAdministrator, boolean channelAdministrator, int memberCount,
                               AdminView administrator, String announcement, ChannelStatus status) {}
     public record AdminMemberView(Long id, String nickname, String roleLabel, boolean initialAdministrator,
-                                  boolean channelAdministrator) {}
+                                    boolean channelAdministrator) {}
+    public record ChannelMemberView(Long id, String nickname, String avatarUrl, String college, String grade, String role) {}
     public record AdminRequestView(Long id, Long channelId, String channelName, Long requesterId,
                                    String requesterName, Long inviterId, String inviterName, String type,
                                    String status, OffsetDateTime createdAt) {}

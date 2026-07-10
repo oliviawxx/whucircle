@@ -18,6 +18,11 @@ import com.whucircle.dto.ChannelDtos.PinPostRequest;
 import com.whucircle.dto.ChannelDtos.ReplyView;
 import com.whucircle.dto.ChannelDtos.UpdateAnnouncementRequest;
 import com.whucircle.dto.NoteDtos.ToggleResponse;
+import com.whucircle.common.BusinessException;
+import com.whucircle.common.ErrorCode;
+import com.whucircle.domain.Channel;
+import com.whucircle.domain.User;
+import com.whucircle.dto.ChannelDtos.ChannelMemberView;
 import com.whucircle.security.CurrentUser;
 import com.whucircle.service.ChannelService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -50,6 +55,24 @@ public class ChannelController {
     }
     @GetMapping("/channels/{channelId}")
     public ApiResponse<ChannelView> channel(@PathVariable Long channelId) { return ApiResponse.success(channelService.detail(CurrentUser.id(), channelId)); }
+    @GetMapping("/channels/{channelId}/members")
+    public ApiResponse<java.util.List<ChannelMemberView>> members(@PathVariable Long channelId) {
+        try {
+            Channel channel = channelService.findChannelById(channelId);
+            return ApiResponse.success(channel.memberIds().stream()
+                    .map(id -> {
+                        User user = channelService.findUserById(id);
+                        if (user == null) return null;
+                        String role = channelService.findMemberRole(channelId, id).orElse("MEMBER");
+                        return new ChannelMemberView(user.id(), user.nickname(), user.avatarUrl(),
+                                user.college(), user.grade(), role);
+                    })
+                    .filter(j->j!=null)
+                    .toList());
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "无法获取成员列表");
+        }
+    }
     @GetMapping("/channels/managed")
     public ApiResponse<PageData<ChannelView>> managedChannels(
             @RequestParam(defaultValue = "1") int page,

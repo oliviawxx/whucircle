@@ -13,6 +13,7 @@ import com.whucircle.domain.Notification;
 import com.whucircle.domain.User;
 import com.whucircle.dto.ChannelDtos.AdminView;
 import com.whucircle.dto.ChannelDtos.AdminMemberView;
+import com.whucircle.dto.ChannelDtos.ChannelMemberView;
 import com.whucircle.dto.ChannelDtos.AdminRequestView;
 import com.whucircle.dto.ChannelDtos.ChannelView;
 import com.whucircle.dto.ChannelDtos.CreateChannelRequest;
@@ -223,7 +224,7 @@ public class ChannelService {
         User admin = users.findById(channel.administratorId()).orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "管理员不存在"));
         return new ChannelView(channel.id(), channel.name(), channel.joinType(), channel.memberIds().contains(currentUserId),
                 channel.administratorId().equals(currentUserId), isChannelAdministrator(currentUserId, channel), channel.memberCount(),
-                new AdminView(admin.id(), admin.nickname()), channel.announcement(), channel.status());
+                channel.memberIds(), new AdminView(admin.id(), admin.nickname()), channel.announcement(), channel.status());
     }
 
     private AdminMemberView toAdminMemberView(Channel channel, Long userId) {
@@ -316,4 +317,9 @@ public class ChannelService {
                 title, content, request.id(), false, OffsetDateTime.now()));
     }
     private Set<Long> mutableSet() { return ConcurrentHashMap.newKeySet(); }
+
+    public Channel findChannelById(Long id) { return requireChannel(id); }
+    public User findUserById(Long id) { return requireUser(id); }
+    public java.util.Optional<String> findMemberRole(Long channelId, Long userId) { return channels.findMemberRole(channelId, userId); }
+
 }
