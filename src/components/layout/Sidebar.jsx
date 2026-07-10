@@ -1,5 +1,6 @@
 import {
   BookmarkSimple,
+  Bell,
   CaretDown,
   Calendar,
   ChatCircle,
@@ -76,6 +77,7 @@ export function Sidebar({
           <div className="user-menu">
             <button onClick={() => onNavigate("我的主页")}><UserCircle size={18} />我的主页</button>
             <button onClick={() => onNavigate("收藏")}><BookmarkSimple size={18} />我的收藏</button>
+            <button onClick={() => onNavigate("通知")}><Bell size={18} />通知</button>
             <button onClick={() => onNavigate("设置")}><GearSix size={18} />设置</button>
             {isAdmin && <button onClick={() => onNavigate("全站管理")}><ShieldCheck size={18} />全站管理</button>}
             <button onClick={onLogout}>退出登录</button>
