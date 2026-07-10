@@ -9,6 +9,7 @@
 - `003_admin_migration.sql`：为已经初始化过的旧库补充全站管理员字段和演示管理员账号。
 - `004_channel_admin_requests.sql`：创建频道管理员申请/邀请表。
 - `005_privacy_settings_expansion.sql`：扩展隐私设置表，新增 5 个布尔开关字段。
+- `006_channel_events.sql`：创建频道活动和活动报名表。
 
 ## 初始化顺序
 

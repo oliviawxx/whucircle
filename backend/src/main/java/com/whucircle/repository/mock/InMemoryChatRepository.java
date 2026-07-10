@@ -3,6 +3,7 @@ package com.whucircle.repository.mock;
 import com.whucircle.domain.ChatMessage;
 import com.whucircle.domain.Conversation;
 import com.whucircle.domain.Enums.ConversationType;
+import com.whucircle.domain.Enums.ConversationStatus;
 import com.whucircle.repository.ChatRepository;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
@@ -26,11 +27,11 @@ public class InMemoryChatRepository implements ChatRepository {
 
     public InMemoryChatRepository() {
         OffsetDateTime now = OffsetDateTime.now();
-        conversations.put(21L, new Conversation(21L, ConversationType.GROUP, "期末互助小组", Set.of(1L, 2L, 6L),
+        conversations.put(21L, new Conversation(21L, ConversationType.GROUP, "期末互助小组", 1L, ConversationStatus.ACTIVE, mutableSet(1L, 2L, 6L),
                 "聊天这里先做 HTTP 接口。", now.minusMinutes(1)));
-        conversations.put(22L, new Conversation(22L, ConversationType.PRIVATE, "林深时见鹿", Set.of(1L, 6L),
+        conversations.put(22L, new Conversation(22L, ConversationType.PRIVATE, "林深时见鹿", 1L, ConversationStatus.ACTIVE, mutableSet(1L, 6L),
                 "我把频道规则草稿发你了。", now.minusMinutes(5)));
-        conversations.put(23L, new Conversation(23L, ConversationType.GROUP, "摄影社约拍群", Set.of(1L, 3L, 4L),
+        conversations.put(23L, new Conversation(23L, ConversationType.GROUP, "摄影社约拍群", 1L, ConversationStatus.ACTIVE, mutableSet(1L, 3L, 4L),
                 "周六下午三点集合。", now.minusHours(3)));
         putMessage(new ChatMessage(501L, 21L, 6L, "今晚先把资料目录定下来。", now.minusMinutes(4), mutableSet(1L, 6L)));
         putMessage(new ChatMessage(502L, 21L, 1L, "可以，我负责频道逻辑和原型展示。", now.minusMinutes(3), mutableSet(1L, 6L)));
@@ -67,13 +68,20 @@ public class InMemoryChatRepository implements ChatRepository {
         conversations.put(conversation.id(), conversation);
         return conversation;
     }
+    @Override public void removeMember(Long conversationId, Long userId) {
+        Conversation old = conversations.get(conversationId);
+        Set<Long> members = mutableSet();
+        members.addAll(old.memberIds());
+        members.remove(userId);
+        conversations.put(conversationId, new Conversation(old.id(), old.type(), old.name(), old.ownerId(), old.status(), members, old.lastMessage(), old.lastMessageAt()));
+    }
     @Override public List<ChatMessage> findMessages(Long conversationId) {
         return messages.getOrDefault(conversationId, List.of()).stream().sorted(Comparator.comparing(ChatMessage::sentAt)).toList();
     }
     @Override public ChatMessage saveMessage(ChatMessage message) {
         putMessage(message);
         Conversation old = conversations.get(message.conversationId());
-        conversations.put(old.id(), new Conversation(old.id(), old.type(), old.name(), old.memberIds(), message.content(), message.sentAt()));
+        conversations.put(old.id(), new Conversation(old.id(), old.type(), old.name(), old.ownerId(), old.status(), old.memberIds(), message.content(), message.sentAt()));
         return message;
     }
     @Override public void markRead(Long conversationId, Long userId) {

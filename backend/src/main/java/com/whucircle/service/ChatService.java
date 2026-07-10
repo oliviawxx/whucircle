@@ -6,12 +6,16 @@ import com.whucircle.common.PageData;
 import com.whucircle.domain.ChatMessage;
 import com.whucircle.domain.Conversation;
 import com.whucircle.domain.Enums.ConversationType;
+import com.whucircle.domain.Enums.ConversationStatus;
 import com.whucircle.domain.Enums.DirectMessagePermission;
 import com.whucircle.domain.Enums.RelationStatus;
 import com.whucircle.domain.User;
 import com.whucircle.dto.ChatDtos.ConversationView;
 import com.whucircle.dto.ChatDtos.CreateConversationRequest;
 import com.whucircle.dto.ChatDtos.MessageView;
+import com.whucircle.dto.ChatDtos.GroupDetailView;
+import com.whucircle.dto.ChatDtos.GroupMemberView;
+import com.whucircle.dto.ChatDtos.GroupActionResponse;
 import com.whucircle.repository.ChatRepository;
 import com.whucircle.repository.SettingsRepository;
 import com.whucircle.repository.UserRepository;
@@ -69,6 +73,51 @@ public class ChatService {
         chats.markRead(conversationId, currentUserId);
     }
 
+    public GroupDetailView groupDetail(Long currentUserId, Long conversationId) {
+        Conversation conversation = requireMember(currentUserId, conversationId);
+        requireGroup(conversation);
+        return toGroupDetail(conversation, currentUserId);
+    }
+
+    public GroupDetailView renameGroup(Long currentUserId, Long conversationId, String name) {
+        Conversation conversation = requireOwner(currentUserId, conversationId);
+        Conversation updated = chats.saveConversation(new Conversation(conversation.id(), conversation.type(), name.trim(),
+                conversation.ownerId(), conversation.status(), conversation.memberIds(), conversation.lastMessage(), conversation.lastMessageAt()));
+        return toGroupDetail(updated, currentUserId);
+    }
+
+    public GroupDetailView removeGroupMember(Long currentUserId, Long conversationId, Long userId) {
+        Conversation conversation = requireOwner(currentUserId, conversationId);
+        if (conversation.ownerId().equals(userId)) throw new BusinessException(ErrorCode.CONFLICT, "请先转让群主再退出或解散群聊");
+        if (!conversation.memberIds().contains(userId)) throw new BusinessException(ErrorCode.NOT_FOUND, "群成员不存在");
+        chats.removeMember(conversationId, userId);
+        return toGroupDetail(requireConversation(conversationId), currentUserId);
+    }
+
+    public GroupActionResponse leaveGroup(Long currentUserId, Long conversationId) {
+        Conversation conversation = requireMember(currentUserId, conversationId);
+        requireGroup(conversation);
+        if (conversation.ownerId().equals(currentUserId)) throw new BusinessException(ErrorCode.CONFLICT, "群主请先转让群主或解散群聊");
+        chats.removeMember(conversationId, currentUserId);
+        return new GroupActionResponse(conversationId, conversation.status());
+    }
+
+    public GroupDetailView transferGroupOwner(Long currentUserId, Long conversationId, Long userId) {
+        Conversation conversation = requireOwner(currentUserId, conversationId);
+        if (currentUserId.equals(userId)) throw new BusinessException(ErrorCode.BAD_REQUEST, "该成员已是群主");
+        if (!conversation.memberIds().contains(userId)) throw new BusinessException(ErrorCode.NOT_FOUND, "只能转让给当前群成员");
+        Conversation updated = chats.saveConversation(new Conversation(conversation.id(), conversation.type(), conversation.name(),
+                userId, conversation.status(), conversation.memberIds(), conversation.lastMessage(), conversation.lastMessageAt()));
+        return toGroupDetail(updated, currentUserId);
+    }
+
+    public GroupActionResponse dissolveGroup(Long currentUserId, Long conversationId) {
+        Conversation conversation = requireOwner(currentUserId, conversationId);
+        chats.saveConversation(new Conversation(conversation.id(), conversation.type(), conversation.name(), conversation.ownerId(),
+                ConversationStatus.DISSOLVED, conversation.memberIds(), conversation.lastMessage(), conversation.lastMessageAt()));
+        return new GroupActionResponse(conversationId, ConversationStatus.DISSOLVED);
+    }
+
     public ConversationView createConversation(Long currentUserId, CreateConversationRequest request) {
         List<Long> participantIds = request.participantIds().stream().distinct()
                 .filter(id -> !id.equals(currentUserId)).toList();
@@ -118,7 +167,7 @@ public class ChatService {
                 name = "群聊 " + conversationId;
             }
         }
-        Conversation conversation = new Conversation(conversationId, request.type(), name.trim(), members,
+        Conversation conversation = new Conversation(conversationId, request.type(), name.trim(), currentUserId, ConversationStatus.ACTIVE, members,
                 "", OffsetDateTime.now());
         return new ConversationView(chats.saveConversation(conversation).id(), conversation.type(), displayName(conversation, currentUserId),
                 "", conversation.lastMessageAt(), 0);
@@ -157,10 +206,37 @@ public class ChatService {
     }
 
     private Conversation requireMember(Long userId, Long conversationId) {
-        Conversation conversation = chats.findConversationById(conversationId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "会话不存在"));
+        Conversation conversation = requireConversation(conversationId);
+        if (conversation.status() == ConversationStatus.DISSOLVED) throw new BusinessException(ErrorCode.CONFLICT, "群聊已解散");
         if (!conversation.memberIds().contains(userId)) throw new BusinessException(ErrorCode.FORBIDDEN, "不是会话成员");
         return conversation;
+    }
+
+    private Conversation requireConversation(Long conversationId) {
+        return chats.findConversationById(conversationId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "会话不存在"));
+    }
+
+    private Conversation requireOwner(Long userId, Long conversationId) {
+        Conversation conversation = requireMember(userId, conversationId);
+        requireGroup(conversation);
+        if (!conversation.ownerId().equals(userId)) throw new BusinessException(ErrorCode.FORBIDDEN, "仅群主可以执行该操作");
+        return conversation;
+    }
+
+    private void requireGroup(Conversation conversation) {
+        if (conversation.type() != ConversationType.GROUP) throw new BusinessException(ErrorCode.BAD_REQUEST, "该会话不是群聊");
+    }
+
+    private GroupDetailView toGroupDetail(Conversation conversation, Long currentUserId) {
+        List<GroupMemberView> members = conversation.memberIds().stream()
+                .map(id -> users.findById(id).map(user -> new GroupMemberView(user.id(), user.nickname(), user.avatarUrl(),
+                        OffsetDateTime.now(), id.equals(conversation.ownerId()), id.equals(currentUserId))).orElse(null))
+                .filter(java.util.Objects::nonNull)
+                .sorted((left, right) -> Boolean.compare(right.owner(), left.owner()))
+                .toList();
+        return new GroupDetailView(conversation.id(), conversation.name(), conversation.ownerId(), conversation.status(),
+                members.size(), conversation.ownerId().equals(currentUserId), members);
     }
 
     private MessageView toView(ChatMessage message, Long currentUserId) {

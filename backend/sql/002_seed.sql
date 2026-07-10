@@ -89,6 +89,8 @@ INSERT INTO comments (id, note_id, author_id, content) VALUES
 (1012, 110, 3, '标题区域可以留更大。')
 ON DUPLICATE KEY UPDATE content = VALUES(content);
 
+DELETE FROM channel_event_participants WHERE event_id BETWEEN 401 AND 410;
+DELETE FROM channel_events WHERE id BETWEEN 401 AND 410;
 DELETE FROM channel_replies WHERE post_id BETWEEN 301 AND 310;
 DELETE FROM channel_post_likes WHERE post_id BETWEEN 301 AND 310;
 DELETE FROM channel_posts WHERE id BETWEEN 301 AND 310;
@@ -137,6 +139,32 @@ ON DUPLICATE KEY UPDATE content = VALUES(content);
 
 INSERT IGNORE INTO channel_post_likes (post_id, user_id) VALUES
 (301,1),(301,3),(304,1),(305,2),(306,1),(307,1);
+
+INSERT INTO channel_events (id, channel_id, organizer_id, linked_post_id, title, description, location,
+                            start_time, end_time, signup_deadline, capacity, participant_count, status) VALUES
+(401, 11, 2, 302, '离散数学考前答疑', '集中讲解图论、递推和历年题，欢迎带着题目来。', '信息学部 2 教 204',
+ DATE_ADD(NOW(3), INTERVAL 2 DAY), DATE_ADD(DATE_ADD(NOW(3), INTERVAL 2 DAY), INTERVAL 2 HOUR),
+ DATE_SUB(DATE_ADD(NOW(3), INTERVAL 2 DAY), INTERVAL 1 HOUR), 60, 2, 'PUBLISHED'),
+(402, 12, 3, 304, '樱顶日落摄影小队', '一起拍蓝调时刻，现场交流构图和后期思路。', '樱顶老图书馆前',
+ DATE_ADD(NOW(3), INTERVAL 4 DAY), DATE_ADD(DATE_ADD(NOW(3), INTERVAL 4 DAY), INTERVAL 90 MINUTE),
+ DATE_SUB(DATE_ADD(NOW(3), INTERVAL 4 DAY), INTERVAL 6 HOUR), NULL, 1, 'PUBLISHED')
+ON DUPLICATE KEY UPDATE
+    channel_id = VALUES(channel_id),
+    organizer_id = VALUES(organizer_id),
+    linked_post_id = VALUES(linked_post_id),
+    title = VALUES(title),
+    description = VALUES(description),
+    location = VALUES(location),
+    start_time = VALUES(start_time),
+    end_time = VALUES(end_time),
+    signup_deadline = VALUES(signup_deadline),
+    capacity = VALUES(capacity),
+    participant_count = VALUES(participant_count),
+    status = VALUES(status);
+
+INSERT INTO channel_event_participants (event_id, user_id, status) VALUES
+(401, 1, 'JOINED'), (401, 3, 'JOINED'), (402, 1, 'JOINED')
+ON DUPLICATE KEY UPDATE status = VALUES(status), cancelled_at = NULL;
 
 DELETE FROM message_read_status WHERE message_id BETWEEN 501 AND 510;
 DELETE FROM messages WHERE id BETWEEN 501 AND 510;

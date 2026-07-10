@@ -11,6 +11,7 @@ public interface ChatRepository {
     Optional<Conversation> findConversationById(Long conversationId);
     Optional<Conversation> findPrivateConversation(Long firstUserId, Long secondUserId);
     Conversation saveConversation(Conversation conversation);
+    void removeMember(Long conversationId, Long userId);
     List<ChatMessage> findMessages(Long conversationId);
     ChatMessage saveMessage(ChatMessage message);
     void markRead(Long conversationId, Long userId);

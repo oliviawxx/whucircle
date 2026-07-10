@@ -25,3 +25,10 @@ export function createConversation({ type, participantIds, name }) {
     body: JSON.stringify({ type, participantIds, name }),
   });
 }
+
+export function getGroupDetail(conversationId) { return request(`/conversations/${conversationId}/group`); }
+export function renameGroup(conversationId, name) { return request(`/conversations/${conversationId}/group/name`, { method: "PUT", body: JSON.stringify({ name }) }); }
+export function removeGroupMember(conversationId, userId) { return request(`/conversations/${conversationId}/group/members/${userId}`, { method: "DELETE" }); }
+export function leaveGroup(conversationId) { return request(`/conversations/${conversationId}/group/members/me`, { method: "DELETE" }); }
+export function transferGroupOwner(conversationId, userId) { return request(`/conversations/${conversationId}/group/owner`, { method: "PUT", body: JSON.stringify({ userId }) }); }
+export function dissolveGroup(conversationId) { return request(`/conversations/${conversationId}/group`, { method: "DELETE" }); }

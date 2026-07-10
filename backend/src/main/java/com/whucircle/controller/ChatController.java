@@ -5,12 +5,17 @@ import com.whucircle.common.PageData;
 import com.whucircle.dto.ChatDtos.ConversationView;
 import com.whucircle.dto.ChatDtos.CreateConversationRequest;
 import com.whucircle.dto.ChatDtos.MessageView;
+import com.whucircle.dto.ChatDtos.GroupDetailView;
+import com.whucircle.dto.ChatDtos.GroupActionResponse;
+import com.whucircle.dto.ChatDtos.RenameGroupRequest;
+import com.whucircle.dto.ChatDtos.TransferGroupOwnerRequest;
 import com.whucircle.dto.ChatDtos.SendMessageRequest;
 import com.whucircle.security.CurrentUser;
 import com.whucircle.service.ChatService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -46,4 +51,16 @@ public class ChatController {
     }
     @PutMapping("/{conversationId}/read")
     public ApiResponse<Void> read(@PathVariable Long conversationId) { chatService.markRead(CurrentUser.id(), conversationId); return ApiResponse.success(); }
+    @GetMapping("/{conversationId}/group")
+    public ApiResponse<GroupDetailView> groupDetail(@PathVariable Long conversationId) { return ApiResponse.success(chatService.groupDetail(CurrentUser.id(), conversationId)); }
+    @PutMapping("/{conversationId}/group/name")
+    public ApiResponse<GroupDetailView> renameGroup(@PathVariable Long conversationId, @Valid @RequestBody RenameGroupRequest request) { return ApiResponse.success(chatService.renameGroup(CurrentUser.id(), conversationId, request.name())); }
+    @DeleteMapping("/{conversationId}/group/members/{userId}")
+    public ApiResponse<GroupDetailView> removeGroupMember(@PathVariable Long conversationId, @PathVariable Long userId) { return ApiResponse.success(chatService.removeGroupMember(CurrentUser.id(), conversationId, userId)); }
+    @DeleteMapping("/{conversationId}/group/members/me")
+    public ApiResponse<GroupActionResponse> leaveGroup(@PathVariable Long conversationId) { return ApiResponse.success(chatService.leaveGroup(CurrentUser.id(), conversationId)); }
+    @PutMapping("/{conversationId}/group/owner")
+    public ApiResponse<GroupDetailView> transferGroupOwner(@PathVariable Long conversationId, @Valid @RequestBody TransferGroupOwnerRequest request) { return ApiResponse.success(chatService.transferGroupOwner(CurrentUser.id(), conversationId, request.userId())); }
+    @DeleteMapping("/{conversationId}/group")
+    public ApiResponse<GroupActionResponse> dissolveGroup(@PathVariable Long conversationId) { return ApiResponse.success(chatService.dissolveGroup(CurrentUser.id(), conversationId)); }
 }

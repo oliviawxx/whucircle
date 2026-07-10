@@ -4228,3 +4228,431 @@ button {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+/* Channel events and personal calendar */
+.channel-events-panel,
+.calendar-page {
+  display: grid;
+  gap: 14px;
+}
+
+.event-list,
+.calendar-event-list {
+  display: grid;
+  gap: 12px;
+}
+
+.month-calendar {
+  padding: 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.month-calendar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.month-calendar-head strong { color: #172033; font-size: 15px; }
+
+.month-weekdays,
+.month-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.month-weekdays span {
+  padding: 5px 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.month-days { gap: 3px; }
+
+.month-days button {
+  position: relative;
+  display: grid;
+  min-height: 44px;
+  place-items: center;
+  padding: 0;
+  color: #344258;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+}
+
+.month-days button:hover,
+.month-days button.selected { background: var(--accent-soft); color: var(--accent); }
+.month-days button.today > span { display: grid; width: 25px; height: 25px; place-items: center; color: #fff; background: var(--accent); border-radius: 50%; }
+.month-days button.muted-day { color: #c0c8d4; }
+.month-days button i { position: absolute; right: calc(50% - 17px); bottom: 5px; display: grid; min-width: 14px; height: 14px; place-items: center; padding: 0 3px; color: #fff; font-size: 10px; font-style: normal; background: var(--accent); border-radius: 999px; }
+
+.event-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow-soft);
+}
+
+.event-card.joined {
+  border-color: rgba(40, 128, 96, 0.38);
+}
+
+.event-action-error {
+  margin: 0;
+  padding: 9px 11px;
+  border: 1px solid rgba(180, 35, 24, 0.22);
+  border-radius: 8px;
+  color: #b42318;
+  background: rgba(180, 35, 24, 0.05);
+  font-size: 13px;
+}
+
+.event-card-main {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+}
+
+.event-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.event-card-head strong {
+  font-size: 16px;
+  color: var(--text);
+}
+
+.event-card-head span {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.event-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.event-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px 12px;
+}
+
+.event-meta-grid span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.event-meta-grid svg {
+  flex: 0 0 auto;
+}
+
+.event-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 150px;
+}
+
+.ghost-button.danger {
+  color: #b42318;
+}
+
+.event-draft-modal {
+  width: min(620px, calc(100vw - 32px));
+}
+
+.event-detail-modal {
+  width: min(620px, calc(100vw - 32px));
+}
+
+.event-detail-heading,
+.event-participants-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.event-detail-heading h3 {
+  margin: 5px 0 0;
+  color: var(--text);
+  font-size: 20px;
+}
+
+.event-eyebrow {
+  display: inline-flex;
+  padding: 3px 8px;
+  border-radius: 999px;
+  color: var(--accent);
+  background: var(--soft);
+  font-size: 12px;
+}
+
+.event-detail-description {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.event-detail-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px 12px;
+  padding: 13px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.event-detail-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.event-participants {
+  display: grid;
+  gap: 10px;
+}
+
+.event-participants-head strong {
+  color: var(--text);
+}
+
+.event-participants-head span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.event-participant-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.event-participant {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px 6px 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--soft);
+  font-size: 13px;
+}
+
+.event-participant svg {
+  color: var(--accent);
+}
+
+.event-detail-join.joined {
+  color: var(--accent);
+  background: var(--soft);
+  border-color: var(--accent);
+}
+
+.event-draft-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.event-draft-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.event-draft-options button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.event-draft-options button.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.event-draft-options button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Group management stays inside the existing chat workspace. */
+.chat-layout.group-panel-open {
+  grid-template-columns: minmax(220px, 0.42fr) minmax(360px, 1fr) minmax(260px, 0.36fr);
+}
+
+.group-manage-panel {
+  display: grid;
+  align-content: start;
+  gap: 15px;
+  min-height: 0;
+  padding: 16px;
+  overflow: auto;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.group-manage-head,
+.group-section-head,
+.group-member-row,
+.group-name-editor,
+.group-manage-actions {
+  display: flex;
+  align-items: center;
+}
+
+.group-manage-head,
+.group-section-head {
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.group-manage-head p {
+  margin: 0 0 3px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.group-manage-head h3 {
+  margin: 0;
+  color: #172033;
+  font-size: 16px;
+}
+
+.group-name-editor {
+  gap: 7px;
+}
+
+.group-name-editor input {
+  min-width: 0;
+  flex: 1;
+  height: 34px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  outline: none;
+}
+
+.group-name-editor input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.group-member-count,
+.group-section-head span,
+.group-member-row span {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.group-members-section {
+  display: grid;
+  gap: 9px;
+  min-height: 0;
+}
+
+.group-member-list {
+  display: grid;
+  gap: 4px;
+  max-height: 360px;
+  overflow: auto;
+}
+
+.group-member-row {
+  gap: 8px;
+  min-height: 42px;
+  padding: 5px;
+  border-radius: 7px;
+}
+
+.group-member-row:hover { background: var(--soft-card); }
+
+.group-member-row .avatar.tiny { width: 30px; height: 30px; }
+
+.group-member-row > div:nth-child(2) { min-width: 0; flex: 1; }
+
+.group-member-row strong,
+.group-member-row span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.group-member-row strong { color: #27344a; font-size: 13px; }
+
+.group-owner-icon { color: var(--accent); flex: 0 0 auto; }
+
+.group-member-actions { display: inline-flex; gap: 2px; }
+.group-member-actions button {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+}
+.group-member-actions button:hover { color: var(--accent); background: var(--accent-soft); }
+
+.group-manage-actions { padding-top: 12px; border-top: 1px solid var(--line); }
+
+@media (max-width: 980px) {
+  .chat-layout.group-panel-open { grid-template-columns: minmax(200px, 0.42fr) minmax(0, 1fr); }
+  .group-manage-panel { grid-column: 1 / -1; max-height: 310px; }
+  .group-member-list { max-height: 170px; }
+}
+
+@media (max-width: 720px) {
+  .event-card {
+    grid-template-columns: 1fr;
+  }
+
+  .event-card-actions {
+    justify-content: flex-start;
+    min-width: 0;
+  }
+
+  .event-meta-grid,
+  .event-draft-grid,
+  .event-detail-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .month-days button { min-height: 38px; }
+}

@@ -5,8 +5,10 @@ import {
   CaretDown,
   CaretLeft,
   CaretRight,
+  Calendar,
   ChatCircle,
   ChatsCircle,
+  Crown,
   CheckCircle,
   DotsThree,
   Flag,
@@ -23,10 +25,12 @@ import {
   Prohibit,
   PushPin,
   ShieldCheck,
+  SignOut,
   Student,
   Trash,
   UserCircle,
   UserPlus,
+  UserMinus,
   UsersThree,
   X,
 } from "@phosphor-icons/react";
@@ -73,6 +77,12 @@ import {
   markRead as apiMarkChatRead,
   sendMessage as apiSendMessage,
   createConversation as apiCreateConversation,
+  getGroupDetail as apiGetGroupDetail,
+  renameGroup as apiRenameGroup,
+  removeGroupMember as apiRemoveGroupMember,
+  leaveGroup as apiLeaveGroup,
+  transferGroupOwner as apiTransferGroupOwner,
+  dissolveGroup as apiDissolveGroup,
 } from "./api/chat.js";
 import {
   getNotifications as apiGetNotifications,
@@ -102,6 +112,16 @@ import {
   deleteAdminChannelPost,
 } from "./api/admin.js";
 import { getRecommendedNotes } from "./api/recommendations.js";
+import {
+  getChannelEvents,
+  createChannelEvent as apiCreateChannelEvent,
+  getChannelEvent as apiGetChannelEvent,
+  updateChannelEvent as apiUpdateChannelEvent,
+  joinChannelEvent as apiJoinChannelEvent,
+  leaveChannelEvent as apiLeaveChannelEvent,
+  cancelChannelEvent as apiCancelChannelEvent,
+  getCalendarEvents as apiGetCalendarEvents,
+} from "./api/events.js";
 import { AuthPage } from "./components/auth/AuthPage.jsx";
 import { ModalHead } from "./components/common/ModalHead.jsx";
 import { NoteCardSkeleton } from "./components/common/Skeleton.jsx";
@@ -281,6 +301,10 @@ export function App() {
     try { return sessionStorage.getItem("whu-last-nav") || "主页"; } catch { return "主页"; }
   });
   const [activeChatId, setActiveChatId] = useState(null);
+  const [groupPanelOpen, setGroupPanelOpen] = useState(false);
+  const [groupDetail, setGroupDetail] = useState(null);
+  const [groupNameDraft, setGroupNameDraft] = useState("");
+  const [groupManageError, setGroupManageError] = useState("");
   const [selectedChannelId, setSelectedChannelId] = useState(null);
   const [detailChannel, setDetailChannel] = useState(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -329,6 +353,25 @@ export function App() {
   const [channelPostDraftImages, setChannelPostDraftImages] = useState([]);
   const [channelPostDetail, setChannelPostDetail] = useState(null);
   const [channelPostReply, setChannelPostReply] = useState("");
+  const [eventDraftOpen, setEventDraftOpen] = useState(false);
+  const [eventDraftTitle, setEventDraftTitle] = useState("");
+  const [eventDraftDescription, setEventDraftDescription] = useState("");
+  const [eventDraftLocation, setEventDraftLocation] = useState("");
+  const [eventDraftStart, setEventDraftStart] = useState("");
+  const [eventDraftEnd, setEventDraftEnd] = useState("");
+  const [eventDraftDeadline, setEventDraftDeadline] = useState("");
+  const [eventDraftCapacity, setEventDraftCapacity] = useState("");
+  const [eventDraftCreatePost, setEventDraftCreatePost] = useState(true);
+  const [eventDraftCreateChat, setEventDraftCreateChat] = useState(true);
+  const [eventDraftPinPost, setEventDraftPinPost] = useState(false);
+  const [eventDraftError, setEventDraftError] = useState("");
+  const [editingEventId, setEditingEventId] = useState(null);
+  const [eventDetail, setEventDetail] = useState(null);
+  const [eventDetailError, setEventDetailError] = useState("");
+  const [eventActionError, setEventActionError] = useState("");
+  const [calendarEvents, setCalendarEvents] = useState([]);
+  const [calendarCursor, setCalendarCursor] = useState(() => new Date());
+  const [calendarSelectedDate, setCalendarSelectedDate] = useState("");
   const [reportTarget, setReportTarget] = useState(null);
 
   // 设置和个人资料状态
@@ -441,6 +484,9 @@ export function App() {
     if (label === "聊天") {
       refreshChats();
     }
+    if (label === "日历") {
+      loadCalendarEvents();
+    }
     setActiveNav(label);
     setUserMenuOpen(false);
     setNotificationsOpen(false);
@@ -522,6 +568,7 @@ export function App() {
       announcement: ch.announcement || "",
       members: ch.memberCount,
       posts: [],
+      events: [],
     }));
   }
 
@@ -541,6 +588,62 @@ export function App() {
       tags: [],
       image: false,
       imageUrls: (postImageCache[apiPost.id] || apiPost.imageUrls || []).map(normalizeMediaUrl),
+    };
+  }
+
+  function formatEventTime(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleString("zh-CN", {
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  function calendarDateKey(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    const offset = date.getTimezoneOffset() * 60_000;
+    return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+  }
+
+  function getCalendarDays(cursor) {
+    const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+    const startOffset = (first.getDay() + 6) % 7;
+    return Array.from({ length: 42 }, (_, index) => {
+      const date = new Date(cursor.getFullYear(), cursor.getMonth(), 1 - startOffset + index);
+      return { date, key: calendarDateKey(date), current: date.getMonth() === cursor.getMonth() };
+    });
+  }
+
+  function mapChannelEvent(apiEvent) {
+    return {
+      id: String(apiEvent.id),
+      channelId: String(apiEvent.channelId),
+      channelName: apiEvent.channelName,
+      organizerId: apiEvent.organizerId,
+      organizerName: apiEvent.organizerName || "管理员",
+      linkedPostId: apiEvent.linkedPostId ? String(apiEvent.linkedPostId) : null,
+      conversationId: apiEvent.conversationId ? String(apiEvent.conversationId) : null,
+      canEnterChat: apiEvent.canEnterChat || false,
+      title: apiEvent.title,
+      description: apiEvent.description || "",
+      location: apiEvent.location || "",
+      startTime: apiEvent.startTime,
+      endTime: apiEvent.endTime,
+      signupDeadline: apiEvent.signupDeadline,
+      timeLabel: `${formatEventTime(apiEvent.startTime)} - ${formatEventTime(apiEvent.endTime)}`,
+      deadlineLabel: apiEvent.signupDeadline ? formatEventTime(apiEvent.signupDeadline) : "",
+      capacity: apiEvent.capacity,
+      participantCount: apiEvent.participantCount || 0,
+      status: apiEvent.status,
+      joined: apiEvent.joined || false,
+      full: apiEvent.full || false,
+      ended: apiEvent.ended || false,
+      canManage: apiEvent.canManage || false,
     };
   }
 
@@ -641,6 +744,7 @@ export function App() {
         privacyData,
         blockedData,
         recommendedNotesData,
+        calendarData,
       ] = await Promise.all([
         getNotes({ scope: "PUBLIC" }),
         getSocialFeed(),
@@ -653,6 +757,7 @@ export function App() {
         getPrivacy(),
         getBlockedUsers(),
         getRecommendedNotes({ page: 1, size: 30 }).catch(() => ({ items: [] })),
+        apiGetCalendarEvents().catch(() => []),
       ]);
       setNotes((notesData?.items || []).map(mapNote));
       setSocialFeedNotes((socialFeedData?.items || []).map(mapNote));
@@ -666,24 +771,30 @@ export function App() {
       );
       const channelsWithPosts = await Promise.all(
         mappedChannels.map(async (channel) => {
+          let posts = channel.posts;
+          let events = channel.events;
           try {
             const postsData = await getPosts(Number(channel.id), {
               page: 1,
               size: 20,
             });
-            return {
-              ...channel,
-              posts: (postsData?.items || []).map(mapChannelPost).filter((p) => {
+            posts = (postsData?.items || []).map(mapChannelPost).filter((p) => {
                 const deleted = JSON.parse(localStorage.getItem("whu-deleted-posts") || "[]");
                 return !deleted.includes(p.id);
-              }),
-            };
-          } catch {
-            return channel;
-          }
+              });
+          } catch {}
+          try {
+            const eventsData = await getChannelEvents(Number(channel.id), {
+              page: 1,
+              size: 20,
+            });
+            events = (eventsData?.items || []).map(mapChannelEvent);
+          } catch {}
+          return { ...channel, posts, events };
         }),
       );
       setChannels(channelsWithPosts);
+      setCalendarEvents((calendarData || []).map(mapChannelEvent));
       const mappedChats = mapChats(chatsData || [], profileDataRes?.id);
       const chatsWithMessages = await Promise.all(
         mappedChats.map(async (chat) => {
@@ -1215,6 +1326,7 @@ function resetDraft() {
           announcement: apiChannel.announcement || "",
           members: apiChannel.memberCount || 1,
           posts: [],
+          events: [],
         };
         setChannels((items) => [createdChannel, ...items]);
         setSelectedChannelId(createdChannel.id);
@@ -1276,6 +1388,189 @@ function resetDraft() {
       .catch(() => {});
     };
     run();
+  }
+
+  function toIsoDateTime(value) {
+    if (!value) return null;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  }
+
+  function toDateTimeLocal(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    const offset = date.getTimezoneOffset() * 60_000;
+    return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+  }
+
+  function resetEventDraft() {
+    setEventDraftTitle("");
+    setEventDraftDescription("");
+    setEventDraftLocation("");
+    setEventDraftStart("");
+    setEventDraftEnd("");
+    setEventDraftDeadline("");
+    setEventDraftCapacity("");
+    setEventDraftCreatePost(true);
+    setEventDraftCreateChat(true);
+    setEventDraftPinPost(false);
+    setEventDraftError("");
+    setEditingEventId(null);
+  }
+
+  function submitCreateChannelEvent() {
+    if (!selectedChannel) return;
+    const title = eventDraftTitle.trim();
+    const description = eventDraftDescription.trim();
+    const location = eventDraftLocation.trim();
+    const startTime = toIsoDateTime(eventDraftStart);
+    const endTime = toIsoDateTime(eventDraftEnd);
+    const signupDeadline = toIsoDateTime(eventDraftDeadline);
+    if (!title || !description || !location || !startTime || !endTime) {
+      setEventDraftError("请填写标题、说明、地点和活动时间。");
+      return;
+    }
+    if (new Date(startTime) >= new Date(endTime)) {
+      setEventDraftError("结束时间需要晚于开始时间。");
+      return;
+    }
+    const capacity = eventDraftCapacity ? Number(eventDraftCapacity) : null;
+    const payload = {
+      title,
+      description,
+      location,
+      startTime,
+      endTime,
+      signupDeadline,
+      capacity: capacity && capacity > 0 ? capacity : null,
+      createPost: eventDraftCreatePost,
+      createChat: eventDraftCreateChat,
+      pinPost: selectedChannel.isChannelAdmin && eventDraftPinPost,
+      syncLinkedPost: true,
+    };
+    const request = editingEventId
+      ? apiUpdateChannelEvent(Number(editingEventId), payload)
+      : apiCreateChannelEvent(Number(selectedChannel.id), payload);
+    request
+      .then((apiEvent) => {
+        const event = mapChannelEvent(apiEvent);
+        setChannels((items) =>
+          items.map((channel) =>
+            channel.id === selectedChannel.id
+              ? {
+                  ...channel,
+                  events: editingEventId
+                    ? (channel.events || []).map((item) => String(item.id) === String(event.id) ? event : item)
+                    : [event, ...(channel.events || [])],
+                }
+              : channel,
+          ),
+        );
+        setEventDraftOpen(false);
+        resetEventDraft();
+        if (apiEvent.linkedPostId) {
+          getPosts(Number(selectedChannel.id), { page: 1, size: 20 })
+            .then((postsData) => {
+              setChannels((items) =>
+                items.map((channel) =>
+                  channel.id === selectedChannel.id
+                    ? { ...channel, posts: (postsData?.items || []).map(mapChannelPost) }
+                    : channel,
+                ),
+              );
+            })
+            .catch(() => {});
+        }
+      })
+      .catch((error) => setEventDraftError(error.message || (editingEventId ? "活动更新失败" : "活动发布失败")));
+  }
+
+  function openEventDetail(event) {
+    if (!event?.id) return;
+    setEventDetail({ event, participants: [], loading: true });
+    setEventDetailError("");
+    apiGetChannelEvent(Number(event.id))
+      .then((detail) => setEventDetail({
+        event: mapChannelEvent(detail.event),
+        participants: detail.participants || [],
+        loading: false,
+      }))
+      .catch((error) => {
+        setEventDetailError(error.message || "无法加载活动详情");
+        setEventDetail((current) => current ? { ...current, loading: false } : null);
+      });
+  }
+
+  function openEditEvent(event) {
+    setEditingEventId(event.id);
+    setEventDraftTitle(event.title || "");
+    setEventDraftDescription(event.description || "");
+    setEventDraftLocation(event.location || "");
+    setEventDraftStart(toDateTimeLocal(event.startTime));
+    setEventDraftEnd(toDateTimeLocal(event.endTime));
+    setEventDraftDeadline(toDateTimeLocal(event.signupDeadline));
+    setEventDraftCapacity(event.capacity ? String(event.capacity) : "");
+    setEventDraftCreatePost(Boolean(event.linkedPostId));
+    setEventDraftCreateChat(Boolean(event.conversationId));
+    setEventDraftPinPost(false);
+    setEventDraftError("");
+    setEventDraftOpen(true);
+  }
+
+  function updateChannelEventInState(eventId, patch) {
+    setChannels((items) =>
+      items.map((channel) => ({
+        ...channel,
+        events: (channel.events || []).map((event) =>
+          String(event.id) === String(eventId) ? { ...event, ...patch } : event,
+        ),
+      })),
+    );
+    setCalendarEvents((items) =>
+      items.map((event) => (String(event.id) === String(eventId) ? { ...event, ...patch } : event)),
+    );
+  }
+
+  function toggleJoinChannelEvent(event) {
+    if (!event?.id) return;
+    const action = event.joined ? apiLeaveChannelEvent : apiJoinChannelEvent;
+    setEventActionError("");
+    return action(Number(event.id))
+      .then((result) => {
+        updateChannelEventInState(event.id, {
+          joined: result.joined,
+          participantCount: result.participantCount,
+          full: result.full,
+        });
+        if (!result.joined) {
+          setCalendarEvents((items) => items.filter((item) => String(item.id) !== String(event.id)));
+        }
+        return result;
+      })
+      .catch((error) => setEventActionError(error.message || "活动状态更新失败"));
+  }
+
+  function cancelChannelEvent(event) {
+    if (!event?.id) return;
+    if (!window.confirm(`确定取消活动“${event.title}”吗？参与成员将收到通知。`)) return;
+    setEventActionError("");
+    apiCancelChannelEvent(Number(event.id))
+      .then(() => {
+        updateChannelEventInState(event.id, { status: "CANCELLED" });
+        setEventDetail((detail) => detail && String(detail.event.id) === String(event.id)
+          ? { ...detail, event: { ...detail.event, status: "CANCELLED" } }
+          : detail);
+      })
+      .catch((error) => setEventActionError(error.message || "活动取消失败"));
+  }
+
+  function loadCalendarEvents(cursor = calendarCursor) {
+    const from = new Date(cursor.getFullYear(), cursor.getMonth(), 1).toISOString();
+    const to = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1).toISOString();
+    apiGetCalendarEvents({ from, to })
+      .then((items) => setCalendarEvents((items || []).map(mapChannelEvent)))
+      .catch(() => {});
   }
 
   function updateChannelPostInState(postId, patch) {
@@ -1812,10 +2107,65 @@ function resetDraft() {
   function openChat(chatId) {
     setActiveChatId(chatId);
     setChatError("");
+    setGroupPanelOpen(false);
+    setGroupDetail(null);
+    setGroupManageError("");
     setChats((items) =>
       items.map((ch) => (ch.id === chatId ? { ...ch, unread: 0 } : ch)),
     );
     apiMarkChatRead(Number(chatId)).catch(() => {});
+  }
+
+  function openGroupManagement(chatId = activeChatId) {
+    if (!chatId) return;
+    setGroupPanelOpen(true);
+    setGroupManageError("");
+    apiGetGroupDetail(Number(chatId))
+      .then((detail) => {
+        setGroupDetail(detail);
+        setGroupNameDraft(detail.name || "");
+      })
+      .catch((error) => setGroupManageError(error.message || "无法加载群聊信息"));
+  }
+
+  function saveGroupName() {
+    const name = groupNameDraft.trim();
+    if (!name || !activeChatId) return;
+    setGroupManageError("");
+    apiRenameGroup(Number(activeChatId), name)
+      .then((detail) => {
+        setGroupDetail(detail);
+        setChats((items) => items.map((chat) => chat.id === activeChatId ? { ...chat, name: detail.name } : chat));
+      })
+      .catch((error) => setGroupManageError(error.message || "群名称保存失败"));
+  }
+
+  function removeChatGroupMember(member) {
+    if (!activeChatId || !window.confirm(`确定将 ${member.nickname} 移出群聊吗？`)) return;
+    apiRemoveGroupMember(Number(activeChatId), Number(member.userId))
+      .then((detail) => setGroupDetail(detail))
+      .catch((error) => setGroupManageError(error.message || "移除成员失败"));
+  }
+
+  function transferChatGroupOwner(member) {
+    if (!activeChatId || !window.confirm(`确定将群主转让给 ${member.nickname} 吗？`)) return;
+    apiTransferGroupOwner(Number(activeChatId), Number(member.userId))
+      .then((detail) => setGroupDetail(detail))
+      .catch((error) => setGroupManageError(error.message || "转让群主失败"));
+  }
+
+  function leaveChatGroup() {
+    if (!activeChatId || !window.confirm("确定退出这个群聊吗？")) return;
+    apiLeaveGroup(Number(activeChatId))
+      .then(() => { setGroupPanelOpen(false); setGroupDetail(null); refreshChats(); })
+      .catch((error) => setGroupManageError(error.message || "退出群聊失败"));
+  }
+
+  function dissolveChatGroup() {
+    if (!activeChatId || !window.confirm("确定解散群聊吗？解散后成员将无法继续进入或发送消息。")) return;
+    apiDissolveGroup(Number(activeChatId))
+      .then(() => { setGroupPanelOpen(false); setGroupDetail(null); refreshChats(); })
+      .catch((error) => setGroupManageError(error.message || "解散群聊失败"));
   }
 
   function sendChatMessage() {
@@ -2102,6 +2452,76 @@ function resetDraft() {
             onReport={setReportTarget}
           />
         );
+      case "日历":
+        return (
+          <section className="calendar-page">
+            <div className="panel-head">
+              <div>
+                <h2>我的日历</h2>
+                <span>你已加入的频道活动</span>
+              </div>
+              <button className="ghost-button small" onClick={() => loadCalendarEvents()}>
+                <Calendar size={16} />
+                刷新
+              </button>
+            </div>
+            <section className="month-calendar">
+              <div className="month-calendar-head">
+                <button className="icon-mini" title="上个月" onClick={() => {
+                  const next = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() - 1, 1);
+                  setCalendarCursor(next); setCalendarSelectedDate(""); loadCalendarEvents(next);
+                }}><CaretLeft size={19} /></button>
+                <strong>{calendarCursor.getFullYear()} 年 {calendarCursor.getMonth() + 1} 月</strong>
+                <button className="icon-mini" title="下个月" onClick={() => {
+                  const next = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() + 1, 1);
+                  setCalendarCursor(next); setCalendarSelectedDate(""); loadCalendarEvents(next);
+                }}><CaretRight size={19} /></button>
+              </div>
+              <div className="month-weekdays">{["一", "二", "三", "四", "五", "六", "日"].map((day) => <span key={day}>{day}</span>)}</div>
+              <div className="month-days">
+                {getCalendarDays(calendarCursor).map((day) => {
+                  const count = calendarEvents.filter((event) => calendarDateKey(event.startTime) === day.key).length;
+                  const today = calendarDateKey(new Date()) === day.key;
+                  return <button key={day.key} className={(day.current ? "" : "muted-day ") + (today ? "today " : "") + (calendarSelectedDate === day.key ? "selected " : "")} onClick={() => setCalendarSelectedDate(day.key)}>
+                    <span>{day.date.getDate()}</span>{count > 0 && <i>{count}</i>}
+                  </button>;
+                })}
+              </div>
+            </section>
+            {(calendarSelectedDate ? calendarEvents.filter((event) => calendarDateKey(event.startTime) === calendarSelectedDate) : calendarEvents).length ? (
+              <div className="calendar-event-list">
+                {(calendarSelectedDate ? calendarEvents.filter((event) => calendarDateKey(event.startTime) === calendarSelectedDate) : calendarEvents).map((event) => (
+                  <article className="event-card calendar-event-card" key={event.id}>
+                    <div className="event-card-main">
+                      <div className="event-card-head">
+                        <strong>{event.title}</strong>
+                        <span>{event.status === "CANCELLED" ? "已取消" : event.ended ? "已结束" : "已加入"}</span>
+                      </div>
+                      <p>{event.description}</p>
+                      <div className="event-meta-grid">
+                        <span><Calendar size={15} />{event.timeLabel}</span>
+                        <span><Hash size={15} />{event.channelName}</span>
+                        <span><Megaphone size={15} />{event.location}</span>
+                      </div>
+                    </div>
+                    {!event.ended && event.status !== "CANCELLED" && (
+                      <button className="ghost-button small" onClick={() => toggleJoinChannelEvent(event)}>
+                        取消加入
+                      </button>
+                    )}
+                    <button className="ghost-button small" onClick={() => openEventDetail(event)}>详情</button>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state">
+                <Calendar size={40} />
+                <p>{calendarSelectedDate ? "这一天没有活动" : "还没有加入的活动"}</p>
+                <span>{calendarSelectedDate ? "选择其他日期，或翻到其他月份查看安排。" : "加入频道活动后，它们会出现在这里。"}</span>
+              </div>
+            )}
+          </section>
+        );
       case "我的主页":
         return (
           <ProfilePage
@@ -2168,6 +2588,13 @@ function resetDraft() {
             onApplyAdmin={() => submitChannelAdminApplication(dc.id)}
             onDeletePost={removeChannelPost}
             onOpenDraft={() => setChannelPostDraftOpen(true)}
+            onOpenEventDraft={() => { resetEventDraft(); setEventDraftOpen(true); }}
+            onOpenEventDetail={openEventDetail}
+            onOpenEventChat={(event) => { setActiveNav("聊天"); refreshChats(String(event.conversationId)); }}
+            onEditEvent={openEditEvent}
+            onToggleEventJoin={toggleJoinChannelEvent}
+            onCancelEvent={cancelChannelEvent}
+            eventActionError={eventActionError}
             onToggleLike={(postId) => {
               apiLikePost(Number(postId))
                 .then((result) => updateChannelPostInState(postId, { liked: result.active, likes: result.count }))
@@ -2312,7 +2739,7 @@ function resetDraft() {
               </div>
             </section>
 
-            <section className="chat-layout">
+            <section className={"chat-layout" + (groupPanelOpen && activeChat?.type === "群聊" ? " group-panel-open" : "")}>
               <aside className="chat-side">
                 <div className="chat-list-head">
                   <div>
@@ -2371,9 +2798,15 @@ function resetDraft() {
                         <p>{activeChat.type}</p>
                         <h2>{activeChat.name}</h2>
                       </div>
-                      <button className="icon-mini" title="更多">
-                        <DotsThree size={22} />
-                      </button>
+                      {activeChat.type === "群聊" && (
+                        <button
+                          className={groupPanelOpen ? "icon-mini active" : "icon-mini"}
+                          title="群聊管理"
+                          onClick={() => groupPanelOpen ? setGroupPanelOpen(false) : openGroupManagement()}
+                        >
+                          <UsersThree size={21} />
+                        </button>
+                      )}
                     </div>
                     <div className="bubble-list">
                       {activeChat.messages.map((msg, i) => (
@@ -2434,6 +2867,46 @@ function resetDraft() {
                   <div className="empty-state">请选择一个会话开始聊天。</div>
                 )}
               </section>
+              {groupPanelOpen && activeChat?.type === "群聊" && (
+                <aside className="group-manage-panel">
+                  <div className="group-manage-head">
+                    <div><p>群聊管理</p><h3>{groupDetail?.name || activeChat.name}</h3></div>
+                    <button className="icon-mini" title="收起管理栏" onClick={() => setGroupPanelOpen(false)}><X size={18} /></button>
+                  </div>
+                  {groupDetail?.mineOwner ? (
+                    <div className="group-name-editor">
+                      <input value={groupNameDraft} maxLength={50} onChange={(e) => setGroupNameDraft(e.target.value)} />
+                      <button className="ghost-button small" onClick={saveGroupName}>保存</button>
+                    </div>
+                  ) : <p className="group-member-count">{groupDetail?.memberCount || 0} 位成员</p>}
+                  <section className="group-members-section">
+                    <div className="group-section-head"><strong>群成员</strong><span>{groupDetail?.memberCount || 0}</span></div>
+                    <div className="group-member-list">
+                      {(groupDetail?.members || []).map((member) => (
+                        <div className="group-member-row" key={member.userId}>
+                          <img className="avatar tiny" src={normalizeMediaUrl(member.avatarUrl) || DEFAULT_AVATAR} alt="" />
+                          <div><strong>{member.nickname}{member.mine ? "（我）" : ""}</strong><span>{member.owner ? "群主" : "成员"}</span></div>
+                          {member.owner && <Crown size={15} className="group-owner-icon" />}
+                          {groupDetail?.mineOwner && !member.owner && (
+                            <div className="group-member-actions">
+                              <button title="转让群主" onClick={() => transferChatGroupOwner(member)}><Crown size={14} /></button>
+                              <button title="移出群聊" onClick={() => removeChatGroupMember(member)}><UserMinus size={14} /></button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                  {groupManageError && <p className="form-error">{groupManageError}</p>}
+                  <div className="group-manage-actions">
+                    {groupDetail?.mineOwner ? (
+                      <button className="ghost-button small danger" onClick={dissolveChatGroup}><Trash size={15} />解散群聊</button>
+                    ) : (
+                      <button className="ghost-button small danger" onClick={leaveChatGroup}><SignOut size={15} />退出群聊</button>
+                    )}
+                  </div>
+                </aside>
+              )}
             </section>
           </section>
         ) : (
@@ -3108,6 +3581,192 @@ function resetDraft() {
               onClick={submitCreateChannelPost}
             >
               发布
+            </button>
+          </section>
+        </div>
+      )}
+
+      {eventDetail && (
+        <div className="modal-backdrop" onClick={() => { setEventDetail(null); setEventDetailError(""); }}>
+          <section className="small-modal event-detail-modal" onClick={(e) => e.stopPropagation()}>
+            <ModalHead
+              title="活动详情"
+              subtitle={eventDetail.event.channelName || "频道活动"}
+              onClose={() => { setEventDetail(null); setEventDetailError(""); }}
+            />
+            <div className="event-detail-heading">
+              <div>
+                <span className="event-eyebrow">{eventDetail.event.status === "CANCELLED" ? "已取消" : eventDetail.event.ended ? "已结束" : "报名中"}</span>
+                <h3>{eventDetail.event.title}</h3>
+              </div>
+              {eventDetail.event.canManage && eventDetail.event.status !== "CANCELLED" && (
+                <button className="ghost-button small" onClick={() => { setEventDetail(null); openEditEvent(eventDetail.event); }}>
+                  编辑活动
+                </button>
+              )}
+            </div>
+            <p className="event-detail-description">{eventDetail.event.description}</p>
+            <div className="event-detail-meta">
+              <span><Calendar size={16} />{eventDetail.event.timeLabel}</span>
+              <span><Hash size={16} />{eventDetail.event.location}</span>
+              <span><UsersThree size={16} />{eventDetail.event.participantCount}{eventDetail.event.capacity ? ` / ${eventDetail.event.capacity}` : ""} 人已加入</span>
+              {eventDetail.event.deadlineLabel && <span><Bell size={16} />报名截止 {eventDetail.event.deadlineLabel}</span>}
+            </div>
+            {eventDetailError && <p className="form-error">{eventDetailError}</p>}
+            <section className="event-participants">
+              <div className="event-participants-head">
+                <strong>已报名成员</strong>
+                <span>{eventDetail.loading ? "加载中" : `${eventDetail.participants.length} 人`}</span>
+              </div>
+              {!eventDetail.loading && (eventDetail.participants.length ? (
+                <div className="event-participant-list">
+                  {eventDetail.participants.map((participant) => (
+                    <div className="event-participant" key={participant.userId}>
+                      <UserCircle size={24} />
+                      <span>{participant.nickname}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : <p className="muted">还没有成员报名。</p>)}
+            </section>
+            {!eventDetail.event.ended && eventDetail.event.status !== "CANCELLED" && (
+              <button
+                className={eventDetail.event.joined ? "submit-note event-detail-join joined" : "submit-note event-detail-join"}
+                disabled={!eventDetail.event.joined && eventDetail.event.full}
+                onClick={() => {
+                  toggleJoinChannelEvent(eventDetail.event)
+                    .then((result) => result && setEventDetail((detail) => detail ? {
+                      ...detail,
+                      event: {
+                        ...detail.event,
+                        joined: result.joined,
+                        participantCount: result.participantCount,
+                        full: result.full,
+                      },
+                    } : detail));
+                }}
+              >
+                {eventDetail.event.joined ? "取消加入" : eventDetail.event.full ? "活动已满" : "加入活动"}
+              </button>
+            )}
+          </section>
+        </div>
+      )}
+
+      {/* 发布频道活动弹窗 */}
+      {eventDraftOpen && (
+        <div
+          className="modal-backdrop"
+          onClick={() => {
+            setEventDraftOpen(false);
+            setEventDraftError("");
+          }}
+        >
+          <section className="small-modal event-draft-modal" onClick={(e) => e.stopPropagation()}>
+            <ModalHead
+              title={editingEventId ? "编辑频道活动" : "发布频道活动"}
+              subtitle={selectedChannel?.name}
+              onClose={() => {
+                setEventDraftOpen(false);
+                setEventDraftError("");
+              }}
+            />
+            <label className="auth-field">
+              <span>活动标题</span>
+              <input
+                className="title-input"
+                value={eventDraftTitle}
+                onChange={(e) => setEventDraftTitle(e.target.value)}
+                placeholder="例如：离散数学考前答疑"
+              />
+            </label>
+            <label className="auth-field">
+              <span>活动说明</span>
+              <textarea
+                className="title-input"
+                value={eventDraftDescription}
+                onChange={(e) => setEventDraftDescription(e.target.value)}
+                placeholder="写清楚活动内容、准备事项和参与方式"
+              />
+            </label>
+            <label className="auth-field">
+              <span>地点</span>
+              <input
+                className="title-input"
+                value={eventDraftLocation}
+                onChange={(e) => setEventDraftLocation(e.target.value)}
+                placeholder="例如：信息学部 2 教 204"
+              />
+            </label>
+            <div className="event-draft-grid">
+              <label className="auth-field">
+                <span>开始时间</span>
+                <input
+                  className="title-input"
+                  type="datetime-local"
+                  value={eventDraftStart}
+                  onChange={(e) => setEventDraftStart(e.target.value)}
+                />
+              </label>
+              <label className="auth-field">
+                <span>结束时间</span>
+                <input
+                  className="title-input"
+                  type="datetime-local"
+                  value={eventDraftEnd}
+                  onChange={(e) => setEventDraftEnd(e.target.value)}
+                />
+              </label>
+            </div>
+            <div className="event-draft-grid">
+              <label className="auth-field">
+                <span>报名截止</span>
+                <input
+                  className="title-input"
+                  type="datetime-local"
+                  value={eventDraftDeadline}
+                  onChange={(e) => setEventDraftDeadline(e.target.value)}
+                />
+              </label>
+              <label className="auth-field">
+                <span>名额</span>
+                <input
+                  className="title-input"
+                  type="number"
+                  min="1"
+                  value={eventDraftCapacity}
+                  onChange={(e) => setEventDraftCapacity(e.target.value)}
+                  placeholder="不填则不限"
+                />
+              </label>
+            </div>
+            <div className="event-draft-options">
+              <button
+                className={eventDraftCreatePost ? "active" : ""}
+                onClick={() => setEventDraftCreatePost((v) => !v)}
+              >
+                <PaperPlaneTilt size={16} />
+                同步帖子
+              </button>
+              <button
+                className={eventDraftPinPost ? "active" : ""}
+                disabled={!eventDraftCreatePost}
+                onClick={() => setEventDraftPinPost((v) => !v)}
+              >
+                <PushPin size={16} />
+                置顶帖子
+              </button>
+              <button
+                className={eventDraftCreateChat ? "active" : ""}
+                onClick={() => setEventDraftCreateChat((v) => !v)}
+              >
+                <ChatsCircle size={16} />
+                创建活动群聊
+              </button>
+            </div>
+            {eventDraftError && <p className="form-error">{eventDraftError}</p>}
+            <button className="submit-note" onClick={submitCreateChannelEvent}>
+              {editingEventId ? "保存活动" : "发布活动"}
             </button>
           </section>
         </div>

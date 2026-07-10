@@ -1,6 +1,7 @@
 import {
   BookmarkSimple,
   CaretDown,
+  Calendar,
   ChatCircle,
   GearSix,
   Hash,
@@ -16,6 +17,7 @@ const navItems = [
   ["主页", House],
   ["社交圈", UsersThree],
   ["频道", Hash],
+  ["日历", Calendar],
   ["聊天", ChatCircle],
 ];
 

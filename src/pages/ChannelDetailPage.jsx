@@ -20,6 +20,13 @@ export function ChannelDetailPage({
   onApplyAdmin,
   onDeletePost,
   onOpenDraft,
+  onOpenEventDraft,
+  onOpenEventDetail,
+  onOpenEventChat,
+  onEditEvent,
+  onToggleEventJoin,
+  onCancelEvent,
+  eventActionError,
   onToggleLike,
 }) {
   const [activeTab, setActiveTab] = useState("posts");
@@ -30,6 +37,7 @@ export function ChannelDetailPage({
   const isJoined = channel.joined;
   const isAdmin = channel.isChannelAdmin;
   const posts = channel.posts || [];
+  const events = channel.events || [];
 
   function toggleExpand(postId) {
     setExpandedPosts((prev) => ({ ...prev, [postId]: !prev[postId] }));
@@ -225,10 +233,96 @@ export function ChannelDetailPage({
         )}
 
         {activeTab === "events" && (
-          <div className="empty-state">
-            <Calendar size={40} />
-            <p>活动功能即将上线</p>
-            <span>频道管理员将可以在这里发布和安排活动。</span>
+          <div className="channel-events-panel">
+            {isAdmin && (
+              <button className="channel-post-draft-btn" onClick={onOpenEventDraft}>
+                <Calendar size={17} weight="fill" />
+                发布活动
+              </button>
+            )}
+            {eventActionError && <p className="event-action-error" role="alert">{eventActionError}</p>}
+            {events.length ? (
+              <div className="event-list">
+                {events.map((event) => {
+                  const blocked = event.status === "CANCELLED" || event.ended || event.full;
+                  const statusLabel = event.status === "CANCELLED"
+                    ? "已取消"
+                    : event.ended
+                      ? "已结束"
+                      : event.full
+                        ? "已满"
+                        : "报名中";
+                  return (
+                    <article className={"event-card" + (event.joined ? " joined" : "")} key={event.id}>
+                      <div className="event-card-main">
+                        <div className="event-card-head">
+                          <strong>{event.title}</strong>
+                          <span>{statusLabel}</span>
+                        </div>
+                        <p>{event.description}</p>
+                        <div className="event-meta-grid">
+                          <span><Calendar size={15} />{event.timeLabel}</span>
+                          <span><Hash size={15} />{event.location}</span>
+                          <span><Users size={15} />{event.participantCount}{event.capacity ? ` / ${event.capacity}` : ""} 人</span>
+                          {event.deadlineLabel && <span><Megaphone size={15} />截止 {event.deadlineLabel}</span>}
+                        </div>
+                      </div>
+                      <div className="event-card-actions">
+                        <button className="ghost-button small" onClick={() => onOpenEventDetail?.(event)}>
+                          查看详情
+                        </button>
+                        {event.linkedPostId && (
+                          <button
+                            className="ghost-button small"
+                            onClick={() => {
+                              const linked = posts.find((post) => String(post.id) === String(event.linkedPostId));
+                              if (linked) onOpenPost({ channel, post: linked });
+                            }}
+                          >
+                            讨论
+                          </button>
+                        )}
+                        {event.conversationId && (
+                          <button
+                            className="ghost-button small"
+                            disabled={!event.canEnterChat}
+                            title={event.canEnterChat ? "进入活动群聊" : "加入活动后可进入群聊"}
+                            onClick={() => event.canEnterChat && onOpenEventChat?.(event)}
+                          >
+                            {event.canEnterChat ? "活动群聊" : "报名后入群"}
+                          </button>
+                        )}
+                        {isJoined && event.status !== "CANCELLED" && !event.ended && (
+                          <button
+                            className={event.joined ? "ghost-button small active" : "ghost-button small"}
+                            disabled={!event.joined && blocked}
+                            onClick={() => onToggleEventJoin?.(event)}
+                          >
+                            {event.joined ? "取消加入" : event.full ? "已满" : "加入"}
+                          </button>
+                        )}
+                        {isAdmin && event.status !== "CANCELLED" && (
+                          <>
+                            <button className="ghost-button small" onClick={() => onEditEvent?.(event)}>
+                              编辑
+                            </button>
+                            <button className="ghost-button small danger" onClick={() => onCancelEvent?.(event)}>
+                              取消活动
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="empty-state">
+                <Calendar size={40} />
+                <p>还没有活动</p>
+                <span>频道管理员可以在这里发布活动安排。</span>
+              </div>
+            )}
           </div>
         )}
 

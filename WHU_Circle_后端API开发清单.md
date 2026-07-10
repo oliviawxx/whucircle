@@ -44,6 +44,7 @@ Authorization: Bearer <token>
 | 主页 | 笔记列表、搜索、标签、详情、评论、点赞、收藏、发布 | `/notes`、`/tags` |
 | 社交圈 | 关注/好友列表、好友可见笔记 | `/relations`、`/feed/social` |
 | 频道 | 频道列表、加入、帖子、回复、点赞、置顶、公告 | `/channels/*`、`/channel-posts/*` |
+| 活动与日历 | 已实现第一版；活动讨论与活动群聊 v1.1 已完成接口设计 | `/channels/{channelId}/events`、`/channel-events/*`、`/calendar/events` |
 | 聊天 | 会话列表、消息列表、发送消息、已读 | `/conversations/*` |
 | 个人主页 | 资料读取和编辑、个人动态展示 | `/users/me/profile`、`/users/{userId}` |
 | 设置 | 隐私设置、私信权限、频道加入默认设置 | `/settings/privacy` |
@@ -207,7 +208,42 @@ PUT /api/v1/channel-posts/{postId}/pin
 
 当前前端已接入频道列表、加入弹窗、密码频道、频道内发帖、帖子详情、回复、点赞、置顶、公告展示、管理员控制台和管理员申请。
 
-## 7. 聊天接口
+## 7. 活动与日历接口草案
+
+活动与日历 API 定义维护在独立文档中：
+
+```text
+docs/活动与日历_API_v1.md
+```
+
+当前第一版范围：
+
+- 频道管理员发布、编辑、取消活动。
+- 活动可同步生成频道帖子，供成员评论讨论。
+- 频道成员加入或取消加入活动。
+- 用户在个人日历中查看自己加入的活动。
+- 活动发布、更新、取消产生通知。
+- 活动同步帖子用于全频道公开答疑，已报名成员进入独立活动群聊。
+- 取消活动不删除帖子或群聊；仅发起人可删除活动讨论帖或解散活动群聊。
+
+主要接口：
+
+```http
+GET /api/v1/channels/{channelId}/events
+POST /api/v1/channels/{channelId}/events
+GET /api/v1/channel-events/{eventId}
+PUT /api/v1/channel-events/{eventId}
+DELETE /api/v1/channel-events/{eventId}
+POST /api/v1/channel-events/{eventId}/join
+DELETE /api/v1/channel-events/{eventId}/join
+GET /api/v1/channel-events/{eventId}/participants
+GET /api/v1/calendar/events
+POST /api/v1/channel-events/{eventId}/chat
+DELETE /api/v1/channel-events/{eventId}/discussion-post
+DELETE /api/v1/channel-events/{eventId}/chat
+```
+
+## 8. 聊天接口
 
 ```http
 GET /api/v1/conversations
@@ -224,9 +260,17 @@ PUT /api/v1/conversations/{conversationId}/read
 
 当前前端已接入会话切换、消息列表、发送消息和已读标记。未读数和最后消息时间由后端返回。
 
-## 8. 设置、通知、举报和文件
+群聊管理接口见：
 
-### 8.1 隐私设置
+```text
+docs/群聊管理_API_v1.md
+```
+
+群聊管理支持群详情、改名、移除成员、退出群聊、转让群主和逻辑解散。前端在既有消息页右侧以可收起管理栏呈现，私聊不显示该入口。
+
+## 9. 设置、通知、举报和文件
+
+### 9.1 隐私设置
 
 ```http
 GET /api/v1/settings/privacy
@@ -244,7 +288,7 @@ PUT /api/v1/settings/privacy
 - `activityNotifications`：活动通知。
 - `loginAlerts`：登录提醒。
 
-### 8.2 通知
+### 9.2 通知
 
 ```http
 GET /api/v1/notifications
@@ -253,7 +297,7 @@ PUT /api/v1/notifications/{notificationId}/read
 PUT /api/v1/notifications/read-all
 ```
 
-### 8.3 举报
+### 9.3 举报
 
 ```http
 POST /api/v1/reports
@@ -266,7 +310,7 @@ POST /api/v1/reports
 - `MESSAGE`
 - `USER`
 
-### 8.4 图片上传
+### 9.4 图片上传
 
 ```http
 POST /api/v1/files/images
@@ -274,9 +318,9 @@ POST /api/v1/files/images
 
 当前图片上传支持两种方式：本地联调时将图片保存到后端本机 `uploads/images` 目录；团队联调时通过 MinIO 对象存储实现跨机器图片共享，图片统一上传到组长电脑的 MinIO bucket `whu-circle`。两种方式下接口返回格式一致，前端发布笔记时先上传图片，再把返回的 URL 放入 `imageUrls` 提交给 `/notes`。MySQL 只保存图片 URL 和排序信息，不保存图片二进制内容。`uploads` 目录已被 Git 忽略，不要提交本地上传文件。
 
-## 9. 推荐与管理接口
+## 10. 推荐与管理接口
 
-### 9.1 推荐
+### 10.1 推荐
 
 ```http
 GET /api/v1/recommendations/home
@@ -288,7 +332,7 @@ POST /api/v1/recommendations/feedback
 
 推荐系统基于多因子评分（同学院、同年级、好友圈层、标签偏好、互动热度等维度），首页混合推荐笔记、用户和频道。
 
-### 9.2 全站管理
+### 10.2 全站管理
 
 ```http
 GET /api/v1/admin/dashboard
@@ -300,7 +344,7 @@ DELETE /api/v1/admin/channel-posts/{postId}
 
 仅 `role=ADMIN` 可访问，后端双重校验权限。管理面板提供用户、频道、笔记、帖子四项统计数据。
 
-## 10. 数据库说明
+## 11. 数据库说明
 
 数据库脚本位置：
 
@@ -317,13 +361,13 @@ backend/sql/README.md
 - 演示数据使用固定 demo id，不会清空真实注册账号。
 - 每个队友都应在自己电脑上初始化本地 MySQL，不建议多人直接连组长电脑的本地数据库。
 
-## 11. 分工建议
+## 12. 分工建议
 
 - A 同学（前端）：继续微调页面样式、组件拆分、交互细节；新增字段前先确认 API 文档。
 - B 同学（后端）：维护接口实现、接口文档、认证逻辑和业务规则。
 - C 同学（数据库）：维护表结构、索引、演示数据和后续部署数据库方案。
 
-## 12. 本轮联调重点
+## 13. 本轮联调重点
 
 本轮目标是“本机可运行的初步完整版”：
 
