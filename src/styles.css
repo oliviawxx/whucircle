@@ -3277,6 +3277,16 @@ button {
   gap: 12px;
 }
 
+.recommended-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 700;
+}
+
 .user-result-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
