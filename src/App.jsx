@@ -61,8 +61,9 @@ import {
   getPostDetail,
   joinChannel as apiJoinChannel,
   createChannel as apiCreateChannel,
-  createPost as apiCreatePost, deletePost as apiDeletePost,
-  updateAnnouncement as apiUpdateAnnouncement,
+ createPost as apiCreatePost, deletePost as apiDeletePost,
+  deleteChannel as apiDeleteChannel,
+ updateAnnouncement as apiUpdateAnnouncement,
   getInitialAdminDashboard,
   applyForChannelAdmin,
   inviteChannelAdmin,
@@ -343,6 +344,7 @@ export function App() {
   const [selectedChannelId, setSelectedChannelId] = useState(null);
   const [detailChannel, setDetailChannel] = useState(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [channelDeletePending, setChannelDeletePending] = useState(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [tagsExpanded, setTagsExpanded] = useState(false);
   const [dataReady, setDataReady] = useState(false);
@@ -1689,6 +1691,16 @@ function resetDraft() {
         setChannelAdminDashboard(null);
       })
       .finally(() => setChannelAdminLoading(false));
+  }
+
+  function removeChannel() {
+    const channelId = channelDeletePending;
+    if (!channelId) return;
+    setChannels((items) => items.filter((ch) => ch.id !== channelId));
+    setChannelAdminOpen(false);
+    setChannelDeletePending(null);
+    setActiveNav("频道");
+    apiDeleteChannel(Number(channelId)).catch(() => {});
   }
 
   function reloadNotifications() {
@@ -3502,10 +3514,43 @@ function resetDraft() {
                     )}
                   </div>
                 </div>
+                {channelAdminDashboard.canReviewAdminRequests && (
+                  <div className="channel-admin-section" style={{ borderTop: "2px solid #ffd7dd", marginTop: 8 }}>
+                    <div className="panel-head">
+                      <h2 style={{ color: "#9f1d2f" }}>危险操作</h2>
+                      <span>删除后不可恢复</span>
+                    </div>
+                    <button
+                      className="danger-button"
+                      onClick={() => setChannelDeletePending(channelAdminDashboard.channel.id)}
+                    >
+                      <Prohibit size={18} />
+                      删除频道
+                    </button>
+                  </div>
+                )}
               </>
             ) : (
               <div className="empty-state">无法读取频道管理信息。</div>
             )}
+          </section>
+        </div>
+      )}
+
+      {channelDeletePending && (
+        <div className="modal-backdrop" onClick={() => setChannelDeletePending(null)}>
+          <section className="small-modal" onClick={(e) => e.stopPropagation()}>
+            <ModalHead title="删除频道" subtitle="此操作不可撤销" onClose={() => setChannelDeletePending(null)} />
+            <p style={{ padding: "14px", color: "#3f4d63", lineHeight: "1.6", margin: 0 }}>
+              确定要删除此频道吗？所有帖子、活动和成员记录都将被永久移除。
+            </p>
+            <div className="modal-actions" style={{ padding: "0 14px 14px" }}>
+              <button onClick={() => setChannelDeletePending(null)}>取消</button>
+              <button className="danger-button" onClick={removeChannel}>
+                <Prohibit size={16} />
+                确认删除
+              </button>
+            </div>
           </section>
         </div>
       )}

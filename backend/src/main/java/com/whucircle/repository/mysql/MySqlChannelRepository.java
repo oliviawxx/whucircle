@@ -64,6 +64,11 @@ public class MySqlChannelRepository implements ChannelRepository {
         for (Long userId : c.memberIds()) jdbc.sql("INSERT IGNORE INTO channel_members(channel_id,user_id,role) VALUES(:channel,:user,:role)").params(Map.of("channel",c.id(),"user",userId,"role",userId.equals(c.administratorId())?"ADMIN":"MEMBER")).update();
         return findById(c.id()).orElseThrow();
     }
+    @Override public void deleteChannel(Long channelId) {
+        jdbc.sql("DELETE FROM channel_members WHERE channel_id=:id").param("id", channelId).update();
+        jdbc.sql("DELETE FROM channel_posts WHERE channel_id=:id").param("id", channelId).update();
+        jdbc.sql("DELETE FROM channels WHERE id=:id").param("id", channelId).update();
+    }
     @Override @Transactional public Channel addMember(Long channelId, Long userId) {
         int added=jdbc.sql("INSERT IGNORE INTO channel_members(channel_id,user_id,role) VALUES(:channel,:user,'MEMBER')").params(Map.of("channel",channelId,"user",userId)).update();
         if(added>0) jdbc.sql("UPDATE channels SET member_count=member_count+1 WHERE id=:id").param("id",channelId).update();

@@ -87,6 +87,11 @@ public class ChannelController {
     public ApiResponse<JoinResponse> join(@PathVariable Long channelId, @RequestBody(required = false) JoinRequest request) {
         return ApiResponse.success(channelService.join(CurrentUser.id(), channelId, request == null ? null : request.password()));
     }
+    @DeleteMapping("/channels/{channelId}")
+    public ApiResponse<Void> deleteChannel(@PathVariable Long channelId) {
+        channelService.deleteChannel(CurrentUser.id(), channelId);
+        return ApiResponse.success();
+    }
     @GetMapping("/channels/{channelId}/posts")
     public ApiResponse<PageData<PostView>> posts(@PathVariable Long channelId,
             @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "20") int size) {

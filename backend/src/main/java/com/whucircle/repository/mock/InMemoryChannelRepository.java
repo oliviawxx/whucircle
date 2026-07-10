@@ -73,6 +73,7 @@ public class InMemoryChannelRepository implements ChannelRepository {
     @Override public List<Channel> findAll() { return channels.values().stream().sorted(Comparator.comparing(Channel::id)).toList(); }
     @Override public java.util.Optional<Channel> findById(Long id) { return java.util.Optional.ofNullable(channels.get(id)); }
     @Override public Channel save(Channel channel) { channels.put(channel.id(), channel); return channel; }
+    @Override public void deleteChannel(Long channelId) { channels.remove(channelId); }
     @Override public synchronized Channel addMember(Long channelId, Long userId) {
         Channel old = channels.get(channelId);
         if (old == null) return null;
