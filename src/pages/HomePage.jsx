@@ -1,4 +1,4 @@
-﻿import { CaretDown, Hash, MagnifyingGlass, Note, User, UserCircle } from "@phosphor-icons/react";
+﻿import { CaretDown, Hash, MagnifyingGlass, Note, Sparkle, User, UserCircle } from "@phosphor-icons/react";
 import { NotesFeed } from "../components/notes/NotesFeed.jsx";
 
 export function HomePage({
@@ -9,6 +9,8 @@ export function HomePage({
   onSearchModeChange,
   userResults,
   userSearchLoading,
+  recommendedUsers,
+  recommendedUsersLoading,
   onOpenProfile,
   tags,
   activeTag,
@@ -90,7 +92,30 @@ export function HomePage({
       {searchingUsers ? (
         <section className="user-search-panel">
           {!hasSearch ? (
-            <div className="empty-state compact"><UserCircle size={28} />输入关键词搜索用户</div>
+            recommendedUsersLoading ? (
+              <div className="empty-state compact">正在加载推荐用户...</div>
+            ) : recommendedUsers.length > 0 ? (
+              <>
+                <div className="recommended-heading">
+                  <Sparkle size={20} weight="fill" />
+                  <span>为你推荐</span>
+                </div>
+                <div className="user-result-grid">
+                  {recommendedUsers.map((user) => (
+                    <button className="user-result-card" key={user.targetId} onClick={() => onOpenProfile({ id: user.targetId, authorId: user.targetId, name: user.title, author: user.title, avatar: user.coverUrl, meta: user.subtitle })}>
+                      <img className="avatar" src={user.coverUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.title)}&background=2563eb&color=fff`} alt={`${user.title}头像`} />
+                      <div>
+                        <strong>{user.title}</strong>
+                        <span>{user.subtitle || "资料待完善"}</span>
+                        <em>{user.reason}</em>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="empty-state compact"><UserCircle size={28} />输入关键词搜索用户</div>
+            )
           ) : userSearchLoading ? (
             <div className="empty-state compact">正在搜索...</div>
           ) : userResults.length ? (

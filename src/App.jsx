@@ -112,7 +112,7 @@ import {
   deleteAdminNote,
   deleteAdminChannelPost,
 } from "./api/admin.js";
-import { getRecommendedNotes } from "./api/recommendations.js";
+import { getRecommendedNotes, getRecommendedUsers } from "./api/recommendations.js";
 import {
   getChannelEvents,
   createChannelEvent as apiCreateChannelEvent,
@@ -317,6 +317,8 @@ export function App() {
   const [relationsData, setRelationsData] = useState([]);
   const [blockedRelations, setBlockedRelations] = useState([]);
   const [recommendedNoteCards, setRecommendedNoteCards] = useState([]);
+  const [recommendedUsers, setRecommendedUsers] = useState([]);
+  const [recommendedUsersLoading, setRecommendedUsersLoading] = useState(false);
   const [adminDashboard, setAdminDashboard] = useState(null);
   const [adminLoading, setAdminLoading] = useState(false);
   const [channelAdminDashboard, setChannelAdminDashboard] = useState(null);
@@ -793,6 +795,7 @@ export function App() {
         privacyData,
         blockedData,
         recommendedNotesData,
+        recommendedUsersData,
         calendarData,
       ] = await Promise.all([
         getNotes({ scope: "PUBLIC" }).catch(() => ({ items: [] })),
@@ -805,6 +808,7 @@ export function App() {
         getPrivacy().catch(() => null),
         getBlockedUsers().catch(() => []),
         getRecommendedNotes({ page: 1, size: 30 }).catch(() => ({ items: [] })),
+        getRecommendedUsers({ page: 1, size: 20 }).catch(() => ({ items: [] })),
         apiGetCalendarEvents().catch(() => []),
       ]);
       setNotes((notesData?.items || []).map(mapNote));
@@ -854,6 +858,7 @@ export function App() {
       setProfileData(profileDataRes);
       setRelationsData(relationsDataRes || []);
       setRecommendedNoteCards(recommendedNotesData?.items || []);
+      setRecommendedUsers(recommendedUsersData?.items || []);
       const apiBlocked = blockedData?.items || blockedData || [];
       setBlockedRelations(apiBlocked);
       if (apiBlocked.length > 0) {
@@ -982,6 +987,18 @@ export function App() {
     }, 260);
     return () => window.clearTimeout(timer);
   }, [searchMode, searchTerm]);
+
+  // 当切换到用户搜索模式且无关键词时，加载推荐用户
+  useEffect(() => {
+    if (searchMode !== "users" || searchTerm.trim()) {
+      return;
+    }
+    setRecommendedUsersLoading(true);
+    getRecommendedUsers({ page: 1, size: 20 })
+      .then((data) => setRecommendedUsers(data?.items || []))
+      .catch(() => setRecommendedUsers([]))
+      .finally(() => setRecommendedUsersLoading(false));
+  }, [searchMode]);
 
   // 认证处理函数
   function handleSendCode() {
@@ -2465,6 +2482,8 @@ function resetDraft() {
             onSearchModeChange={setSearchMode}
             userResults={userSearchResults}
             userSearchLoading={userSearchLoading}
+            recommendedUsers={recommendedUsers}
+            recommendedUsersLoading={recommendedUsersLoading}
             onOpenProfile={openUserProfile}
             tags={tagsList}
             activeTag={activeTag}
