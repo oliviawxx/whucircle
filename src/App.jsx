@@ -9,6 +9,7 @@ import {
   ChatCircle,
   ChatsCircle,
   Crown,
+  Check,
   CheckCircle,
   DotsThree,
   Flag,
@@ -346,6 +347,7 @@ export function App() {
   const [selectedChannelId, setSelectedChannelId] = useState(null);
   const [detailChannel, setDetailChannel] = useState(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notificationActionIds, setNotificationActionIds] = useState(() => new Set());
   const [channelDeletePending, setChannelDeletePending] = useState(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [tagsExpanded, setTagsExpanded] = useState(false);
@@ -837,13 +839,15 @@ export function App() {
                 return !deleted.includes(p.id);
               });
           } catch {}
-          try {
-            const eventsData = await getChannelEvents(Number(channel.id), {
-              page: 1,
-              size: 20,
-            });
-            events = (eventsData?.items || []).map(mapChannelEvent);
-          } catch {}
+          if (channel.joined || channel.isAdmin || channel.isChannelAdmin) {
+            try {
+              const eventsData = await getChannelEvents(Number(channel.id), {
+                page: 1,
+                size: 20,
+              });
+              events = (eventsData?.items || []).map(mapChannelEvent);
+            } catch {}
+          }
           return { ...channel, posts, events };
         }),
       ).then((channelsWithPosts) => setChannels(channelsWithPosts));
@@ -1924,12 +1928,29 @@ function resetDraft() {
   }
 
   function handleChannelAdminNotification(requestId, action) {
+    if (!requestId) return;
+    const actionKey = `${requestId}:${action}`;
+    setNotificationActionIds((items) => new Set(items).add(actionKey));
     handleChannelAdminRequest(Number(requestId), action)
       .then(() => {
+        setNotifications((items) =>
+          items.map((item) =>
+            String(item.targetId) === String(requestId)
+              ? { ...item, unread: false }
+              : item,
+          ),
+        );
         reloadNotifications();
         loadAllData();
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() =>
+        setNotificationActionIds((items) => {
+          const next = new Set(items);
+          next.delete(actionKey);
+          return next;
+        }),
+      );
   }
 
   // 用户操作
@@ -2688,39 +2709,38 @@ function resetDraft() {
           />
         );
       case "设置":
-      case "通知":
         return (
-          <section className="section-card settings-page">
-            <div className="section-head">
-              <div>
-                <p>通知中心</p>
-                <h2>消息与提醒</h2>
-                <span>点赞、评论、收藏、频道管理相关通知</span>
-              </div>
-              <button className="ghost-button small" disabled={!notifications.some(n => n.unread)} onClick={() => apiMarkAllNotificationsRead().catch(() => {}).finally(() => setNotifications(items => items.map(item => ({ ...item, unread: false }))))}>全部已读</button>
-              <button className="ghost-button small" onClick={refreshNotifications} style={{ marginRight: 8 }}>刷新</button>
-            </div>
-            <div className="settings-grid" style={{ marginTop: 0 }}>
-              <div className="notification-list page-mode">
-                {notifications.length === 0 ? <div className="empty-state compact">暂无通知</div> : notifications.map(item => <article className={"notification-item" + (item.unread ? " unread" : "")} key={item.id}>
-                  <div className="notification-icon">{item.type === "like" && <Heart size={18} weight="fill" />}{item.type === "comment" && <ChatCircle size={18} weight="fill" />}{item.type === "save" && <BookmarkSimple size={18} weight="fill" />}{item.type === "channel-admin" && <ShieldCheck size={18} weight="fill" />}</div>
-                  <div><p><strong>{item.user}</strong>{item.action}</p><span>{item.target} &middot; {item.time}</span>{item.rawType === "CHANNEL_ADMIN_INVITE" && <div className="notification-actions"><button onClick={() => handleChannelAdminNotification?.(item.targetId, "ACCEPT")}><Check size={13} />接受</button><button onClick={() => handleChannelAdminNotification?.(item.targetId, "DECLINE")}><X size={13} />拒绝</button></div>}</div>
-                  {item.unread && <button className="notification-read" title="标为已读" onClick={() => markNotificationRead(item.id)}><Check size={14} /></button>}
-                </article>)}
-              </div>
-            </div>
-          </section>
-        );
-       return (
-         <SettingsPage
-           privacy={privacy}
-           onPrivacyChange={updatePrivacyField}
+          <SettingsPage
+            privacy={privacy}
+            onPrivacyChange={updatePrivacyField}
             blockedUsers={blockedRelations}
             onRelationAction={changeRelation}
             themes={themeOptions}
             activeTheme={activeTheme}
             onThemeChange={setActiveTheme}
           />
+        );
+      case "通知":
+        return (
+          <section className="section-card notification-page">
+            <div className="section-head notification-page-head">
+              <div>
+                <p>通知中心</p>
+                <h2>消息与提醒</h2>
+                <span>点赞、评论、收藏、频道管理相关通知</span>
+              </div>
+              <div className="notification-page-tools">
+                <button className="ghost-button small" disabled={!notifications.some(n => n.unread)} onClick={() => apiMarkAllNotificationsRead().catch(() => {}).finally(() => setNotifications(items => items.map(item => ({ ...item, unread: false }))))}>全部已读</button>
+                <button className="ghost-button small" onClick={refreshNotifications}>刷新</button>
+              </div>
+            </div>
+            <div className="notification-list notification-page-list">
+                {notifications.length === 0 ? <div className="empty-state compact">暂无通知</div> : notifications.map(item => <article className={"notification-item" + (item.unread ? " unread" : "")} key={item.id} onClick={() => item.unread && markNotificationRead(item.id)}>
+                  <div className="notification-icon">{item.type === "like" && <Heart size={18} weight="fill" />}{item.type === "comment" && <ChatCircle size={18} weight="fill" />}{item.type === "save" && <BookmarkSimple size={18} weight="fill" />}{item.type === "channel-admin" && <ShieldCheck size={18} weight="fill" />}</div>
+                  <div><p><strong>{item.user}</strong>{item.action}</p><span>{item.target} &middot; {item.time}</span>{item.rawType === "CHANNEL_ADMIN_INVITE" && <div className="notification-actions"><button onClick={(e) => { e.stopPropagation(); handleChannelAdminNotification?.(item.targetId, "ACCEPT"); }} disabled={notificationActionIds.has(`${item.targetId}:ACCEPT`) || notificationActionIds.has(`${item.targetId}:DECLINE`)}><Check size={13} />{notificationActionIds.has(`${item.targetId}:ACCEPT`) ? "处理中" : "接受"}</button><button onClick={(e) => { e.stopPropagation(); handleChannelAdminNotification?.(item.targetId, "DECLINE"); }} disabled={notificationActionIds.has(`${item.targetId}:ACCEPT`) || notificationActionIds.has(`${item.targetId}:DECLINE`)}><X size={13} />{notificationActionIds.has(`${item.targetId}:DECLINE`) ? "处理中" : "拒绝"}</button></div>}</div>
+                </article>)}
+            </div>
+          </section>
         );
       case "频道详情": {
         const dc = channels.find((ch) => String(ch.id) === String(detailChannel));
