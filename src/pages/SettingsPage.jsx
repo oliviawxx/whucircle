@@ -1,5 +1,6 @@
 ﻿import { Bell, Eye, LockKey, MagnifyingGlass, Palette, ShieldCheck, Sparkle } from "@phosphor-icons/react";
 import { UserPlus } from "@phosphor-icons/react";
+import { avatarUrl } from "../utils/avatar.js";
 
 function SettingSegment({ label, description, value, options, onChange }) {
   return (
@@ -135,9 +136,7 @@ export function SettingsPage({ privacy, onPrivacyChange, blockedUsers, themes, a
                 const userId = user.id || user.userId;
                 return (
                   <div className="block-row" key={userId ?? user.nickname ?? user.name}>
-                    {user.avatarUrl || user.avatar ? (
-                      <img className="avatar tiny" src={user.avatarUrl || user.avatar} alt="" />
-                    ) : null}
+                    <img className="avatar tiny" src={avatarUrl(user.avatarUrl || user.avatar)} alt="" />
                     <span>{user.nickname || user.name || "用户"}</span>
                     {userId && onRelationAction ? (
                       <button

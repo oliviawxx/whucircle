@@ -1,5 +1,6 @@
 ﻿import { CaretDown, Hash, MagnifyingGlass, Note, Sparkle, User, UserCircle } from "@phosphor-icons/react";
 import { NotesFeed } from "../components/notes/NotesFeed.jsx";
+import { avatarUrl } from "../utils/avatar.js";
 
 export function HomePage({
   notes,
@@ -103,7 +104,7 @@ export function HomePage({
                 <div className="user-result-grid">
                   {recommendedUsers.map((user) => (
                     <button className="user-result-card" key={user.targetId} onClick={() => onOpenProfile({ id: user.targetId, authorId: user.targetId, name: user.title, author: user.title, avatar: user.coverUrl, meta: user.subtitle })}>
-                      <img className="avatar" src={user.coverUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.title)}&background=2563eb&color=fff`} alt={`${user.title}头像`} />
+                      <img className="avatar" src={avatarUrl(user.coverUrl)} alt={`${user.title}头像`} />
                       <div>
                         <strong>{user.title}</strong>
                         <span>{user.subtitle || "资料待完善"}</span>
@@ -122,7 +123,7 @@ export function HomePage({
             <div className="user-result-grid">
               {userResults.map((user) => (
                 <button className="user-result-card" key={user.id} onClick={() => onOpenProfile(user)}>
-                  <img className="avatar" src={user.avatarUrl || user.avatar} alt={`${user.nickname || user.author}头像`} />
+                  <img className="avatar" src={avatarUrl(user.avatarUrl || user.avatar)} alt={`${user.nickname || user.author}头像`} />
                   <div>
                     <strong>{user.nickname || user.author}</strong>
                     <span>{[user.grade, user.college].filter(Boolean).join(" · ") || "资料待完善"}</span>

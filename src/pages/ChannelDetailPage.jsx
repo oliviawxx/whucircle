@@ -3,6 +3,7 @@ import { ArrowLeft, Calendar, CaretDown, CaretUp, ChatCircle, Check, Flag, Hash,
 import { useEffect } from "react";
 import { getChannelMembers } from "../api/channels.js";
 import { IconButton } from "../components/common/IconButton.jsx";
+import { avatarUrl } from "../utils/avatar.js";
 
 const DETAIL_TABS = [
   { key: "posts", label: "帖子", icon: PaperPlaneTilt },
@@ -357,7 +358,7 @@ export function ChannelDetailPage({
             <div className="channel-members-list">
               {members.map((member) => (
                 <div className="member-row" key={member.id}>
-                  <img className="avatar tiny" src={member.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.nickname)}&background=2563eb&color=fff`} alt={member.nickname} />
+                  <img className="avatar tiny" src={avatarUrl(member.avatarUrl)} alt={member.nickname} />
                   <div>
                     <strong>{member.nickname}</strong>
                     <span>{member.role === "ADMIN" ? "管理员" : member.college || member.grade ? [member.college, member.grade].filter(Boolean).join(" ") : "成员"}</span>

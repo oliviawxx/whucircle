@@ -180,11 +180,9 @@ import {
   tags,
 } from "./data/mockData.js";
 import { filterNotes, getSocialNotes } from "./utils/noteFilters.js";
+import { DEFAULT_AVATAR } from "./utils/avatar.js";
 
-const DEFAULT_AVATAR =
-  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=160&q=80";
-
-const DEMO_USER = { ...DEMO_USER_RAW, id: null };
+const DEMO_USER = { ...DEMO_USER_RAW, id: null, avatar: DEFAULT_AVATAR };
 
 const VIS_MAP = { PUBLIC: "公开", FRIENDS: "好友可见", PRIVATE: "私密" };
 const VIS_REV = { 公开: "PUBLIC", 好友可见: "FRIENDS", 私密: "PRIVATE" };
