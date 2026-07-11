@@ -317,7 +317,7 @@ class ApiIntegrationTest {
     }
 
     @Test
-    void imageUploadStoresLocalFileAndReturnsUploadUrl() throws Exception {
+    void imageUploadStoresLocalFileAndReturnsBackendProxyUrl() throws Exception {
         MockMultipartFile image = new MockMultipartFile(
                 "file",
                 "campus.png",
@@ -326,10 +326,11 @@ class ApiIntegrationTest {
         );
 
         mockMvc.perform(multipart("/api/v1/files/images")
-                        .file(image)
+                .file(image)
                         .header("Authorization", AUTH))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.url").value(org.hamcrest.Matchers.startsWith("/uploads/images/")));
+                .andExpect(jsonPath("$.data.url").value(org.hamcrest.Matchers.matchesPattern(
+                        ".*/api/v1/files/images/\\d{4}/\\d{2}/[0-9a-f-]+\\.png$")));
     }
 
     @Test

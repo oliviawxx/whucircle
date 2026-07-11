@@ -126,6 +126,43 @@ foreach ($processId in $processIds) { Stop-Process -Id $processId -Force }
 
 ## 检查命令
 
+### 使用 Makefile 统一构建
+
+项目根目录提供 `Makefile`，用于统一执行前端 Vite 构建和后端 Maven 构建。
+
+Windows 首次使用时安装 GNU Make：
+
+```powershell
+winget install --id GnuWin32.Make --exact
+```
+
+安装完成后重新打开 PowerShell，在项目根目录执行：
+
+```powershell
+cd D:\whu-circle-prototype
+make
+```
+
+默认的 `make` 等价于 `make build`，依次执行：
+
+1. 检查 Node.js、npm、JDK 和 Maven。
+2. 使用 Vite 编译前端，产物写入 `dist/`。
+3. 使用 Maven 编译并打包后端，产物写入 `backend/target/`。
+
+常用目标：
+
+```powershell
+make install        # 安装并预下载前后端依赖
+make build          # 构建前端和后端
+make test           # 运行后端自动化测试
+make clean          # 删除构建产物
+make frontend-dev   # 启动前端开发服务器
+make backend-dev    # 从 backend/.env 加载配置并启动后端
+make help           # 查看命令说明
+```
+
+`make build` 只执行编译和打包，不要求 MySQL、MinIO 或前后端服务已经启动；`make backend-dev` 使用 MySQL Profile，启动前需要保证数据库和 `backend/.env` 配置可用。
+
 前端构建：
 
 ```powershell

@@ -14,4 +14,6 @@ if (Test-Path $envFile) {
   }
 }
 
+Set-Location $PSScriptRoot
 mvn spring-boot:run "-Dspring-boot.run.profiles=mysql"
+exit $LASTEXITCODE
