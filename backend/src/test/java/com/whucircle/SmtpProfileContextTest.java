@@ -13,6 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         "MAIL_USERNAME=test-sender@qq.com",
         "MAIL_AUTH_CODE=test-authorization-code",
         "MAIL_FROM=test-sender@qq.com",
+        "whu-circle.storage.type=local",
         "server.port=0"
 })
 @ActiveProfiles({"mock", "smtp"})

@@ -24,11 +24,19 @@ whu-circle-prototype/
 ├─ backend/                     Spring Boot 后端
 │  ├─ src/main/java/com/whucircle/
 │  └─ sql/                      MySQL 建表和演示数据
-├─ docs/archive/                旧版方案文档归档
+├─ docs/                        项目文档
+│  ├─ design/                   当前系统设计说明书
+│  ├─ api/                      API 与联调约定
+│  ├─ guides/                   数据库、MinIO 等过程文档
+│  ├─ report/                   实践报告模板及 Markdown 转换版
+│  ├─ screenshots/              联调与问题截图
+│  └─ archive/                  早期方案和历史版本归档
 ├─ logs/                        本地运行日志归档
 ├─ README.md                    项目启动和协作说明
-└─ WHU_Circle_后端API开发清单.md  API 与联调说明
+└─ Makefile                     前后端统一构建入口
 ```
+
+完整文档导航见 [`docs/README.md`](docs/README.md)。
 
 ## 本地环境
 
@@ -183,4 +191,4 @@ mvn test
 - 数据库只初始化本机，不需要连接组长电脑的数据库。
 - 不要提交 `backend/.env`、本地日志、数据库密码和邮箱授权码。
 - 开发页面时尽量通过 `src/api` 中已有方法调用后端，避免在组件里直接写完整接口地址。
-- 如果接口字段需要调整，先更新 `WHU_Circle_后端API开发清单.md`，再修改前后端代码。
+- 如果接口字段需要调整，先更新 `docs/api/WHU_Circle_后端API开发清单.md`，再修改前后端代码。

@@ -22,7 +22,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @AutoConfigureMockMvc
 @SpringBootTest
-@TestPropertySource(properties = "whu-circle.upload.image-dir=target/test-uploads/images")
+@TestPropertySource(properties = {
+        "whu-circle.storage.type=local",
+        "whu-circle.upload.image-dir=target/test-uploads/images"
+})
 class ApiIntegrationTest {
     private static final String AUTH = "Bearer demo-access-token";
 
